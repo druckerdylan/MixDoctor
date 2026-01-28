@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-mix-darker text-gray-100 min-h-screen;
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-mix-primary hover:bg-mix-secondary text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Clean card - no border, subtle background */
+  .card {
+    @apply bg-mix-surface rounded-2xl p-6;
+  }
+
+  /* Elevated card for important sections */
+  .card-elevated {
+    @apply bg-mix-muted rounded-2xl p-6;
+  }
+
+  /* Interactive card - has subtle hover state */
+  .card-interactive {
+    @apply bg-mix-surface rounded-xl p-4 transition-colors hover:bg-mix-muted cursor-pointer;
+  }
+
+  .input-field {
+    @apply w-full bg-mix-darker border border-gray-700/50 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-mix-primary focus:ring-1 focus:ring-mix-primary transition-colors;
+  }
+
+  .severity-critical {
+    @apply bg-red-900/20 text-red-300;
+  }
+
+  .severity-warning {
+    @apply bg-amber-900/20 text-amber-300;
+  }
+
+  .severity-info {
+    @apply bg-blue-900/20 text-blue-300;
+  }
+
+  /* Text styles for cleaner hierarchy */
+  .text-muted {
+    @apply text-gray-500;
+  }
+
+  .text-subtle {
+    @apply text-gray-400;
+  }
+}

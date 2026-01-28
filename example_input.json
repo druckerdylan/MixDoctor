@@ -1,0 +1,82 @@
+{
+  "genre": "indie rock",
+  "reference_tracks": ["Arctic Monkeys - Do I Wanna Know", "The Black Keys - Lonely Boy"],
+  "target_platform": "Spotify",
+
+  "integrated_lufs": -11.2,
+  "short_term_lufs": -9.5,
+  "true_peak": -0.2,
+  "lra": 5.8,
+  "crest_factor": 8.2,
+
+  "stems": {
+    "drums": {"peak_db": -3.2, "rms_db": -14.5},
+    "bass": {"peak_db": -6.1, "rms_db": -16.2},
+    "vocals": {"peak_db": -4.8, "rms_db": -18.3},
+    "music_bus": {"peak_db": -2.1, "rms_db": -12.8}
+  },
+
+  "spectrum": {
+    "sub_20_60": -8.2,
+    "low_60_120": -2.1,
+    "low_mid_120_350": 2.4,
+    "mid_350_2k": 0.8,
+    "presence_2k_6k": -1.2,
+    "air_6k_16k": -4.8
+  },
+
+  "tonal_balance_deviation": {
+    "sub": -2.1,
+    "low": 1.8,
+    "low_mid": 4.2,
+    "mid": 0.5,
+    "presence": -2.8,
+    "air": -3.2
+  },
+
+  "resonances": [
+    {"freq_hz": 240, "q": 8.5, "severity": "high", "timestamps": ["0:45", "1:32", "2:15"]},
+    {"freq_hz": 3200, "q": 6.2, "severity": "medium", "timestamps": ["throughout"]},
+    {"freq_hz": 420, "q": 4.8, "severity": "low", "timestamps": ["chorus sections"]}
+  ],
+
+  "stereo": {
+    "correlation": 0.42,
+    "width_by_band": {
+      "low": 0.15,
+      "mid": 0.68,
+      "high": 0.85
+    },
+    "mid_side_balance": {
+      "low": {"mid": -2.1, "side": -18.5},
+      "mid_band": {"mid": -4.2, "side": -6.8},
+      "high": {"mid": -6.5, "side": -5.2}
+    }
+  },
+
+  "transients": {
+    "kick_transient_score": 0.45,
+    "snare_transient_score": 0.62,
+    "limiter_gr_db": -4.8,
+    "clipping_flags": false
+  },
+
+  "masking": [
+    "vocals masked by guitars 2-4kHz",
+    "kick masked by bass 60-100Hz"
+  ],
+
+  "flags": {
+    "sibilance": false,
+    "harshness": true,
+    "mud": true,
+    "phase_issues": false,
+    "mono_compatibility": "warning"
+  },
+
+  "arrangement_notes": [
+    {"section": "bridge", "issue": "energy_drop", "timestamp": "2:45-3:15"}
+  ],
+
+  "user_notes": "Vocals feel buried in the chorus. Kick doesn't punch through on smaller speakers. Overall sounds muddy and congested."
+}
