@@ -154,8 +154,13 @@ async def analyze_mix(
 
         # Analyze audio
         try:
+            print(f"Analyzing audio file: {temp_file.name}")
             metrics = analyze_audio(temp_file.name)
+            print(f"Audio analysis complete: {metrics.integrated_lufs} LUFS")
         except Exception as e:
+            import traceback
+            print(f"Audio analysis error: {str(e)}")
+            print(traceback.format_exc())
             raise HTTPException(
                 status_code=422,
                 detail=f"Failed to analyze audio: {str(e)}",
@@ -202,6 +207,9 @@ async def analyze_mix(
                 reference_metrics=reference_metrics,
             )
         except Exception as e:
+            import traceback
+            print(f"AI analysis error: {str(e)}")
+            print(traceback.format_exc())
             raise HTTPException(
                 status_code=500,
                 detail=f"AI analysis failed: {str(e)}",
