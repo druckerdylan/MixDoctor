@@ -418,7 +418,14 @@ def analyze_with_claude(
     reference_metrics: Optional[AudioMetrics] = None,
 ) -> AnalysisResult:
     """Send metrics to Claude and parse the response."""
-    client = Anthropic()
+    import httpx
+
+    # Create client with longer timeout for Railway
+    client = Anthropic(
+        timeout=httpx.Timeout(120.0, connect=30.0)
+    )
+
+    print(f"Calling Claude API with model claude-sonnet-4-20250514...")
 
     prompt = build_analysis_prompt(metrics, genre, reference, user_plugins, user_history, reference_metrics)
 
@@ -712,7 +719,12 @@ def analyze_stems_with_claude(
     user_plugins: Optional[List[Any]] = None,
 ) -> StemsAnalysisResult:
     """Send stems metrics to Claude and parse the response."""
-    client = Anthropic()
+    import httpx
+
+    # Create client with longer timeout for Railway
+    client = Anthropic(
+        timeout=httpx.Timeout(120.0, connect=30.0)
+    )
 
     prompt = build_stems_analysis_prompt(stems, interactions, genre, user_plugins)
 
