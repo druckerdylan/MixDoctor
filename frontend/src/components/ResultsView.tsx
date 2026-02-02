@@ -277,7 +277,7 @@ interface StartHereFixCardProps {
   onToggleComplete: () => void;
 }
 
-function StartHereFixCard({ fix, index, isCompleted, onToggleComplete }: StartHereFixCardProps) {
+function StartHereFixCard({ fix, index: _index, isCompleted, onToggleComplete }: StartHereFixCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const getQuickAction = (suggestion: string): string => {
