@@ -1,5 +1,5 @@
-/// <reference types="vite/client" />
-
 // API configuration
-// In development, uses localhost. In production, uses the environment variable.
-export const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8000';
+const isDev = window.location.hostname === 'localhost';
+export const API_BASE = isDev
+  ? 'http://localhost:8000'
+  : 'https://mixdoctor-production.up.railway.app';
