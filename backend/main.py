@@ -75,6 +75,26 @@ async def health_check():
     return HealthResponse(status="healthy", version="1.0.0")
 
 
+@app.get("/test-ai")
+async def test_ai():
+    """Test if Claude API is working."""
+    try:
+        from anthropic import Anthropic
+        import httpx
+
+        client = Anthropic(timeout=httpx.Timeout(30.0, connect=10.0))
+
+        message = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=50,
+            messages=[{"role": "user", "content": "Say 'API working' in 3 words or less"}]
+        )
+        return {"status": "success", "response": message.content[0].text}
+    except Exception as e:
+        import traceback
+        return {"status": "error", "error": str(e), "traceback": traceback.format_exc()}
+
+
 # Bearer token extraction for optional auth
 security = HTTPBearer(auto_error=False)
 
