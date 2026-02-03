@@ -58,8 +58,9 @@ export function useAnalysis(): UseAnalysisReturn {
       setResult(data);
       setStatus('complete');
     } catch (err) {
+      console.error('Analyze error:', err, 'API_BASE:', API_BASE);
       if (err instanceof TypeError && err.message === 'Failed to fetch') {
-        setError('Unable to connect to the server. Please make sure the backend is running.');
+        setError(`Connection failed to ${API_BASE}. Check browser console (F12) for details.`);
       } else {
         setError(err instanceof Error ? err.message : 'An unexpected error occurred');
       }
