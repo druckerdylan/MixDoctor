@@ -82,7 +82,14 @@ async def test_ai():
         from anthropic import Anthropic
         import httpx
 
-        client = Anthropic(timeout=httpx.Timeout(30.0, connect=10.0))
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            return {"status": "error", "error": "ANTHROPIC_API_KEY not set"}
+
+        client = Anthropic(
+            api_key=api_key,
+            timeout=httpx.Timeout(30.0, connect=10.0)
+        )
 
         message = client.messages.create(
             model="claude-sonnet-4-20250514",

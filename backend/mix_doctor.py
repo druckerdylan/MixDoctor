@@ -419,9 +419,15 @@ def analyze_with_claude(
 ) -> AnalysisResult:
     """Send metrics to Claude and parse the response."""
     import httpx
+    import os
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise Exception("ANTHROPIC_API_KEY environment variable not set")
 
     # Create client with longer timeout for Railway
     client = Anthropic(
+        api_key=api_key,
         timeout=httpx.Timeout(120.0, connect=30.0)
     )
 
@@ -720,9 +726,15 @@ def analyze_stems_with_claude(
 ) -> StemsAnalysisResult:
     """Send stems metrics to Claude and parse the response."""
     import httpx
+    import os
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise Exception("ANTHROPIC_API_KEY environment variable not set")
 
     # Create client with longer timeout for Railway
     client = Anthropic(
+        api_key=api_key,
         timeout=httpx.Timeout(120.0, connect=30.0)
     )
 
