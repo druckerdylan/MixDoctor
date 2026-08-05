@@ -15,6 +15,7 @@ Measurement only. No thresholds, no genre knowledge, no verdicts.
 
 from __future__ import annotations
 
+import logging
 import math
 from typing import Dict, List, Optional, Tuple
 
@@ -33,10 +34,13 @@ from ..core import (
     bandpass,
     clamp,
     envelope,
+    frame_signal,
     frame_times,
     merge_spans,
 )
 from ..types import Moment, TransientMeasurement
+
+logger = logging.getLogger(__name__)
 
 __all__ = ["measure_transients"]
 
@@ -124,6 +128,92 @@ def _empty(tempo: float = 0.0) -> TransientMeasurement:
 # ---------------------------------------------------------------------------
 # Signal preparation
 # ---------------------------------------------------------------------------
+
+
+def _onset_strength_numpy(y: np.ndarray, sr: int) -> np.ndarray:
+    """Spectral-flux onset envelope, numpy and scipy only.
+
+    librosa's own onset functions route through numba, and numba is the part of
+    this stack most likely to be missing or unable to JIT on a host we do not
+    control — which is exactly what happened in production: the whole transient
+    dimension silently read zero onsets on Railway while measuring correctly
+    here. Half-wave-rectified spectral flux is the textbook method librosa
+    implements anyway, so this is a faithful fallback rather than a lesser one.
+    """
+    n_fft = 2048
+    frames = frame_signal(np.ascontiguousarray(y, dtype=np.float64), n_fft, ONSET_HOP)
+    if frames.shape[0] < 2:
+        return np.zeros(0)
+
+    mag = np.abs(np.fft.rfft(frames * np.hanning(n_fft), axis=1))
+    # Log-compress before differencing: onsets are a ratio change, not an
+    # absolute one, so a quiet hi-hat should count as much as a loud kick.
+    logmag = np.log1p(mag * 1000.0)
+    flux = np.diff(logmag, axis=0)
+    strength = np.maximum(flux, 0.0).sum(axis=1)
+
+    # Subtract a local median so a rising arrangement doesn't read as onsets.
+    win = 9
+    if strength.size > win:
+        pad = win // 2
+        padded = np.pad(strength, pad, mode="edge")
+        local = np.median(np.lib.stride_tricks.sliding_window_view(padded, win), axis=-1)
+        strength = np.maximum(strength - local, 0.0)
+
+    return np.concatenate([[0.0], strength])
+
+
+def _onsets_numpy(strength: np.ndarray, sr: int) -> np.ndarray:
+    """Peak-pick an onset envelope into onset times, in seconds."""
+    if strength.size < 3:
+        return np.zeros(0)
+
+    # Adaptive threshold: mean plus a fraction of the spread, so the same code
+    # works on a sparse ballad and a dense drum loop.
+    thresh = strength.mean() + 0.6 * strength.std()
+    if not np.isfinite(thresh) or thresh <= 0:
+        return np.zeros(0)
+
+    above = strength > thresh
+    peaks = above & (strength >= np.roll(strength, 1)) & (strength > np.roll(strength, -1))
+    peaks[0] = peaks[-1] = False
+    idx = np.flatnonzero(peaks)
+    if idx.size == 0:
+        return np.zeros(0)
+
+    # Debounce: two onsets closer than 50 ms are one event.
+    min_gap = max(1, int(0.050 * sr / ONSET_HOP))
+    keep = [idx[0]]
+    for i in idx[1:]:
+        if i - keep[-1] >= min_gap:
+            keep.append(i)
+    return np.asarray(keep, dtype=np.float64) * ONSET_HOP / sr
+
+
+def _tempo_numpy(strength: np.ndarray, sr: int) -> float:
+    """Tempo by autocorrelating the onset envelope over 60-200 BPM."""
+    if strength.size < 16:
+        return 0.0
+
+    span = int(TEMPO_WINDOW_SEC * sr / ONSET_HOP)
+    if strength.size > span:
+        start = (strength.size - span) // 2
+        strength = strength[start : start + span]
+
+    x = strength - strength.mean()
+    if not np.any(x):
+        return 0.0
+
+    ac = np.correlate(x, x, mode="full")[x.size - 1 :]
+    frames_per_sec = sr / ONSET_HOP
+    lo = int(frames_per_sec * 60.0 / 200.0)   # 200 BPM
+    hi = int(frames_per_sec * 60.0 / 60.0)    # 60 BPM
+    lo, hi = max(lo, 1), min(hi, ac.size - 1)
+    if hi <= lo:
+        return 0.0
+
+    lag = lo + int(np.argmax(ac[lo:hi]))
+    return float(60.0 * frames_per_sec / lag) if lag > 0 else 0.0
 
 
 def _beat_track(strength: np.ndarray, sr: int) -> float:
@@ -391,9 +481,19 @@ def measure_transients(buf: AudioBuffer) -> TransientMeasurement:
 
     y32 = np.asarray(mono, dtype=np.float32)
 
-    # --- onsets and tempo, both via librosa --------------------------------
+    # --- onsets and tempo ---------------------------------------------------
+    #
+    # librosa first, numpy spectral flux if it fails. The fallback is not
+    # cosmetic: librosa's onset path goes through numba, numba could not JIT on
+    # the production host, and the failure was being swallowed here — so the
+    # whole transient dimension read "no onsets" and the detector reported it
+    # as *clean*. Claiming someone's drums are fine because the measurement
+    # crashed is the worst thing this file could do, so a total failure now
+    # raises and lets the engine record it as unassessed.
     onset_times = np.zeros(0)
     tempo = 0.0
+    librosa_failed: Optional[Exception] = None
+
     try:
         import librosa
 
@@ -407,9 +507,25 @@ def measure_transients(buf: AudioBuffer) -> TransientMeasurement:
         try:
             tempo = _f(np.atleast_1d(_beat_track(strength, sr))[0], 0.0, 0.0, 400.0)
         except Exception:
-            tempo = 0.0
-    except Exception:
-        onset_times = np.zeros(0)
+            tempo = _f(_tempo_numpy(np.asarray(strength, dtype=np.float64), sr), 0.0, 0.0, 400.0)
+    except Exception as exc:
+        librosa_failed = exc
+        logger.warning(
+            "transients: librosa onset detection unavailable (%s: %s); "
+            "falling back to numpy spectral flux",
+            type(exc).__name__, exc,
+        )
+        try:
+            strength = _onset_strength_numpy(mono, sr)
+            onset_times = _onsets_numpy(strength, sr)
+            tempo = _f(_tempo_numpy(strength, sr), 0.0, 0.0, 400.0)
+        except Exception as fallback_exc:
+            # Both paths gone. Raising is deliberate: the engine turns this
+            # into a recorded warning and an "unassessed" dimension, which is
+            # honest, where returning zeros reads as a clean bill of health.
+            raise RuntimeError(
+                f"onset detection failed (librosa: {librosa_failed}; numpy: {fallback_exc})"
+            ) from fallback_exc
 
     onset_density = _f(onset_times.size / duration if duration > 0 else 0.0, 0.0, 0.0, 200.0)
 

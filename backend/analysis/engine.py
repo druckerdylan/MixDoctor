@@ -324,6 +324,59 @@ def _stage(
     return result
 
 
+# Which dimensions become meaningless when a given measurement stage dies.
+# A neutral fallback measurement is all zeros, and zeros are indistinguishable
+# from a genuinely calm reading — so the detector scores a crashed stage as
+# "clean". Production hit exactly that: librosa could not JIT on the host, the
+# transient stage returned zeros, and the report told the user their drums were
+# fine. A dimension nobody measured has to say so.
+_STAGE_DIMENSIONS: Dict[str, Tuple[str, ...]] = {
+    "loudness": ("loudness", "limiter"),
+    "clipping": ("clipping",),
+    "spectral": ("frequency_balance", "mud", "harshness"),
+    "stereo": ("stereo_width",),
+    "phase": ("phase",),
+    "dynamics": ("dynamic_range", "compression"),
+    "transients": ("transients",),
+    "low_end": ("low_end",),
+    "vocal": ("vocal_balance",),
+    "clarity": ("clarity",),
+}
+
+_UNASSESSED_SCORE = 70.0
+
+
+def _mark_unassessed(
+    dimensions: List[DimensionScore],
+    timings: Dict[str, float],
+    warnings: List[str],
+) -> None:
+    """Downgrade any dimension whose measurement stage failed.
+
+    `_stage` already appended a warning naming the stage; this makes the
+    dimension itself honest so the UI and the AI layer both see "unassessed"
+    rather than a confident green tick. The score is neutral rather than zero:
+    a stage we could not run is not evidence of a problem, and should not drag
+    the health score down any more than it should prop it up.
+    """
+    failed = {
+        name for name in _STAGE_DIMENSIONS
+        if any(f"The {name} measurement could not be completed" in w for w in warnings)
+    }
+    if not failed:
+        return
+
+    affected = {dim for stage in failed for dim in _STAGE_DIMENSIONS[stage]}
+    for dimension in dimensions:
+        if dimension.dimension in affected:
+            dimension.score = _UNASSESSED_SCORE
+            dimension.severity = "minor"
+            dimension.headline = (
+                "Not assessed — this measurement could not be completed on this file."
+            )
+            dimension.finding_ids = []
+
+
 def _neutral_loudness() -> LoudnessMeasurement:
     return LoudnessMeasurement(
         integrated_lufs=-70.0, momentary_max_lufs=-70.0, short_term_max_lufs=-70.0,
@@ -1204,6 +1257,7 @@ def analyze_mix_detailed(
     t0 = time.perf_counter()
     findings = detectors.detect_all(measurements, genre_key)
     dimensions = detectors.score_dimensions(findings, measurements, genre_key)
+    _mark_unassessed(dimensions, timings, warnings)
     timings["detect"] = round((time.perf_counter() - t0) * 1000.0, 1)
 
     # 4. Roll up.
