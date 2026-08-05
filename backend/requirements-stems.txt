@@ -1,0 +1,25 @@
+# Optional: source separation (the "deep analysis" toggle).
+#
+# Deliberately NOT in requirements.txt. These add roughly 800 MB to the image
+# and htdemucs wants a couple of GB of RAM while it runs, which OOMs a small
+# dyno. The default deployment ships without them and the app notices:
+# analysis/dsp/separation.py imports torch lazily, GET /capabilities reports
+# `stems: false`, and the frontend hides the toggle rather than offering
+# something that cannot work.
+#
+# To turn it on, on a box with the headroom:
+#
+#   pip install -r requirements.txt -r requirements-stems.txt
+#   MIXDOCTOR_ENABLE_STEMS=1 uvicorn main:app
+#
+# On Linux, install the CPU-only build — the default wheel drags in ~2 GB of
+# CUDA libraries that are useless on a CPU host:
+#
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+#   pip install -r requirements-stems.txt
+#
+# Expect separation to run ~5 s on Apple Silicon (MPS) and considerably longer
+# on a shared vCPU. Measure on your own hardware before enabling it publicly.
+
+torch>=2.2
+demucs>=4.0.1

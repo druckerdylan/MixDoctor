@@ -1,395 +1,665 @@
-"""FastAPI backend for MixDoctor."""
+"""FastAPI backend for MixDoctor.
 
+`POST /analyze` is the whole product: an upload and a genre in, a `MixAnalysis`
+out. Three things in here are load-bearing and easy to undo by accident:
+
+* **The upload is streamed to disk in chunks, never `await file.read()`.** A
+  250 MB read materialises 250 MB of `bytes` in the worker before anything is
+  written, which is an instant OOM on a small dyno — and the size check that
+  was supposed to prevent it ran *after* the read.
+* **Only `core`'s own errors become a 422.** They carry a sentence written for
+  the person who uploaded the file ("Track is 0.40s. At least 1 second of audio
+  is needed."), so the message is passed through verbatim. Anything else is a
+  bug on our side and is a 500 with a generic message.
+* **CORS accepts any localhost port via regex.** The fixed list broke every
+  time Vite picked a different port.
+* **`separate_stems` is opt-in and stays that way.** Source separation is the
+  only stage in the analysis that costs more than everything else put together,
+  so the default request is ~3 s and the deep one is a deliberate choice the
+  caller makes per upload. See the `/analyze` docstring for the measured cost.
+"""
+
+from __future__ import annotations
+
+import logging
 import os
 import tempfile
-from typing import Optional, List
+from typing import Any, Dict, List, Optional, Tuple
 
-from fastapi import FastAPI, File, Form, UploadFile, HTTPException, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
+from fastapi import Body, Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy.orm import Session
 
-from schemas import AnalysisResult, HealthResponse, StemsAnalysisResult
-from audio_analyzer import analyze_audio, analyze_stem_interactions
-from mix_doctor import analyze_with_claude, analyze_stems_with_claude
-from database import init_db, get_db
-from auth import get_current_user_optional
-from models import User, UserPlugin, AnalysisHistory
+from starlette.concurrency import run_in_threadpool
 
-# Load environment variables
+import engineer
+from analysis import capabilities, core, engine, targets
+from analysis.types import EngineerReport, MixAnalysis, OwnedPlugin
+from auth import decode_token
+from database import get_db, init_db
+from models import AnalysisHistory, User, UserPlugin
+from schemas import HealthResponse
+
 load_dotenv()
 
-# Verify API key is available
+logging.basicConfig(
+    level=os.environ.get("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+logger = logging.getLogger("mixdoctor")
+
 if not os.environ.get("ANTHROPIC_API_KEY"):
-    print("WARNING: ANTHROPIC_API_KEY not set. Analysis will fail.")
+    logger.warning(
+        "ANTHROPIC_API_KEY is not set. Analysis still runs and every finding is "
+        "measured; only the engineer's write-up is skipped."
+    )
 
 app = FastAPI(
     title="MixDoctor API",
-    description="AI-powered audio mix analysis",
-    version="1.0.0",
+    description="Deep audio mix analysis",
+    version="2.0.0",
 )
 
-# Configure CORS for frontend
+# The named origins are the deployed frontends. The regex covers local dev on
+# any port — Vite hands out 5173, 5174, 5175... depending on what is free, and
+# a fixed list means a broken app on whichever one you get today.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",  # Vite dev server
-        "http://localhost:5174",  # Vite alternate port
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:5174",
-        "http://127.0.0.1:3000",
-        "https://mix-doctor.vercel.app",  # Production frontend
+        "https://mix-doctor.vercel.app",
         "https://mixdoctor.vercel.app",
     ],
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include routers
-from routers import auth as auth_router
-from routers import plugins as plugins_router
-from routers import history as history_router
+from routers import auth as auth_router  # noqa: E402
+from routers import history as history_router  # noqa: E402
+from routers import plugins as plugins_router  # noqa: E402
 
 app.include_router(auth_router.router)
 app.include_router(plugins_router.router)
 app.include_router(history_router.router)
 
-# Supported audio formats
-SUPPORTED_FORMATS = {".mp3", ".wav", ".m4a", ".flac", ".aiff", ".aif"}
-MAX_FILE_SIZE = 250 * 1024 * 1024  # 250MB
+# Whatever the decoder can actually open, rather than a second hand-maintained
+# list that drifts out of sync with it.
+SUPPORTED_FORMATS = set(core.SUPPORTED_FORMATS)
 
-# Initialize database on startup
-@app.on_event("startup")
-async def startup_event():
-    """Initialize database tables on startup."""
-    init_db()
-    print("Database initialized.")
+MAX_FILE_SIZE = 250 * 1024 * 1024          # 250 MB
+UPLOAD_CHUNK = 1024 * 1024                 # 1 MB
 
-
-@app.get("/health", response_model=HealthResponse)
-async def health_check():
-    """Health check endpoint."""
-    return HealthResponse(status="healthy", version="1.0.0")
-
-
-@app.get("/test-ai")
-async def test_ai():
-    """Test if Claude API is working."""
-    try:
-        from anthropic import Anthropic
-        import httpx
-
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
-        if not api_key:
-            return {"status": "error", "error": "ANTHROPIC_API_KEY not set"}
-
-        client = Anthropic(
-            api_key=api_key,
-            timeout=httpx.Timeout(30.0, connect=10.0)
-        )
-
-        message = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=50,
-            messages=[{"role": "user", "content": "Say 'API working' in 3 words or less"}]
-        )
-        return {"status": "success", "response": message.content[0].text}
-    except Exception as e:
-        import traceback
-        return {"status": "error", "error": str(e), "traceback": traceback.format_exc()}
-
-
-# Bearer token extraction for optional auth
 security = HTTPBearer(auto_error=False)
 
 
-@app.post("/analyze", response_model=AnalysisResult)
-async def analyze_mix(
-    file: UploadFile = File(..., description="Audio file to analyze"),
-    genre: str = Form(..., description="Music genre (e.g., 'EDM', 'Hip Hop', 'Rock')"),
-    reference: Optional[str] = Form(None, description="Optional reference track or notes"),
-    reference_file: Optional[UploadFile] = File(None, description="Optional reference audio file for comparison"),
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-    db: Session = Depends(get_db),
-):
+def _run_ai_enabled() -> bool:
+    """Whether the engineer's write-up may be requested at all.
+
+    A kill switch, not a feature flag: it lets an operator shed the AI layer
+    without a deploy. Every finding still ships when it is off — measured, with
+    its own `detail` sentence — just without the prose around it.
     """
-    Analyze an audio mix and return AI-powered feedback.
+    return (os.environ.get("MIXDOCTOR_RUN_AI", "1").strip().lower()
+            not in {"0", "false", "no", "off"})
 
-    Upload an audio file (MP3, WAV, M4A, FLAC, AIFF) and specify the genre.
-    Optionally upload a reference track for comparison.
-    Returns detailed analysis including:
-    - Health score (0-100)
-    - Specific diagnoses with severity levels
-    - Quick wins for immediate improvement
-    - Mastering readiness assessment
-    - Reference comparison (if reference track provided)
 
-    If authenticated, the analysis will use the user's plugins and history
-    to provide personalized recommendations.
-    """
-    # Get current user (optional)
-    current_user: Optional[User] = None
-    if credentials:
-        from auth import decode_token
-        user_id = decode_token(credentials.credentials)
-        if user_id:
-            current_user = db.query(User).filter(User.id == user_id).first()
+# The consult is deliberately NOT part of /analyze.
+#
+# Measured on this codebase: generation runs at ~75 output tokens/sec, and a
+# real report is 9k-14k tokens, so the call takes 2-3 minutes and is bound by
+# output length rather than anything we can tune away. Effort only moves it
+# between ~128s and ~182s. That is far past the 30-60s timeout most proxies
+# (Railway, Vercel) enforce, so a synchronous /analyze would not merely be slow
+# — it would 504 in production.
+#
+# Splitting it is also the better product: measurement finishes in ~3s, so the
+# score, the findings and the timeline are on screen almost immediately, and
+# the prescriptions fill in behind them.
+MAX_ANALYSIS_BODY_BYTES = 4 * 1024 * 1024
 
-    # Fetch user's plugins and history if authenticated
-    user_plugins = []
-    user_history = []
-    if current_user:
-        user_plugins = db.query(UserPlugin).filter(
-            UserPlugin.user_id == current_user.id
-        ).order_by(UserPlugin.category, UserPlugin.name).all()
 
-        user_history = db.query(AnalysisHistory).filter(
-            AnalysisHistory.user_id == current_user.id
-        ).order_by(AnalysisHistory.created_at.desc()).limit(5).all()
+@app.on_event("startup")
+async def startup_event() -> None:
+    init_db()
+    logger.info(
+        "MixDoctor API ready (analysis workers=%d, AI layer=%s)",
+        engine.ANALYSIS_WORKERS,
+        "on" if (_run_ai_enabled() and os.environ.get("ANTHROPIC_API_KEY")) else "off",
+    )
 
-    # Validate file extension
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="No filename provided")
 
-    ext = os.path.splitext(file.filename)[1].lower()
+# ---------------------------------------------------------------------------
+# Upload handling
+# ---------------------------------------------------------------------------
+
+
+def _check_extension(filename: Optional[str], label: str) -> str:
+    if not filename:
+        raise HTTPException(status_code=400, detail=f"No filename provided for the {label}.")
+    ext = os.path.splitext(filename)[1].lower()
     if ext not in SUPPORTED_FORMATS:
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported format: {ext}. Supported: {', '.join(SUPPORTED_FORMATS)}",
+            detail=(
+                f"Unsupported {label} format: {ext or '(none)'}. "
+                f"Supported: {', '.join(sorted(SUPPORTED_FORMATS))}"
+            ),
         )
+    return ext
 
-    # Save uploaded file to temp location
-    temp_file = None
-    temp_reference_file = None
+
+async def _spool(upload: UploadFile, ext: str, label: str) -> str:
+    """Stream an upload to a temp file, enforcing the size limit as we go.
+
+    The limit is checked against bytes already written rather than against a
+    `Content-Length` header (which a client controls) or against a fully-read
+    body (which is the OOM). The partial file is removed before raising, so a
+    rejected 300 MB upload leaves nothing behind on disk either.
+    """
+    handle = tempfile.NamedTemporaryFile(suffix=ext, delete=False)
+    path = handle.name
+    written = 0
     try:
-        # Create temp file with correct extension
-        temp_file = tempfile.NamedTemporaryFile(suffix=ext, delete=False)
-        content = await file.read()
-
-        # Check file size
-        if len(content) > MAX_FILE_SIZE:
-            raise HTTPException(
-                status_code=400,
-                detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB",
-            )
-
-        temp_file.write(content)
-        temp_file.close()
-
-        # Analyze audio
-        try:
-            print(f"Analyzing audio file: {temp_file.name}")
-            metrics = analyze_audio(temp_file.name)
-            print(f"Audio analysis complete: {metrics.integrated_lufs} LUFS")
-        except Exception as e:
-            import traceback
-            print(f"Audio analysis error: {str(e)}")
-            print(traceback.format_exc())
-            raise HTTPException(
-                status_code=422,
-                detail=f"Failed to analyze audio: {str(e)}",
-            )
-
-        # Analyze reference file if provided
-        reference_metrics = None
-        if reference_file and reference_file.filename:
-            ref_ext = os.path.splitext(reference_file.filename)[1].lower()
-            if ref_ext not in SUPPORTED_FORMATS:
+        while True:
+            chunk = await upload.read(UPLOAD_CHUNK)
+            if not chunk:
+                break
+            written += len(chunk)
+            if written > MAX_FILE_SIZE:
                 raise HTTPException(
-                    status_code=400,
-                    detail=f"Unsupported reference format: {ref_ext}. Supported: {', '.join(SUPPORTED_FORMATS)}",
+                    status_code=413,
+                    detail=(
+                        f"The {label} is larger than the "
+                        f"{MAX_FILE_SIZE // (1024 * 1024)} MB limit."
+                    ),
                 )
-
-            temp_reference_file = tempfile.NamedTemporaryFile(suffix=ref_ext, delete=False)
-            ref_content = await reference_file.read()
-
-            if len(ref_content) > MAX_FILE_SIZE:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Reference file too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB",
-                )
-
-            temp_reference_file.write(ref_content)
-            temp_reference_file.close()
-
-            try:
-                reference_metrics = analyze_audio(temp_reference_file.name)
-            except Exception as e:
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"Failed to analyze reference audio: {str(e)}",
-                )
-
-        # Get AI analysis (pass plugins and history for personalization)
-        try:
-            result = analyze_with_claude(
-                metrics,
-                genre,
-                reference,
-                user_plugins=user_plugins,
-                user_history=user_history,
-                reference_metrics=reference_metrics,
-            )
-        except Exception as e:
-            import traceback
-            print(f"AI analysis error: {str(e)}")
-            print(traceback.format_exc())
-            raise HTTPException(
-                status_code=500,
-                detail=f"AI analysis failed: {str(e)}",
-            )
-
-        # Save to history if authenticated
-        if current_user:
-            history_entry = AnalysisHistory(
-                user_id=current_user.id,
-                filename=file.filename,
-                genre=genre,
-                health_score=result.health_score,
-                summary=result.summary,
-                diagnoses=[d.model_dump() for d in result.diagnoses],
-                metrics=metrics.model_dump(),
-            )
-            db.add(history_entry)
-            db.commit()
-
-        return result
-
+            handle.write(chunk)
+    except HTTPException:
+        handle.close()
+        _remove(path)
+        raise
+    except Exception:
+        handle.close()
+        _remove(path)
+        logger.exception("failed to spool the %s upload", label)
+        raise HTTPException(status_code=400, detail=f"Could not read the uploaded {label}.")
     finally:
-        # Clean up temp files
-        if temp_file and os.path.exists(temp_file.name):
-            os.unlink(temp_file.name)
-        if temp_reference_file and os.path.exists(temp_reference_file.name):
-            os.unlink(temp_reference_file.name)
+        if not handle.closed:
+            handle.close()
+
+    if written == 0:
+        _remove(path)
+        raise HTTPException(status_code=400, detail=f"The uploaded {label} is empty.")
+    return path
 
 
-VALID_STEM_TYPES = {
-    'kick', 'snare_hats', 'percussion', 'bass', 'vocals',
-    'lead', 'pads', 'guitars', 'fx', 'other'
-}
+def _remove(path: Optional[str]) -> None:
+    if path and os.path.exists(path):
+        try:
+            os.unlink(path)
+        except OSError:
+            logger.warning("could not remove temp file %s", path)
 
 
-@app.post("/analyze-stems", response_model=StemsAnalysisResult)
-async def analyze_stems(
-    genre: str = Form(..., description="Music genre"),
-    stem_types: str = Form(..., description="Comma-separated stem types"),
-    stems: List[UploadFile] = File(..., description="Stem audio files"),
+def _current_user(
+    credentials: Optional[HTTPAuthorizationCredentials], db: Session
+) -> Optional[User]:
+    if not credentials:
+        return None
+    user_id = decode_token(credentials.credentials)
+    if user_id is None:
+        return None
+    return db.query(User).filter(User.id == user_id).first()
+
+
+def _persist(
+    db: Session, user: User, filename: str, genre: str, result: MixAnalysis
+) -> None:
+    """Write the analysis to history. A DB failure must not fail the response.
+
+    `AnalysisHistory` predates the v2 schema, so the new report is adapted onto
+    it rather than the other way round: `health_score` is an Integer column so
+    the float is rounded, `summary` takes the engineer's verdict when there is
+    one and the worst finding's own sentence when there is not, and `diagnoses`
+    takes the findings. `metrics` stores the score fields alongside the raw
+    measurements so the history list can be rendered without re-deriving them.
+    """
+    try:
+        summary = ""
+        if result.engineer and result.engineer.verdict:
+            summary = result.engineer.verdict
+        elif result.findings:
+            summary = f"{result.findings[0].title}. {result.findings[0].detail}"
+        else:
+            summary = next(
+                (d.headline for d in result.dimensions if d.headline),
+                "No issues detected.",
+            )
+
+        entry = AnalysisHistory(
+            user_id=user.id,
+            filename=filename,
+            genre=genre,
+            health_score=int(round(result.health_score)),
+            summary=summary[:4000],
+            diagnoses=[f.model_dump() for f in result.findings],
+            metrics={
+                "schema_version": result.schema_version,
+                "health_score": result.health_score,
+                "grade": result.grade,
+                "ceiling_score": result.ceiling_score,
+                "mastering_ready": result.mastering_ready,
+                "mastering_blockers": result.mastering_blockers,
+                "dimensions": [d.model_dump() for d in result.dimensions],
+                "measurements": result.measurements.model_dump(),
+                "platform_targets": [p.model_dump() for p in result.platform_targets],
+                "reference": result.reference.model_dump() if result.reference else None,
+                "analysis_ms": result.analysis_ms,
+            },
+        )
+        db.add(entry)
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("could not persist the analysis to history")
+
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
+
+
+@app.get("/health", response_model=HealthResponse)
+async def health_check() -> HealthResponse:
+    return HealthResponse(status="healthy", version="2.0.0")
+
+
+def _stems_enabled() -> bool:
+    """Whether this deployment can actually separate a mix.
+
+    Two gates, both of which must pass. `MIXDOCTOR_ENABLE_STEMS` is the
+    operator's switch; the import check is reality.
+
+    Torch and Demucs are deliberately NOT in requirements.txt. They add ~800 MB
+    to the image and htdemucs wants a couple of GB of RAM per job, which OOMs a
+    small dyno — so the default deployment ships without them and the analysis
+    layer is written to notice (separation.py imports torch lazily, inside the
+    functions that need it). Install them and flip the flag on a box with the
+    headroom, and the feature lights up with no code change.
+    """
+    if os.environ.get("MIXDOCTOR_ENABLE_STEMS", "").strip().lower() not in {"1", "true", "yes", "on"}:
+        return False
+    try:
+        import importlib.util
+
+        return all(importlib.util.find_spec(m) is not None for m in ("torch", "demucs"))
+    except Exception:
+        return False
+
+
+@app.get("/capabilities")
+async def capabilities_probe() -> Dict[str, Any]:
+    """What this particular deployment can do.
+
+    The frontend reads this to decide whether to *offer* deep analysis at all.
+    Hiding a control the server cannot honour is better than degrading after
+    the user has already waited for an upload.
+    """
+    return {
+        "version": app.version,
+        "stems": _stems_enabled(),
+        "ai": bool(_run_ai_enabled() and os.environ.get("ANTHROPIC_API_KEY")),
+        "max_upload_bytes": MAX_FILE_SIZE,
+        "formats": sorted(SUPPORTED_FORMATS),
+    }
+
+
+@app.get("/genres")
+async def list_genres() -> Dict[str, List[Dict[str, str]]]:
+    """Genre keys and labels for the UI selector."""
+    return {"genres": [{"key": key, "label": label} for key, label in targets.all_genres()]}
+
+
+@app.post("/analyze", response_model=MixAnalysis)
+async def analyze(
+    file: UploadFile = File(..., description="Audio file to analyse"),
+    genre: str = Form(..., description="Music genre, e.g. 'trap', 'Rock', 'Hip Hop'"),
+    reference_file: Optional[UploadFile] = File(
+        None, description="Optional reference track to compare against"
+    ),
+    notes: Optional[str] = Form(None, description="Optional context from the producer"),
+    separate_stems: bool = Form(
+        False,
+        description=(
+            "Run source separation and measure vocals/drums/bass/other on their own. "
+            "Costs roughly 3x the request time; off by default."
+        ),
+    ),
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     db: Session = Depends(get_db),
-):
-    """
-    Analyze individual stems from a mix.
+) -> MixAnalysis:
+    """Analyse one mix and return the full report.
 
-    Upload 2+ stem files with their types for detailed analysis.
-    Returns per-stem feedback, interaction analysis, and overall assessment.
-    """
-    # Parse stem types
-    stem_type_list = [s.strip() for s in stem_types.split(',')]
+    Authentication is optional. When present, the user's plugin list is handed
+    to the AI layer so the moves it prescribes name devices they actually own,
+    and the result is written to their history.
 
-    # Validate we have at least 2 stems
-    if len(stems) < 2:
-        raise HTTPException(
-            status_code=400,
-            detail="At least 2 stems are required for analysis",
+    **`separate_stems` costs real latency and is off by default.** The default
+    path is ~2-3 s for a 20 s clip and ~10 s for a four-minute track, because
+    the eleven measurements run in parallel on a thread pool. Turning this on
+    adds a Demucs pass over the whole file *before* any of it can be judged,
+    and that pass does not parallelise with anything.
+
+    Measured end to end on this codebase, on Apple Silicon with MPS:
+
+        20 s clip        1.9 s  ->   5.4 s   (2.9 s separating)
+        4:00 track      10.2 s  ->  52.4 s   (36.8 s separating)
+        5:16 track      12.5 s  ->  69.0 s   (48.7 s separating)
+
+    That is roughly 9 s of separation per minute of audio with the model
+    resident, plus a one-off ~3 s the first time the weights are loaded, and
+    several times all of it on a CPU-only host. **A full-length track will
+    exceed a 30 s proxy timeout**, so treat this as a background or
+    explicitly-opted-into path rather than something to turn on by default in a
+    UI. Past six minutes the DSP layer separates the loudest three minutes only
+    and says so in `measurements.stems.warnings`. Set
+    `MIXDOCTOR_SEPARATION_TIMEOUT_S` to bound it for your deployment — a blown
+    budget truncates the excerpt and names the span it did cover, rather than
+    failing the request.
+
+    What the latency buys is confidence, not extra findings. Vocal balance and
+    kick-versus-808 stop being inferred from a centre estimate and a
+    reconstructed spectrum and become direct measurements (confidence 0.55 to
+    0.90 and 0.70 to 0.93 respectively), masking gains a named source on each
+    side of it, and per-element compression becomes reportable at all. Every
+    failure path — no model, no network on the first run, no GPU, budget
+    exhausted — comes back as `measurements.stems.available == false` plus a
+    warning, with the rest of the report unchanged.
+    """
+    ext = _check_extension(file.filename, "audio file")
+    ref_ext = (
+        _check_extension(reference_file.filename, "reference file")
+        if reference_file and reference_file.filename
+        else None
+    )
+
+    user = _current_user(credentials, db)
+    user_plugins: List[UserPlugin] = []
+    if user:
+        user_plugins = (
+            db.query(UserPlugin)
+            .filter(UserPlugin.user_id == user.id)
+            .order_by(UserPlugin.category, UserPlugin.name)
+            .all()
         )
 
-    if len(stems) != len(stem_type_list):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Number of files ({len(stems)}) must match number of stem types ({len(stem_type_list)})",
-        )
-
-    # Validate stem types
-    for st in stem_type_list:
-        if st not in VALID_STEM_TYPES:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid stem type: {st}. Valid types: {', '.join(VALID_STEM_TYPES)}",
-            )
-
-    # Get current user for plugins
-    current_user: Optional[User] = None
-    user_plugins = []
-    if credentials:
-        from auth import decode_token
-        user_id = decode_token(credentials.credentials)
-        if user_id:
-            current_user = db.query(User).filter(User.id == user_id).first()
-            if current_user:
-                user_plugins = db.query(UserPlugin).filter(
-                    UserPlugin.user_id == current_user.id
-                ).order_by(UserPlugin.category, UserPlugin.name).all()
-
-    # Process each stem
-    temp_files = []
-    stems_metrics = {}
-
+    path: Optional[str] = None
+    ref_path: Optional[str] = None
     try:
-        for i, (stem_file, stem_type) in enumerate(zip(stems, stem_type_list)):
-            # Validate file
-            if not stem_file.filename:
-                raise HTTPException(status_code=400, detail=f"No filename for stem {i + 1}")
+        path = await _spool(file, ext, "audio file")
+        if reference_file and ref_ext:
+            ref_path = await _spool(reference_file, ref_ext, "reference file")
 
-            ext = os.path.splitext(stem_file.filename)[1].lower()
-            if ext not in SUPPORTED_FORMATS:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Unsupported format for {stem_type}: {ext}",
-                )
-
-            # Save to temp file
-            temp_file = tempfile.NamedTemporaryFile(suffix=ext, delete=False)
-            content = await stem_file.read()
-
-            if len(content) > MAX_FILE_SIZE:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Stem {stem_type} too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB",
-                )
-
-            temp_file.write(content)
-            temp_file.close()
-            temp_files.append(temp_file.name)
-
-            # Analyze stem
-            try:
-                metrics = analyze_audio(temp_file.name)
-                stems_metrics[stem_type] = metrics
-            except Exception as e:
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"Failed to analyze {stem_type} stem: {str(e)}",
-                )
-
-        # Analyze interactions between stems
-        interactions = analyze_stem_interactions(stems_metrics)
-
-        # Get AI analysis
         try:
-            result = analyze_stems_with_claude(
-                stems_metrics,
-                interactions,
-                genre,
-                user_plugins=user_plugins,
+            # Off the event loop. `analyze_mix` is CPU-bound from end to end and
+            # holds the thread for its whole duration; with `separate_stems` on
+            # that is tens of seconds, and running it inline would stall every
+            # other request on this worker — including the health check.
+            result = await run_in_threadpool(
+                lambda: engine.analyze_mix(
+                    path,
+                    genre,
+                    filename=file.filename or os.path.basename(path),
+                    notes=notes,
+                    reference_path=ref_path,
+                    user_plugins=user_plugins,
+                    # Never here — see the note by MAX_ANALYSIS_BODY_BYTES. The
+                    # client asks for the write-up separately via POST /engineer.
+                    run_ai=False,
+                    # Honour the deployment gate, not just the request. A client
+                    # asking for stems on a box that cannot run them should get
+                    # a normal analysis, not a slow one that fails at the end.
+                    separate_stems=bool(separate_stems) and _stems_enabled(),
+                )
             )
-        except Exception as e:
+        except (core.AudioTooShortError, core.SilentAudioError, ValueError) as exc:
+            # These carry a message written for the producer, not a stack trace.
+            raise HTTPException(status_code=422, detail=str(exc))
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception("analysis failed for %s", file.filename)
             raise HTTPException(
                 status_code=500,
-                detail=f"AI analysis failed: {str(e)}",
+                detail="The analysis failed unexpectedly. Please try again.",
             )
 
-        return result
+        if user:
+            _persist(db, user, file.filename or "upload", result.genre, result)
 
+        return result
     finally:
-        # Clean up temp files
-        for temp_path in temp_files:
-            if os.path.exists(temp_path):
-                os.unlink(temp_path)
+        _remove(path)
+        _remove(ref_path)
+
+
+class EngineerRequest(BaseModel):
+    """The wrapper body for `POST /engineer`.
+
+    `plugins` is what makes the prescriptions specific to this producer: the
+    capability slugs on each entry decide the *shape* of every move, not just
+    which brand name gets printed. A bare `MixAnalysis` body is still accepted
+    (see `_parse_engineer_body`), it simply arrives with no plugins.
+    """
+
+    analysis: MixAnalysis
+    plugins: List[OwnedPlugin] = Field(
+        default_factory=list,
+        description=(
+            "What the producer owns. `capabilities` should carry slugs from "
+            "analysis.capabilities.CAPABILITIES; unknown slugs are dropped."
+        ),
+    )
+
+
+def _parse_engineer_body(payload: Dict[str, Any]) -> Tuple[MixAnalysis, List[OwnedPlugin]]:
+    """Accept the wrapper, fall back to a bare `MixAnalysis`.
+
+    The client shipped before `plugins` existed posts the analysis object
+    itself, and that build is in people's browsers right now. Try the wrapper
+    first — it is the only shape with a top-level `analysis` key, so there is
+    no ambiguity — and only if that fails treat the whole body as the analysis.
+    Both errors are reported when neither shape validates, because "field
+    required: analysis" on its own would be actively misleading to whoever is
+    posting the older shape.
+    """
+    try:
+        request = EngineerRequest.model_validate(payload)
+        return request.analysis, list(request.plugins)
+    except ValidationError as wrapper_error:
+        try:
+            return MixAnalysis.model_validate(payload), []
+        except ValidationError as bare_error:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "message": (
+                        "The body must be either {analysis: MixAnalysis, plugins?: OwnedPlugin[]} "
+                        "or a bare MixAnalysis."
+                    ),
+                    "as_wrapper": wrapper_error.errors()[:5],
+                    "as_bare_analysis": bare_error.errors()[:5],
+                },
+            )
+
+
+def _db_plugins(db: Session, user: User) -> List[OwnedPlugin]:
+    """The user's saved plugins as `OwnedPlugin`s.
+
+    `models.UserPlugin` has name/manufacturer/category columns and no
+    capability column, so these arrive capability-less and
+    `engineer.enrich_plugins` fills in what it recognises by name. A client
+    that posts real capability data always beats that guess — see
+    `_merge_plugins`.
+    """
+    rows = (
+        db.query(UserPlugin)
+        .filter(UserPlugin.user_id == user.id)
+        .order_by(UserPlugin.category, UserPlugin.name)
+        .all()
+    )
+    return [
+        OwnedPlugin(
+            name=row.name,
+            manufacturer=row.manufacturer,
+            category=row.category or "",
+            capabilities=[],
+        )
+        for row in rows
+        if row.name
+    ]
+
+
+def _merge_plugins(
+    posted: List[OwnedPlugin], stored: List[OwnedPlugin]
+) -> List[OwnedPlugin]:
+    """Posted list first, then anything saved that is not already in it.
+
+    Posted entries lead because they are the ones that can carry capabilities;
+    `engineer.coerce_plugins` does the de-duplication by name and keeps the
+    richer record on a collision, so a plugin present in both places does not
+    lose its capability list to the DB row.
+    """
+    return engineer.coerce_plugins([*posted, *stored])[: engineer.MAX_PLUGINS_IN_BRIEF]
+
+
+@app.post("/engineer", response_model=EngineerReport)
+async def engineer_consult(
+    payload: Dict[str, Any] = Body(
+        ...,
+        description=(
+            "{analysis: MixAnalysis, plugins?: OwnedPlugin[]}. A bare MixAnalysis is also "
+            "accepted for backwards compatibility."
+        ),
+    ),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    db: Session = Depends(get_db),
+) -> EngineerReport:
+    """Second half of the report: the engineer's read on an existing analysis.
+
+    Stateless by design — the client posts back the `MixAnalysis` it already
+    holds rather than us keeping a job table. That survives a restart, works
+    across however many workers are running, and means a dropped connection
+    costs the user a retry instead of an orphaned job.
+
+    The trade is that the measurements arrive from the client and cannot be
+    trusted as authentic. That is acceptable: a caller who forges measurements
+    gets a report about their own fiction, and nothing is persisted from it.
+    What we do defend against is the prose fields being used as an injection
+    channel, hence the clamp below.
+    """
+    if not _run_ai_enabled():
+        raise HTTPException(
+            status_code=503,
+            detail="The engineer's write-up is currently disabled on this server.",
+        )
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        raise HTTPException(
+            status_code=503,
+            detail="The engineer's write-up is unavailable: no API key is configured.",
+        )
+
+    analysis, posted_plugins = _parse_engineer_body(payload)
+
+    user = _current_user(credentials, db)
+    plugins = _merge_plugins(posted_plugins, _db_plugins(db, user) if user else [])
+    plugins = _clamp_free_text(analysis, plugins)
+
+    ctx = engineer.EngineerContext(
+        measurements=analysis.measurements,
+        findings=analysis.findings,
+        dimensions=analysis.dimensions,
+        genre=analysis.genre,
+        platform_targets=analysis.platform_targets,
+        reference=analysis.reference,
+        plugins=plugins,
+        filename=analysis.filename,
+        health_score=analysis.health_score,
+        grade=analysis.grade,
+        mastering_ready=analysis.mastering_ready,
+        mastering_blockers=analysis.mastering_blockers,
+    )
+
+    report = await run_in_threadpool(engineer.consult_engineer, ctx)
+    if report is None:
+        # consult_engineer never raises; None means unavailable, refused, or
+        # unparseable. The client already has every measured finding, so this
+        # degrades the page rather than breaking it.
+        raise HTTPException(
+            status_code=502,
+            detail="The engineer could not be reached. Your measured findings are still complete.",
+        )
+    return report
+
+
+MAX_PLUGINS = 200
+MAX_PLUGIN_NAME = 120
+
+
+def _clamp_free_text(
+    analysis: MixAnalysis,
+    plugins: Optional[List[OwnedPlugin]] = None,
+    limit: int = 600,
+) -> List[OwnedPlugin]:
+    """Bound the model-facing strings carried in from the client.
+
+    Finding titles and details are interpolated into the prompt, and so now are
+    plugin names. Length is the lever that matters here — a clamped string
+    cannot smuggle in a wall of instructions, and the output is
+    schema-constrained regardless.
+
+    Plugin names are the newest surface and the softest one: they are free text
+    the user typed, they land in a list the model is told to prescribe from, and
+    a list with no cap is a way to push the actual measurements out of context.
+    Names are clipped, capability slugs are filtered against the known
+    vocabulary (so an invented slug cannot describe itself into the brief), and
+    the list is capped. Returns the clamped list; the analysis is clamped in
+    place, as before.
+    """
+    for finding in analysis.findings:
+        finding.title = finding.title[:200]
+        finding.detail = finding.detail[:limit]
+        for ev in finding.evidence:
+            ev.label = ev.label[:120]
+            ev.detail = ev.detail[:240]
+    for dim in analysis.dimensions:
+        dim.headline = dim.headline[:limit]
+    analysis.filename = analysis.filename[:200]
+    analysis.genre = analysis.genre[:60]
+    analysis.mastering_blockers = [b[:240] for b in analysis.mastering_blockers[:12]]
+
+    clamped: List[OwnedPlugin] = []
+    for plugin in (plugins or [])[:MAX_PLUGINS]:
+        name = " ".join(str(plugin.name or "").split())[:MAX_PLUGIN_NAME]
+        if not name:
+            continue
+        manufacturer = " ".join(str(plugin.manufacturer or "").split())[:80] or None
+        clamped.append(
+            OwnedPlugin(
+                name=name,
+                manufacturer=manufacturer,
+                category=" ".join(str(plugin.category or "").split())[:60],
+                capabilities=capabilities.normalise(plugin.capabilities or []),
+            )
+        )
+    return clamped
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

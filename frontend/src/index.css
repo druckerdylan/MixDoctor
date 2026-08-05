@@ -1,53 +1,244 @@
+@import '@fontsource-variable/archivo';
+@import '@fontsource-variable/jetbrains-mono';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-mix-darker text-gray-100 min-h-screen;
+@layer base {
+  :root {
+    --sev-critical: #ff3b58;
+    --sev-major: #ff9f1c;
+    --sev-minor: #4cc9f0;
+    --sev-clean: #52f2c4;
+    --glow-color: rgba(82, 242, 196, 0.45);
+    color-scheme: dark;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-void text-ink font-sans;
+    min-height: 100vh;
+    /* Two stacked radials: a cool key light top-left, a warm rim bottom-right.
+       Fixed attachment so the light stays put while content scrolls past it. */
+    background-image:
+      radial-gradient(ellipse 90% 55% at 12% -8%, rgba(82, 242, 196, 0.07), transparent 62%),
+      radial-gradient(ellipse 70% 50% at 92% 8%, rgba(91, 75, 255, 0.08), transparent 60%);
+    background-attachment: fixed;
+  }
+
+  /* Numbers are data. Tabular figures keep dB columns from dancing as they animate. */
+  .font-mono,
+  code,
+  kbd {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1, 'zero' 1;
+  }
+
+  ::selection {
+    background: rgba(82, 242, 196, 0.28);
+    color: #fff;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #06060a;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #1e1e29;
+    border-radius: 6px;
+    border: 2px solid #06060a;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #2a2a38;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--signal, #52f2c4);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
 }
 
 @layer components {
+  /* ---- Surfaces ---------------------------------------------------- */
+
+  .panel {
+    @apply rounded-xl2 border border-void-line bg-void-panel shadow-panel;
+  }
+
+  .panel-raised {
+    @apply rounded-xl2 border border-void-line bg-void-raised shadow-lift;
+  }
+
+  .panel-interactive {
+    @apply panel transition-all duration-300 ease-cine;
+  }
+  .panel-interactive:hover {
+    @apply border-void-line/80 bg-void-raised;
+    transform: translateY(-2px);
+  }
+
+  /* Hairline that fades at both ends — reads as a light streak, not a border. */
+  .hairline {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, theme('colors.void.line'), transparent);
+  }
+
+  /* ---- Type -------------------------------------------------------- */
+
+  .eyebrow {
+    @apply font-mono text-eyebrow uppercase text-ink-faint;
+  }
+
+  .stat {
+    @apply font-mono tabular-nums tracking-tight;
+  }
+
+  .display {
+    @apply font-display font-semibold;
+    font-stretch: 105%;
+  }
+
+  /* ---- Controls ---------------------------------------------------- */
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3
+           font-medium transition-all duration-300 ease-cine
+           disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
   .btn-primary {
-    @apply bg-mix-primary hover:bg-mix-secondary text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply btn bg-signal font-semibold text-void-deep;
+  }
+  .btn-primary:not(:disabled):hover {
+    @apply bg-signal-glow;
+    box-shadow: 0 0 32px -6px rgba(82, 242, 196, 0.6);
+    transform: translateY(-1px);
   }
 
-  /* Clean card - no border, subtle background */
-  .card {
-    @apply bg-mix-surface rounded-2xl p-6;
+  .btn-ghost {
+    @apply btn border border-void-line text-ink-dim;
   }
-
-  /* Elevated card for important sections */
-  .card-elevated {
-    @apply bg-mix-muted rounded-2xl p-6;
-  }
-
-  /* Interactive card - has subtle hover state */
-  .card-interactive {
-    @apply bg-mix-surface rounded-xl p-4 transition-colors hover:bg-mix-muted cursor-pointer;
+  .btn-ghost:not(:disabled):hover {
+    @apply border-ink-faint bg-void-raised text-ink;
   }
 
   .input-field {
-    @apply w-full bg-mix-darker border border-gray-700/50 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-mix-primary focus:ring-1 focus:ring-mix-primary transition-colors;
+    @apply w-full rounded-xl border border-void-line bg-void-deep px-4 py-3 text-ink
+           placeholder-ink-faint transition-colors duration-200
+           focus:border-signal-dim focus:outline-none;
   }
 
-  .severity-critical {
-    @apply bg-red-900/20 text-red-300;
+  /* ---- Severity ---------------------------------------------------- */
+  /* One class sets text, ring and glow together so a severity can never be
+     half-applied (red text in an amber ring). */
+
+  .sev-critical {
+    color: var(--sev-critical);
+    --glow-color: rgba(255, 59, 88, 0.4);
+  }
+  .sev-major {
+    color: var(--sev-major);
+    --glow-color: rgba(255, 159, 28, 0.4);
+  }
+  .sev-minor {
+    color: var(--sev-minor);
+    --glow-color: rgba(76, 201, 240, 0.4);
+  }
+  .sev-clean {
+    color: var(--sev-clean);
+    --glow-color: rgba(82, 242, 196, 0.4);
   }
 
-  .severity-warning {
-    @apply bg-amber-900/20 text-amber-300;
+  .sev-chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1
+           font-mono text-micro uppercase;
+    border-color: color-mix(in srgb, currentColor 35%, transparent);
+    background: color-mix(in srgb, currentColor 10%, transparent);
   }
 
-  .severity-info {
-    @apply bg-blue-900/20 text-blue-300;
+  /* ---- Effects ----------------------------------------------------- */
+
+  /* Film grain. Pointer-events off, fixed, very low alpha — you should feel
+     it rather than see it. */
+  .grain::after {
+    content: '';
+    position: fixed;
+    inset: -50%;
+    pointer-events: none;
+    z-index: 60;
+    opacity: 0.028;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
-  /* Text styles for cleaner hierarchy */
-  .text-muted {
-    @apply text-gray-500;
+  .vignette-top {
+    background-image: theme('backgroundImage.vignette');
   }
 
-  .text-subtle {
-    @apply text-gray-400;
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: theme('backgroundImage.grade-signal');
+  }
+
+  /* Shimmer used by skeletons and the analysing sequence. */
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(82, 242, 196, 0.10), transparent);
+    @apply animate-sweep-x;
+  }
+
+  .scrim {
+    @apply fixed inset-0 z-50 backdrop-blur-md;
+    background: rgba(3, 3, 6, 0.82);
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Fade a scrolling edge instead of cutting it hard. */
+  .mask-fade-r {
+    -webkit-mask-image: linear-gradient(90deg, #000 82%, transparent 100%);
+    mask-image: linear-gradient(90deg, #000 82%, transparent 100%);
+  }
+  .mask-fade-y {
+    -webkit-mask-image: linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent);
+    mask-image: linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent);
+  }
+}
+
+/* Respect the OS setting: kill motion, keep the layout identical. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .grain::after {
+    display: none;
   }
 }

@@ -39,3 +39,13 @@ temp/
 coverage/
 .coverage
 htmlcov/
+
+# Generated test fixtures (~58 MB of WAV).
+# Synthetic and fully reproducible — the generator is the artefact worth
+# keeping, not the audio. Recreate with:
+#     cd backend && python tools/make_fixtures.py
+backend/testdata/*.wav
+
+# Fitted target curves are an output of tools/calibrate.py against a private
+# corpus; regenerate rather than commit someone else's library statistics.
+backend/analysis/targets_fitted.py
