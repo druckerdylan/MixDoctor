@@ -553,38 +553,64 @@ def _definition_db(x: np.ndarray, sr: int) -> float:
     return _finite(clamp(10.0 * np.log10(max(ratio, EPS)), -20.0, 40.0))
 
 
-def _librosa_features(x: np.ndarray, sr: int) -> Tuple[float, float]:
-    """(spectral_flatness, spectral_contrast_db), averaged over a bounded excerpt."""
-    global _librosa
-    if _librosa is None:
-        try:
-            import librosa  # deferred: importing it costs seconds, measuring does not
-        except Exception:  # pragma: no cover - librosa is a hard dep of this project
-            return 0.0, 0.0
-        _librosa = librosa
-    librosa = _librosa
+def _spectral_features_numpy(y: np.ndarray, sr: int) -> Tuple[float, float]:
+    """(flatness, contrast_db) with numpy only — no numba, no librosa.
 
+    librosa routes both of these through numba, and numba could not JIT on the
+    production host: `spectral_contrast` returned 0.0 there against 20.7 here,
+    which silently pulled the clarity index down by 0.12 and the health score
+    by four points. A measurement that changes with the hosting provider is not
+    a measurement, so the numpy path below is the one that runs everywhere.
+
+    Flatness is the standard geometric-over-arithmetic mean ratio. Contrast
+    follows Jiang et al.: per octave band, the mean of the loudest quantile
+    minus the mean of the quietest, in dB.
+    """
+    n_fft, hop = 2048, 512
+    frames = frame_signal(np.ascontiguousarray(y, dtype=np.float64), n_fft, hop)
+    if frames.shape[0] == 0:
+        return 0.0, 0.0
+
+    mag = np.abs(np.fft.rfft(frames * np.hanning(n_fft), axis=1)) + 1e-10
+    freqs = np.fft.rfftfreq(n_fft, 1.0 / sr)
+
+    # Flatness: geometric mean / arithmetic mean, per frame.
+    power = mag**2
+    geo = np.exp(np.mean(np.log(power), axis=1))
+    arith = np.mean(power, axis=1)
+    flatness = float(np.mean(geo / np.maximum(arith, 1e-20)))
+
+    # Contrast: octave bands from fmin upward, peak quantile minus valley.
+    fmin, n_bands, quantile = 100.0, 6, 0.2
+    edges = fmin * 2.0 ** np.arange(n_bands + 2)
+    logmag = 20.0 * np.log10(mag)
+
+    contrasts = []
+    for lo, hi in zip(edges[:-1], edges[1:]):
+        cols = np.flatnonzero((freqs >= lo) & (freqs < hi))
+        if cols.size < 4:
+            continue
+        band = np.sort(logmag[:, cols], axis=1)
+        k = max(1, int(round(quantile * cols.size)))
+        contrasts.append(np.mean(band[:, -k:], axis=1) - np.mean(band[:, :k], axis=1))
+
+    contrast = float(np.mean(np.concatenate(contrasts))) if contrasts else 0.0
+    return clamp(_finite(flatness), 0.0, 1.0), _finite(clamp(contrast, 0.0, 80.0))
+
+
+def _librosa_features(x: np.ndarray, sr: int) -> Tuple[float, float]:
+    """(spectral_flatness, spectral_contrast_db), averaged over a bounded excerpt.
+
+    Deliberately numpy-only. The librosa implementations are equivalent in
+    intent but only run where numba does, and a figure that silently reads zero
+    on one host is worse than a slightly different figure everywhere.
+    """
     span = int(min(x.shape[0], _LIBROSA_MAX_SEC * sr))
     start = (x.shape[0] - span) // 2
-    y = np.ascontiguousarray(x[start : start + span], dtype=np.float32)
+    y = np.ascontiguousarray(x[start : start + span], dtype=np.float64)
     if y.size < 4096:
         y = np.pad(y, (0, 4096 - y.size))
-
-    try:
-        flat = float(np.mean(librosa.feature.spectral_flatness(y=y, n_fft=2048, hop_length=512)))
-    except Exception:
-        flat = 0.0
-    try:
-        contrast = float(
-            np.mean(
-                librosa.feature.spectral_contrast(
-                    y=y, sr=sr, n_fft=2048, hop_length=512, fmin=100.0, n_bands=6
-                )
-            )
-        )
-    except Exception:
-        contrast = 0.0
-    return clamp(_finite(flat), 0.0, 1.0), _finite(clamp(contrast, 0.0, 80.0))
+    return _spectral_features_numpy(y, sr)
 
 
 # ---------------------------------------------------------------------------
