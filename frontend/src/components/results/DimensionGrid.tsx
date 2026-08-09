@@ -1,8 +1,20 @@
-import { useMemo } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+/**
+ * DimensionGrid — fourteen scores, worst first.
+ *
+ * A score is a verdict, not an explanation. Selecting a dimension that has
+ * findings therefore opens the same teaching panel the fix stack uses, right
+ * under the grid: a card here used to be a dead end unless you knew to scroll
+ * to the plan and find the matching row.
+ */
+
+import { useMemo, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import useKnowledge from '../../hooks/useKnowledge';
+import Explainer, { Chevron } from './Explainer';
 import {
   DIMENSIONS,
   DIMENSION_LABELS,
+  SEVERITY_RANK,
   SEVERITY_VAR,
   type Dimension,
   type DimensionScore,
@@ -89,6 +101,12 @@ export default function DimensionGrid({
   selected,
 }: DimensionGridProps) {
   const reduce = useReducedMotion() ?? false;
+  const { has } = useKnowledge();
+
+  /** Which finding inside the open dimension is being taught. */
+  const [activeId, setActiveId] = useState<string | null>(null);
+  /** The panel is closable without losing the selection the rest of the page uses. */
+  const [dismissed, setDismissed] = useState<Dimension | null>(null);
 
   const byDim = useMemo(() => {
     const m = new Map<Dimension, DimensionScore>();
@@ -96,11 +114,40 @@ export default function DimensionGrid({
     return m;
   }, [dimensions]);
 
-  const findingCounts = useMemo(() => {
-    const m = new Map<Dimension, number>();
-    for (const f of findings ?? []) m.set(f.dimension, (m.get(f.dimension) ?? 0) + 1);
+  /** Worst first, so the panel opens on the thing most worth reading about. */
+  const byDimFindings = useMemo(() => {
+    const m = new Map<Dimension, Finding[]>();
+    for (const f of findings ?? []) {
+      const list = m.get(f.dimension);
+      if (list) list.push(f);
+      else m.set(f.dimension, [f]);
+    }
+    for (const list of m.values()) {
+      list.sort((a, b) => {
+        const s = SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity];
+        return s !== 0 ? s : (b.impact ?? 0) - (a.impact ?? 0);
+      });
+    }
     return m;
   }, [findings]);
+
+  const findingCounts = useMemo(() => {
+    const m = new Map<Dimension, number>();
+    for (const [dimension, list] of byDimFindings) m.set(dimension, list.length);
+    return m;
+  }, [byDimFindings]);
+
+  // Only findings we can actually teach get a panel; the rest keep the score
+  // and the headline, which is all we honestly have for them.
+  const teachable = useMemo(() => {
+    if (!selected || selected === dismissed) return [];
+    return (byDimFindings.get(selected) ?? []).filter((f) => has(f.id));
+  }, [selected, dismissed, byDimFindings, has]);
+
+  const active = useMemo(
+    () => teachable.find((f) => f.id === activeId) ?? teachable[0] ?? null,
+    [teachable, activeId],
+  );
 
   // Diagnostic order, not alphabetical: what breaks a mix before what leaves it unfinished.
   const ordered = useMemo(
@@ -116,6 +163,13 @@ export default function DimensionGrid({
 
   // SEV_ORDER is already worst-first.
   const worstFirst = useMemo(() => SEV_ORDER.filter((s) => tally[s] > 0), [tally]);
+
+  /** Selecting always re-opens the panel, including after a close. */
+  const openDimension = (d: Dimension) => {
+    setDismissed(null);
+    setActiveId(null);
+    onSelect(d);
+  };
 
   if (!ordered.length) {
     return (
@@ -163,10 +217,12 @@ export default function DimensionGrid({
             >
               <button
                 type="button"
-                onClick={() => onSelect(d.dimension)}
+                onClick={() => openDimension(d.dimension)}
                 aria-pressed={isSelected}
                 aria-label={`${DIMENSION_LABELS[d.dimension]}: ${Math.round(score)} out of 100, ${SEV_WORD[sev]}${
-                  count > 0 ? `, ${count} finding${count === 1 ? '' : 's'}` : ''
+                  count > 0
+                    ? `, ${count} finding${count === 1 ? '' : 's'} — opens the explanation`
+                    : ''
                 }`}
                 className={`group relative flex h-full w-full flex-col rounded-xl2 border bg-void-panel p-4 text-left
                             transition-all duration-300 ease-cine hover:-translate-y-0.5 hover:bg-void-raised
@@ -237,8 +293,18 @@ export default function DimensionGrid({
                     {SEV_WORD[sev]}
                   </span>
                   {count > 0 ? (
-                    <span className="stat text-micro uppercase text-ink-faint">
-                      {count} finding{count === 1 ? '' : 's'}
+                    // The chevron is the promise that something opens. Without
+                    // it a count reads as a statistic and the card as a dead end.
+                    <span className="flex items-center gap-1.5">
+                      <span className="stat text-micro uppercase text-ink-faint transition-colors duration-300 group-hover:text-signal">
+                        {isSelected && active
+                          ? 'explained below'
+                          : `${count} finding${count === 1 ? '' : 's'}`}
+                      </span>
+                      <Chevron
+                        open={Boolean(isSelected && active)}
+                        className="text-ink-faint transition-colors duration-300 group-hover:text-signal"
+                      />
                     </span>
                   ) : (
                     <span className="stat text-micro uppercase text-ink-faint/60">no findings</span>
@@ -249,6 +315,73 @@ export default function DimensionGrid({
           );
         })}
       </ul>
+
+      {/* The teaching, in the same section as the score that prompted it. */}
+      <AnimatePresence initial={false}>
+        {active && selected ? (
+          <motion.div
+            key={selected}
+            initial={reduce ? { opacity: 0 } : { opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8 }}
+            transition={{ duration: reduce ? 0.2 : 0.45, ease: EASE }}
+            className="panel mt-4 overflow-hidden"
+          >
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-void-line/70 px-4 py-3.5 sm:px-5">
+              <span className={`sev-chip ${SEV_CLASS[active.severity]}`}>
+                <span aria-hidden="true">{SEV_GLYPH[active.severity]}</span>
+                {SEV_WORD[active.severity]}
+              </span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-faint">
+                {DIMENSION_LABELS[selected]}
+              </span>
+              <span className="hairline hidden flex-1 sm:block" aria-hidden="true" />
+              <button
+                type="button"
+                onClick={() => setDismissed(selected)}
+                className="btn-ghost px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.13em]"
+              >
+                Close
+              </button>
+            </div>
+
+            {teachable.length > 1 ? (
+              <div
+                className="flex flex-wrap gap-2 border-b border-void-line/70 px-4 py-3 sm:px-5"
+                aria-label={`Findings in ${DIMENSION_LABELS[selected]}`}
+              >
+                {teachable.map((f) => {
+                  const on = f.id === active.id;
+                  return (
+                    <button
+                      key={f.id}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => setActiveId(f.id)}
+                      className={`rounded-full border px-3 py-1.5 text-left text-[12px] leading-snug transition-colors duration-300 ease-cine ${
+                        on
+                          ? 'border-signal-dim/60 bg-signal/10 text-ink'
+                          : 'border-void-line text-ink-muted hover:border-ink-faint hover:text-ink-dim'
+                      }`}
+                    >
+                      {f.title}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+
+            <div className="p-4 sm:p-5">
+              {teachable.length === 1 ? (
+                <p className="mb-4 max-w-[62ch] font-display text-[14.5px] font-semibold leading-snug tracking-tight text-ink">
+                  {active.title}
+                </p>
+              ) : null}
+              <Explainer findingId={active.id} showTime />
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }

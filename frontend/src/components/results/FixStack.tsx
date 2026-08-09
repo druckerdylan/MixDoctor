@@ -8,6 +8,19 @@
  *
  * If the AI layer failed, `engineer` is null. The deterministic findings are
  * always there, so we fall back to those rather than showing an empty page.
+ *
+ * An expanded card is layered worst-to-best-understood, not most-to-least
+ * precise:
+ *
+ *   1. the explainer — what the problem is and how to fix it, in general;
+ *   2. the prescription, when the AI layer landed — the same problem, but for
+ *      this arrangement, with settings;
+ *   3. the measurements, folded away — the proof, for anyone who wants to
+ *      check the working.
+ *
+ * The numbers used to be the whole card. They are correct and they are the
+ * evidence, but a reading is not an explanation, and leading with one leaves
+ * anyone who does not already know the concept exactly where they started.
  */
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
@@ -19,6 +32,8 @@ import {
   useTransform,
 } from 'framer-motion';
 import type { EngineerStatus } from '../../hooks/useAnalysis';
+import useKnowledge from '../../hooks/useKnowledge';
+import Explainer, { Chevron, Disclosure } from './Explainer';
 import {
   DIMENSION_LABELS,
   SEVERITY_RANK,
@@ -189,6 +204,95 @@ function EvidenceRows({ evidence }: { evidence: Evidence[] }) {
         );
       })}
     </ul>
+  );
+}
+
+/**
+ * The proof. Kept whole — the prose reading, every evidence row, the impact
+ * and confidence — but demoted behind a fold, because it answers "how do you
+ * know" rather than "what do I do".
+ */
+function Measurements({ finding }: { finding: Finding }) {
+  const confidence = Math.round(clamp100(finite(finding.confidence) * 100));
+
+  return (
+    <div className="rounded-xl border border-void-line/60 bg-void/50 px-4 py-4 sm:px-5">
+      {finding.detail ? (
+        <p className="max-w-[70ch] text-pretty text-[13px] leading-relaxed text-ink-dim">
+          {finding.detail}
+        </p>
+      ) : null}
+
+      {finding.evidence?.length ? (
+        <div className={finding.detail ? 'mt-3' : undefined}>
+          <EvidenceRows evidence={finding.evidence} />
+        </div>
+      ) : null}
+
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-void-lineSoft pt-3">
+        <span className="stat text-[10.5px] uppercase tracking-[0.12em] text-ink-faint">
+          impact {finite(finding.impact).toFixed(1)}
+        </span>
+        <span className="stat text-[10.5px] uppercase tracking-[0.12em] text-ink-faint">
+          confidence {confidence}%
+        </span>
+        {finding.moments?.length ? (
+          <span className="stat text-[10.5px] uppercase tracking-[0.12em] text-ink-faint">
+            {finding.moments.length} moment{finding.moments.length === 1 ? '' : 's'} · first{' '}
+            {formatTime(finite(finding.moments[0]?.t_start))}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/** How much is behind the fold, so it is worth opening or worth skipping. */
+function measurementCount(finding: Finding | null): string | undefined {
+  const rows = finding?.evidence?.length ?? 0;
+  return rows ? `${rows} reading${rows === 1 ? '' : 's'}` : undefined;
+}
+
+/**
+ * The affordance. These cards always opened; nobody realised they did, because
+ * a severity chip and a headline read as a summary rather than as a door. So a
+ * collapsed card now says what is inside it, in words, and lights up on hover.
+ */
+function OpenRow({ onOpen, hasTeaching }: { onOpen: () => void; hasTeaching: boolean }) {
+  return (
+    <button
+      type="button"
+      tabIndex={-1}
+      onClick={(e) => {
+        e.stopPropagation();
+        onOpen();
+      }}
+      className="group/open mt-5 flex w-full items-center gap-3 text-left"
+    >
+      <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-ink-muted transition-colors duration-300 ease-cine group-hover/open:text-signal">
+        {hasTeaching ? 'What this means & how to fix it' : 'Open the detail'}
+      </span>
+      <span className="hairline flex-1" aria-hidden="true" />
+      <Chevron
+        open={false}
+        className="text-ink-faint transition-colors duration-300 group-hover/open:text-signal"
+      />
+    </button>
+  );
+}
+
+/** Said once, on the first card, because the interaction has to be learned once. */
+function FirstCardHint() {
+  return (
+    <p className="mt-4 flex items-start gap-2 text-[12px] leading-relaxed text-ink-muted">
+      <span aria-hidden="true" className="mt-[5px] text-[9px] text-signal-dim">
+        ▾
+      </span>
+      <span>
+        Every card opens like this. Click any one of them for the explanation, the steps, and the
+        numbers behind it.
+      </span>
+    </p>
   );
 }
 
@@ -430,6 +534,7 @@ function PrescriptionCard({
   finding,
   done,
   expanded,
+  first,
   onToggleDone,
   onToggleExpand,
   onFocus,
@@ -440,11 +545,14 @@ function PrescriptionCard({
   finding: Finding | null;
   done: boolean;
   expanded: boolean;
+  /** The first card carries the one-time note that these things open. */
+  first: boolean;
   onToggleDone: () => void;
   onToggleExpand: () => void;
   onFocus: () => void;
   reduce: boolean;
 }) {
+  const { has } = useKnowledge();
   const diff = DIFFICULTY[p.difficulty] ?? DIFFICULTY.moderate;
   const gain = Math.max(0, Math.round(finite(p.expected_gain)));
   const mins = Math.max(0, Math.round(finite(p.minutes)));
@@ -454,23 +562,33 @@ function PrescriptionCard({
   );
   const sev = finding?.severity ?? 'major';
   const bodyId = `fix-body-${p.finding_id}-${index}`;
+  const teaches = has(p.finding_id);
+  const hasNumbers = Boolean(finding && (finding.detail || finding.evidence?.length));
+  const hasTrackLayer = Boolean(
+    p.diagnosis || p.root_cause || moves.length || p.alternative || p.do_not || p.done_when,
+  );
 
-  const handleCardClick = () => {
+  // The header is the handle. Clicking it opens the card — it used to jump to
+  // the timeline, which is a fine thing to want and now has its own button,
+  // but it made the obvious gesture do the non-obvious thing and left the
+  // explanation hidden. The body is deliberately not a toggle: collapsing the
+  // thing someone is halfway through reading because they clicked a paragraph
+  // is worse than any discoverability it would buy.
+  const handleHeaderClick = () => {
     const sel = typeof window !== 'undefined' ? window.getSelection() : null;
     if (sel && sel.toString().length > 0) return;
-    onFocus();
+    onToggleExpand();
   };
 
   return (
     <motion.article
       id={`fix-${p.finding_id}`}
       data-finding-id={p.finding_id}
-      onClick={handleCardClick}
       initial={reduce ? { opacity: 0 } : { opacity: 0, y: 18 }}
       whileInView={reduce ? { opacity: 1 } : { opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.08 }}
       transition={{ duration: reduce ? 0.25 : 0.6, ease: EASE }}
-      className="panel relative scroll-mt-28 overflow-hidden transition-all duration-500 ease-cine"
+      className="panel group/card relative scroll-mt-28 overflow-hidden transition-all duration-500 ease-cine hover:border-void-line/90 hover:bg-void-raised/40"
       style={{
         opacity: done ? 0.62 : 1,
         borderColor: done ? 'rgba(82,242,196,0.28)' : undefined,
@@ -484,7 +602,7 @@ function PrescriptionCard({
       />
 
       <div className="p-5 pl-6 sm:p-7 sm:pl-8">
-        <div className="flex items-start gap-4 sm:gap-5">
+        <div onClick={handleHeaderClick} className="flex cursor-pointer items-start gap-4 sm:gap-5">
           <span
             aria-hidden="true"
             className="stat mt-[2px] shrink-0 text-[clamp(1.5rem,3.4vw,2.1rem)] font-semibold leading-none tracking-[-0.04em] transition-colors duration-500"
@@ -507,11 +625,13 @@ function PrescriptionCard({
             <h4 className="mt-3">
               <button
                 type="button"
+                aria-expanded={expanded}
+                aria-controls={bodyId}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onFocus();
+                  onToggleExpand();
                 }}
-                className="display max-w-3xl text-balance text-left text-[clamp(1.05rem,2.1vw,1.5rem)] leading-[1.16] tracking-[-0.03em] text-ink transition-colors duration-300 ease-cine hover:text-signal"
+                className="display max-w-3xl text-balance text-left text-[clamp(1.05rem,2.1vw,1.5rem)] leading-[1.16] tracking-[-0.03em] text-ink transition-colors duration-300 ease-cine hover:text-signal group-hover/card:text-signal"
               >
                 {p.headline || 'Fix'}
               </button>
@@ -554,14 +674,18 @@ function PrescriptionCard({
               type="button"
               aria-expanded={expanded}
               aria-controls={bodyId}
-              aria-label={expanded ? 'Collapse this fix' : 'Expand this fix'}
+              aria-label={
+                expanded
+                  ? `Collapse "${p.headline || 'this fix'}"`
+                  : `Open "${p.headline || 'this fix'}" — what it means and how to fix it`
+              }
               onClick={(e) => {
                 e.stopPropagation();
                 onToggleExpand();
               }}
-              className="grid h-[26px] w-[26px] place-items-center rounded-lg border border-void-line text-[11px] text-ink-muted transition-colors duration-300 ease-cine hover:border-ink-faint hover:text-ink-dim"
+              className="grid h-[26px] w-[26px] place-items-center rounded-lg border border-void-line text-ink-muted transition-colors duration-300 ease-cine hover:border-signal-dim hover:text-signal group-hover/card:border-ink-faint group-hover/card:text-ink-dim"
             >
-              <span aria-hidden="true">{expanded ? '−' : '+'}</span>
+              <Chevron open={expanded} />
             </button>
           </div>
         </div>
@@ -572,96 +696,121 @@ function PrescriptionCard({
             initial={reduce ? { opacity: 0 } : { opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: reduce ? 0.15 : 0.45, ease: EASE }}
-            className="mt-6"
+            className="mt-6 space-y-7"
           >
-            {p.diagnosis ? (
-              <p className="max-w-3xl text-pretty text-[14px] leading-relaxed text-ink-dim">
-                {p.diagnosis}
-              </p>
-            ) : null}
+            {first ? <FirstCardHint /> : null}
 
-            {p.root_cause ? (
-              <div className="mt-5 flex gap-3.5">
-                <span className="eyebrow mt-[3px] shrink-0">Cause</span>
-                <p className="max-w-2xl text-[13px] leading-relaxed text-ink-muted">{p.root_cause}</p>
-              </div>
-            ) : null}
+            {/* The teaching first: what the problem is, before what to type. */}
+            <Explainer findingId={p.finding_id} />
 
-            {finding?.evidence?.length ? (
-              <div className="mt-6 rounded-xl border border-void-line/70 px-4 pb-2 pt-4">
-                <p className="eyebrow">What was measured</p>
-                <div className="mt-1">
-                  <EvidenceRows evidence={finding.evidence.slice(0, 4)} />
+            {/* Then the layer that only applies to this arrangement. */}
+            {hasTrackLayer ? (
+              <section className="rounded-xl2 border border-void-line/70 bg-void-panel/50 p-5 sm:p-6">
+                <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <p className="eyebrow text-signal-dim">For this track specifically</p>
+                  <span className="hairline hidden flex-1 sm:block" aria-hidden="true" />
+                  <span className="stat text-[10px] uppercase tracking-[0.12em] text-ink-faint">
+                    {mins} min · {diff.word}
+                  </span>
                 </div>
-              </div>
-            ) : null}
 
-            {moves.length ? (
-              <div className="mt-7">
-                <p className="eyebrow mb-4">Do this</p>
-                <ol className="space-y-4">
-                  {moves.map((mv, i) => (
-                    <MoveBlock key={`${p.finding_id}-move-${i}`} move={mv} index={i + 1} />
-                  ))}
-                </ol>
-              </div>
-            ) : null}
-
-            {p.alternative ? (
-              <div className="mt-5 rounded-xl border border-void-line/70 px-4 py-3.5">
-                <p className="eyebrow">If you don’t have that</p>
-                <p className="mt-2 text-[12.5px] leading-relaxed text-ink-muted">{p.alternative}</p>
-              </div>
-            ) : null}
-
-            {/* The two fields that make the advice trustworthy. */}
-            {p.do_not || p.done_when ? (
-              <div className="mt-6 grid gap-4 lg:grid-cols-2">
-                {p.do_not ? (
-                  <div
-                    className="relative overflow-hidden rounded-xl2 border p-4 sm:p-5"
-                    style={{
-                      borderColor: 'rgba(255,159,28,0.34)',
-                      background:
-                        'linear-gradient(120deg, rgba(255,159,28,0.10), rgba(255,159,28,0.02) 60%, transparent)',
-                    }}
-                  >
-                    <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[3px] bg-sev-major" />
-                    <div className="relative flex items-center gap-2.5">
-                      <span className="text-[11px] text-sev-major" aria-hidden="true">
-                        ▲
-                      </span>
-                      <p className="eyebrow text-sev-major">Do not</p>
-                    </div>
-                    <p className="relative mt-3 text-[13.5px] leading-relaxed text-ink">{p.do_not}</p>
-                  </div>
+                {p.diagnosis ? (
+                  <p className="max-w-[70ch] text-pretty text-[14px] leading-relaxed text-ink-dim">
+                    {p.diagnosis}
+                  </p>
                 ) : null}
 
-                {p.done_when ? (
-                  <div
-                    className="relative overflow-hidden rounded-xl2 border p-4 sm:p-5"
-                    style={{
-                      borderColor: 'rgba(82,242,196,0.30)',
-                      background:
-                        'linear-gradient(120deg, rgba(82,242,196,0.10), rgba(82,242,196,0.02) 60%, transparent)',
-                    }}
-                  >
-                    <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[3px] bg-signal" />
-                    <div className="relative flex items-center gap-2.5">
-                      <span className="text-[11px] text-signal" aria-hidden="true">
-                        ✓
-                      </span>
-                      <p className="eyebrow text-signal-dim">Done when</p>
-                    </div>
-                    <p className="relative mt-3 text-[13.5px] leading-relaxed text-ink">
-                      {p.done_when}
+                {p.root_cause ? (
+                  <div className="mt-5 flex gap-3.5">
+                    <span className="eyebrow mt-[3px] shrink-0">Cause</span>
+                    <p className="max-w-2xl text-[13px] leading-relaxed text-ink-muted">
+                      {p.root_cause}
                     </p>
                   </div>
                 ) : null}
-              </div>
+
+                {moves.length ? (
+                  <div className="mt-7">
+                    <p className="eyebrow mb-4">Do this</p>
+                    <ol className="space-y-4">
+                      {moves.map((mv, i) => (
+                        <MoveBlock key={`${p.finding_id}-move-${i}`} move={mv} index={i + 1} />
+                      ))}
+                    </ol>
+                  </div>
+                ) : null}
+
+                {p.alternative ? (
+                  <div className="mt-5 rounded-xl border border-void-line/70 px-4 py-3.5">
+                    <p className="eyebrow">If you don’t have that</p>
+                    <p className="mt-2 text-[12.5px] leading-relaxed text-ink-muted">{p.alternative}</p>
+                  </div>
+                ) : null}
+
+                {/* The two fields that make the advice trustworthy. */}
+                {p.do_not || p.done_when ? (
+                  <div className="mt-6 grid gap-4 lg:grid-cols-2">
+                    {p.do_not ? (
+                      <div
+                        className="relative overflow-hidden rounded-xl2 border p-4 sm:p-5"
+                        style={{
+                          borderColor: 'rgba(255,159,28,0.34)',
+                          background:
+                            'linear-gradient(120deg, rgba(255,159,28,0.10), rgba(255,159,28,0.02) 60%, transparent)',
+                        }}
+                      >
+                        <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[3px] bg-sev-major" />
+                        <div className="relative flex items-center gap-2.5">
+                          <span className="text-[11px] text-sev-major" aria-hidden="true">
+                            ▲
+                          </span>
+                          <p className="eyebrow text-sev-major">Do not</p>
+                        </div>
+                        <p className="relative mt-3 text-[13.5px] leading-relaxed text-ink">{p.do_not}</p>
+                      </div>
+                    ) : null}
+
+                    {p.done_when ? (
+                      <div
+                        className="relative overflow-hidden rounded-xl2 border p-4 sm:p-5"
+                        style={{
+                          borderColor: 'rgba(82,242,196,0.30)',
+                          background:
+                            'linear-gradient(120deg, rgba(82,242,196,0.10), rgba(82,242,196,0.02) 60%, transparent)',
+                        }}
+                      >
+                        <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[3px] bg-signal" />
+                        <div className="relative flex items-center gap-2.5">
+                          <span className="text-[11px] text-signal" aria-hidden="true">
+                            ✓
+                          </span>
+                          <p className="eyebrow text-signal-dim">Done when</p>
+                        </div>
+                        <p className="relative mt-3 text-[13.5px] leading-relaxed text-ink">
+                          {p.done_when}
+                        </p>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </section>
             ) : null}
 
-            <div className="mt-6 flex flex-wrap items-center gap-3">
+            {/* And last, the proof. Kept, folded, no longer the answer. */}
+            {finding && hasNumbers ? (
+              teaches ? (
+                <Disclosure label="The measurements" count={measurementCount(finding)}>
+                  <Measurements finding={finding} />
+                </Disclosure>
+              ) : (
+                <div>
+                  <p className="eyebrow mb-3">The measurements</p>
+                  <Measurements finding={finding} />
+                </div>
+              )
+            ) : null}
+
+            <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={(e) => {
@@ -688,7 +837,9 @@ function PrescriptionCard({
               </button>
             </div>
           </motion.div>
-        ) : null}
+        ) : (
+          <OpenRow onOpen={onToggleExpand} hasTeaching={teaches} />
+        )}
       </div>
     </motion.article>
   );
@@ -699,31 +850,35 @@ function PrescriptionCard({
 function FindingCard({
   f,
   index,
+  expanded,
+  first,
+  onToggleExpand,
   onFocus,
   reduce,
 }: {
   f: Finding;
   index: number;
+  expanded: boolean;
+  first: boolean;
+  onToggleExpand: () => void;
   onFocus: () => void;
   reduce: boolean;
 }) {
+  const { has } = useKnowledge();
   const sev = f.severity ?? 'minor';
-  const confidence = Math.round(clamp100(finite(f.confidence) * 100));
+  const teaches = has(f.id);
+  const hasNumbers = Boolean(f.detail || f.evidence?.length);
+  const bodyId = `finding-body-${f.id}`;
 
   return (
     <motion.article
       id={`fix-${f.id}`}
       data-finding-id={f.id}
-      onClick={() => {
-        const sel = typeof window !== 'undefined' ? window.getSelection() : null;
-        if (sel && sel.toString().length > 0) return;
-        onFocus();
-      }}
       initial={reduce ? { opacity: 0 } : { opacity: 0, y: 16 }}
       whileInView={reduce ? { opacity: 1 } : { opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.1 }}
       transition={{ duration: reduce ? 0.25 : 0.55, ease: EASE }}
-      className="panel relative scroll-mt-28 overflow-hidden"
+      className="panel group/card relative scroll-mt-28 overflow-hidden transition-all duration-500 ease-cine hover:border-void-line/90 hover:bg-void-raised/40"
     >
       <span
         aria-hidden="true"
@@ -739,62 +894,107 @@ function FindingCard({
             {pad2(index + 1)}
           </span>
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-              <span className={`sev-chip ${SEV_CLASS[sev]}`}>
-                <span aria-hidden="true">{SEV_GLYPH[sev]}</span>
-                {SEV_WORD[sev]}
-              </span>
-              <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-faint">
-                {DIMENSION_LABELS[f.dimension] ?? humanKey(f.dimension)}
-              </span>
-              {f.band_hz && f.band_hz.length === 2 ? (
-                <span className="stat text-[10px] text-ink-faint">
-                  {formatHz(f.band_hz[0])}–{formatHz(f.band_hz[1])} Hz
+            {/* Only the header toggles: a click on the prose below must not
+                fold away the thing being read. */}
+            <div
+              className="cursor-pointer"
+              onClick={() => {
+                const sel = typeof window !== 'undefined' ? window.getSelection() : null;
+                if (sel && sel.toString().length > 0) return;
+                onToggleExpand();
+              }}
+            >
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <span className={`sev-chip ${SEV_CLASS[sev]}`}>
+                  <span aria-hidden="true">{SEV_GLYPH[sev]}</span>
+                  {SEV_WORD[sev]}
                 </span>
-              ) : null}
-            </div>
-
-            <h4 className="mt-3">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onFocus();
-                }}
-                className="display max-w-3xl text-balance text-left text-[clamp(1rem,2vw,1.35rem)] leading-[1.18] tracking-[-0.03em] text-ink transition-colors duration-300 ease-cine hover:text-signal"
-              >
-                {f.title}
-              </button>
-            </h4>
-
-            {f.detail ? (
-              <p className="mt-3 max-w-3xl text-pretty text-[13.5px] leading-relaxed text-ink-dim">
-                {f.detail}
-              </p>
-            ) : null}
-
-            {f.evidence?.length ? (
-              <div className="mt-5">
-                <p className="eyebrow mb-1">Evidence</p>
-                <EvidenceRows evidence={f.evidence} />
+                <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-faint">
+                  {DIMENSION_LABELS[f.dimension] ?? humanKey(f.dimension)}
+                </span>
+                {f.band_hz && f.band_hz.length === 2 ? (
+                  <span className="stat text-[10px] text-ink-faint">
+                    {formatHz(f.band_hz[0])}–{formatHz(f.band_hz[1])} Hz
+                  </span>
+                ) : null}
               </div>
-            ) : null}
 
-            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-              <span className="stat text-[10.5px] uppercase tracking-[0.12em] text-ink-faint">
-                impact {finite(f.impact).toFixed(1)}
-              </span>
-              <span className="stat text-[10.5px] uppercase tracking-[0.12em] text-ink-faint">
-                confidence {confidence}%
-              </span>
-              {f.moments?.length ? (
-                <span className="stat text-[10.5px] uppercase tracking-[0.12em] text-ink-faint">
-                  {f.moments.length} moment{f.moments.length === 1 ? '' : 's'} · first{' '}
-                  {formatTime(finite(f.moments[0]?.t_start))}
-                </span>
-              ) : null}
+              <h4 className="mt-3">
+                <button
+                  type="button"
+                  aria-expanded={expanded}
+                  aria-controls={bodyId}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleExpand();
+                  }}
+                  className="display max-w-3xl text-balance text-left text-[clamp(1rem,2vw,1.35rem)] leading-[1.18] tracking-[-0.03em] text-ink transition-colors duration-300 ease-cine hover:text-signal group-hover/card:text-signal"
+                >
+                  {f.title}
+                </button>
+              </h4>
             </div>
+
+            {expanded ? (
+              <motion.div
+                id={bodyId}
+                initial={reduce ? { opacity: 0 } : { opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: reduce ? 0.15 : 0.45, ease: EASE }}
+                className="mt-5 space-y-6"
+              >
+                {first ? <FirstCardHint /> : null}
+
+                <Explainer findingId={f.id} showTime />
+
+                {hasNumbers ? (
+                  teaches ? (
+                    <Disclosure label="The measurements" count={measurementCount(f)}>
+                      <Measurements finding={f} />
+                    </Disclosure>
+                  ) : (
+                    <div>
+                      <p className="eyebrow mb-3">The measurements</p>
+                      <Measurements finding={f} />
+                    </div>
+                  )
+                ) : null}
+
+                {f.moments?.length ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onFocus();
+                    }}
+                    className="btn-ghost px-4 py-2 font-mono text-[11px] uppercase tracking-[0.13em]"
+                    aria-label={`Show "${f.title}" in the timeline`}
+                  >
+                    Hear it in the timeline
+                    <span aria-hidden="true">↗</span>
+                  </button>
+                ) : null}
+              </motion.div>
+            ) : (
+              <OpenRow onOpen={onToggleExpand} hasTeaching={teaches} />
+            )}
           </div>
+
+          <button
+            type="button"
+            aria-expanded={expanded}
+            aria-controls={bodyId}
+            aria-label={
+              expanded ? `Collapse "${f.title}"` : `Open "${f.title}" — what it means and how to fix it`
+            }
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleExpand();
+            }}
+            className="mt-[2px] grid h-[26px] w-[26px] shrink-0 place-items-center rounded-lg border border-void-line text-ink-muted transition-colors duration-300 ease-cine hover:border-signal-dim hover:text-signal group-hover/card:border-ink-faint group-hover/card:text-ink-dim"
+          >
+            <Chevron open={expanded} />
+          </button>
         </div>
       </div>
     </motion.article>
@@ -913,8 +1113,12 @@ export default function FixStack({
     setDone((prev) => ({ ...prev, [key]: !prev[key] }));
   }, []);
 
-  const toggleExpand = useCallback((key: string) => {
-    setExpandOverride((prev) => ({ ...prev, [key]: !(prev[key] ?? false) }));
+  /**
+   * `defaultOpen` is what the card shows before anyone touches it, so the first
+   * click on an already-open card closes it rather than appearing to do nothing.
+   */
+  const toggleExpand = useCallback((key: string, defaultOpen = false) => {
+    setExpandOverride((prev) => ({ ...prev, [key]: !(prev[key] ?? defaultOpen) }));
   }, []);
 
   const base = clamp100(finite(analysis.health_score));
@@ -994,15 +1198,23 @@ export default function FixStack({
         </motion.div>
 
         <div className="space-y-4">
-          {fallbackFindings.map((f, i) => (
-            <FindingCard
-              key={f.id}
-              f={f}
-              index={i}
-              reduce={reduce}
-              onFocus={() => onFocusFinding(f.id)}
-            />
-          ))}
+          {fallbackFindings.map((f, i) => {
+            const key = `finding-${f.id}`;
+            // The first one is open so the shape of a card is visible without
+            // anyone having to guess there is more inside it.
+            return (
+              <FindingCard
+                key={f.id}
+                f={f}
+                index={i}
+                expanded={expandOverride[key] ?? i === 0}
+                first={i === 0}
+                onToggleExpand={() => toggleExpand(key, i === 0)}
+                reduce={reduce}
+                onFocus={() => onFocusFinding(f.id)}
+              />
+            );
+          })}
         </div>
       </div>
     );
@@ -1050,8 +1262,11 @@ export default function FixStack({
         {prescriptions.map((p, i) => {
           const key = `${p.finding_id}-${i}`;
           const isDone = Boolean(done[key]);
-          // Finishing a fix folds it away; that is the reward. Manual override wins.
-          const expanded = expandOverride[key] ?? !isDone;
+          // The top fix is open — it is the one to start on, and it shows what
+          // a card contains. The rest stay shut so the plan reads as a plan
+          // rather than a wall; finishing one folds it away either way.
+          const defaultOpen = i === 0 && !isDone;
+          const expanded = expandOverride[key] ?? defaultOpen;
           return (
             <PrescriptionCard
               key={key}
@@ -1060,6 +1275,7 @@ export default function FixStack({
               finding={findingById.get(p.finding_id) ?? null}
               done={isDone}
               expanded={expanded}
+              first={i === 0}
               reduce={reduce}
               onToggleDone={() => {
                 toggleDone(key);
@@ -1069,7 +1285,7 @@ export default function FixStack({
                   return next;
                 });
               }}
-              onToggleExpand={() => toggleExpand(key)}
+              onToggleExpand={() => toggleExpand(key, defaultOpen)}
               onFocus={() => onFocusFinding(p.finding_id)}
             />
           );

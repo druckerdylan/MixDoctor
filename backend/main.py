@@ -21,13 +21,14 @@ out. Three things in here are load-bearing and easy to undo by accident:
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import tempfile
 from typing import Any, Dict, List, Optional, Tuple
 
 from dotenv import load_dotenv
-from fastapi import Body, Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Body, Depends, FastAPI, File, Form, HTTPException, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field, ValidationError
@@ -36,7 +37,7 @@ from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
 import engineer
-from analysis import capabilities, core, engine, targets
+from analysis import capabilities, core, engine, knowledge, targets
 from analysis.types import EngineerReport, MixAnalysis, OwnedPlugin
 from auth import decode_token
 from database import get_db, init_db
@@ -322,6 +323,96 @@ async def capabilities_probe() -> Dict[str, Any]:
 async def list_genres() -> Dict[str, List[Dict[str, str]]]:
     """Genre keys and labels for the UI selector."""
     return {"genres": [{"key": key, "label": label} for key, label in targets.all_genres()]}
+
+
+# ---------------------------------------------------------------------------
+# Teaching content
+# ---------------------------------------------------------------------------
+
+#: Built once and served as bytes. The content is fixed at deploy time, so
+#: re-encoding ~half a megabyte of JSON per request would be pure waste.
+_KNOWLEDGE_CACHE: Optional[bytes] = None
+
+
+def _knowledge_payload() -> Dict[str, Any]:
+    """Every explainer, plus the vocabulary needed to read the fix steps.
+
+    **Fix steps ship unresolved, on purpose.** `knowledge.applicable_steps()`
+    exists and is not used here: resolving `needs` server-side would require
+    knowing which plugins this person owns, and for an anonymous user we do not
+    — the vault is localStorage-first and never reaches us. Resolving it with
+    the stock list as a stand-in would be worse than not resolving it, because
+    every step gated behind a tool they *do* own would silently render as its
+    `without` fallback. So each step carries `action`, `detail`, `needs` and
+    `without` verbatim and the client matches them against its own vault.
+
+    `capabilities` is here so the UI can say "needs a dynamic EQ" rather than
+    "needs eq_dynamic", and `stock_capabilities` so a client with an empty vault
+    still resolves the same way the server would: those are assumed, not owned.
+    """
+    explainers = knowledge.ensure_registered()
+
+    payload: Dict[str, Any] = {}
+    for finding_id, explainer in sorted(explainers.items()):
+        payload[finding_id] = {
+            "id": finding_id,
+            "dimension": finding_id.split(".", 1)[0],
+            "headline": explainer.headline,
+            "what_it_is": explainer.what_it_is,
+            "what_you_hear": explainer.what_you_hear,
+            "why_it_matters": explainer.why_it_matters,
+            "common_causes": list(explainer.common_causes),
+            "how_to_fix": [
+                {
+                    "action": step.action,
+                    "detail": step.detail,
+                    "needs": step.needs,
+                    "without": step.without,
+                }
+                for step in explainer.how_to_fix
+            ],
+            "how_to_verify": explainer.how_to_verify,
+            "learn_more": explainer.learn_more,
+            "minutes": explainer.minutes,
+        }
+
+    return {
+        "version": app.version,
+        "count": len(payload),
+        "explainers": payload,
+        "capabilities": {
+            slug: {"label": label, "unlocks": unlocks}
+            for slug, (label, unlocks) in sorted(capabilities.CAPABILITIES.items())
+        },
+        # What advice is allowed to assume. A step with no `needs`, or one
+        # naming a slug in here, is executable by everybody.
+        "stock_capabilities": list(capabilities.STOCK_CAPABILITIES),
+    }
+
+
+@app.get("/knowledge")
+async def knowledge_base() -> Response:
+    """The teaching layer: what every finding means and how to fix it.
+
+    Static per deploy and keyed by finding id, so the client fetches it once and
+    joins it against whatever analysis is on screen. That is the point — the
+    explanation for a finding must not depend on an API call that can be slow,
+    rate-limited or switched off, because "true peak above delivery ceiling"
+    with nothing behind it is the thing this endpoint exists to stop shipping.
+    """
+    global _KNOWLEDGE_CACHE
+    if _KNOWLEDGE_CACHE is None:
+        _KNOWLEDGE_CACHE = json.dumps(
+            _knowledge_payload(), ensure_ascii=False
+        ).encode("utf-8")
+
+    return Response(
+        content=_KNOWLEDGE_CACHE,
+        media_type="application/json",
+        # An hour is short next to "changes only on deploy", and it is the
+        # difference between fetching this once and fetching it per analysis.
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
 
 
 @app.post("/analyze", response_model=MixAnalysis)
