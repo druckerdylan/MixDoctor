@@ -15,6 +15,39 @@ from pydantic import BaseModel, Field
 Severity = Literal["critical", "major", "minor", "clean"]
 Verdict = Literal["good", "watch", "problem"]
 
+# What the file *is*, which decides which questions are even worth asking of it.
+# A tucked lead is a fault in a finished song and the entire point of a beat; a
+# bass stem is supposed to be all low end; nobody needs to be told to fix a
+# released record. Defaults to `full_mix`, so every existing caller keeps the
+# behaviour it has today.
+TrackIntent = Literal["full_mix", "beat", "instrumental", "stem", "reference", "demo"]
+
+TRACK_INTENTS: Tuple[str, ...] = (
+    "full_mix", "beat", "instrumental", "stem", "reference", "demo",
+)
+
+TRACK_INTENT_LABELS: Dict[str, str] = {
+    "full_mix": "Full mix",
+    "beat": "Beat (instrumental for a topline)",
+    "instrumental": "Instrumental",
+    "stem": "Single stem",
+    "reference": "Reference track",
+    "demo": "Demo / rough",
+}
+
+# The line the whole report turns on.
+#
+# A **defect** is wrong no matter the genre, the intent, the artist or the year:
+# a squared-off waveform, an inverted channel, a mix that disappears in mono.
+# Nobody chose it and nobody would.
+#
+# A **deviation** is a measured difference from a reference — the genre profile,
+# or a target curve derived from it. It may be deliberate, it may be the best
+# decision on the record, and it is reported as "this differs from the reference,
+# here is what that costs and what it buys". It is never reported as broken, and
+# it never earns a critical.
+FindingKind = Literal["defect", "deviation"]
+
 Dimension = Literal[
     "frequency_balance",
     "mud",
@@ -117,6 +150,14 @@ class Finding(BaseModel):
     id: str = Field(description="Stable slug, e.g. 'mud.low_mid_buildup'")
     dimension: Dimension
     title: str
+    kind: FindingKind = Field(
+        default="deviation",
+        description=(
+            "'defect' = objectively wrong regardless of genre, intent or taste. "
+            "'deviation' = a measured difference from the genre reference, which "
+            "may well be deliberate. Only defects may be critical."
+        ),
+    )
     severity: Severity
     confidence: float = Field(ge=0.0, le=1.0)
     detail: str
@@ -125,6 +166,16 @@ class Finding(BaseModel):
     moments: List[Moment] = Field(default_factory=list)
     impact: float = Field(
         default=0.0, ge=0.0, le=100.0, description="Estimated health-score points recoverable"
+    )
+    miss_ratio: float = Field(
+        default=0.0, ge=0.0,
+        description=(
+            "How far outside its window the measurement sits, in tolerance units. "
+            "0 = inside. 1.5 = a defect's 'major'. 3.0 = a defect's 'critical'. "
+            "This is the magnitude the severity label buckets away, and the scorer "
+            "reads it directly so that two findings sharing a label but not a "
+            "distance do not score the same."
+        ),
     )
 
 
@@ -267,8 +318,25 @@ class LowEndMeasurement(BaseModel):
     collision_moments: List[Moment] = Field(default_factory=list)
 
 
+VocalProminence = Literal["absent", "tucked", "balanced", "forward"]
+
+
 class VocalMeasurement(BaseModel):
     vocal_present: bool
+    #: How sure the voice test is, 0-1. `vocal_present` is this crossing a
+    #: threshold, so a detector that wants to be gentle about a borderline call
+    #: reads the float rather than the boolean.
+    vocal_confidence: float = Field(
+        default=0.0, ge=0.0, le=1.0,
+        description="Graded confidence that a real lead voice is present, 0-1",
+    )
+    #: Where the lead sits against the bed. A vocal tucked under the
+    #: instruments is a production decision on a beat, not a balance fault, and
+    #: this is what lets the detector layer tell the two apart.
+    vocal_prominence: VocalProminence = Field(
+        default="absent",
+        description="absent / tucked / balanced / forward, from the centre-to-instrument ratio",
+    )
     center_energy_ratio: float = Field(ge=0.0, le=1.0)
     vocal_to_instrument_db: float = Field(description="Centre 300-6k vs sides + non-vocal bands")
     intelligibility_index: float = Field(ge=0.0, le=1.0)
@@ -513,6 +581,10 @@ class MixAnalysis(BaseModel):
     schema_version: int = 2
     filename: str = ""
     genre: str = ""
+    intent: TrackIntent = Field(
+        default="full_mix",
+        description="What the file is. Decides which findings are even asked for.",
+    )
 
     health_score: float = Field(ge=0.0, le=100.0)
     grade: str = Field(description="A+ .. F")

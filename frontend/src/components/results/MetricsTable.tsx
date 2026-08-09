@@ -14,9 +14,21 @@ import {
   formatTime,
   type Measurements,
   type Moment,
+  type VocalProminence,
 } from '../../types/analysis';
 
 const EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
+
+/**
+ * Prominence in words. Deliberately non-judgemental: "tucked" describes where
+ * the lead sits, not whether putting it there was a mistake.
+ */
+const PROMINENCE_LABEL: Record<VocalProminence, string> = {
+  absent: 'No lead detected',
+  tucked: 'Tucked under the bed',
+  balanced: 'Sitting in the bed',
+  forward: 'Out in front',
+};
 
 /* ------------------------------------------------------------------ rows */
 
@@ -344,9 +356,25 @@ function buildSections(m: Measurements): Section[] {
     sections.push({
       id: 'vocal',
       title: 'Vocal',
-      blurb: 'Only meaningful when a lead vocal was found.',
+      blurb:
+        'Only meaningful when a lead vocal was found. A tucked lead is a production ' +
+        'decision — the point of a beat someone is going to rap over — not a fault.',
       rows: [
         { kind: 'bool', label: 'Vocal present', value: vocal.vocal_present, yes: 'Detected', no: 'Not detected' },
+        {
+          kind: 'num',
+          label: 'Voice-test confidence',
+          value: vocal.vocal_confidence,
+          unit: '',
+          digits: 2,
+          note: 'Centre energy, syllabic modulation and consonant articulation combined',
+        },
+        {
+          kind: 'text',
+          label: 'Lead prominence',
+          value: PROMINENCE_LABEL[vocal.vocal_prominence] ?? 'Not assessed',
+          note: 'Where the lead sits against the instrument bed',
+        },
         { kind: 'num', label: 'Centre energy ratio', value: vocal.center_energy_ratio, unit: '', digits: 2 },
         { kind: 'num', label: 'Vocal to instruments', value: vocal.vocal_to_instrument_db, unit: 'dB', signed: true },
         { kind: 'num', label: 'Intelligibility', value: vocal.intelligibility_index, unit: '', digits: 2 },

@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { API_BASE } from '../config';
-import type { AnalysisStatus, EngineerReport, MixAnalysis } from '../types/analysis';
+import type { AnalysisStatus, EngineerReport, MixAnalysis, TrackIntent } from '../types/analysis';
 
 /** Everything the intake form collects, in one typed payload. */
 export interface AnalyzeRequest {
   file: File;
+  /**
+   * What the file is. Genre decides the reference the mix is compared against;
+   * this decides which comparisons are worth making at all — a beat's absent
+   * lead is correct, a stem has no mix balance to judge, and nobody is being
+   * asked to fix a released record. Omit to leave the server on `full_mix`.
+   */
+  intent?: TrackIntent;
   genre: string;
   referenceFile?: File | null;
   notes?: string | null;
@@ -202,6 +209,7 @@ export function useAnalysis(): UseAnalysisReturn {
       const form = new FormData();
       form.append('file', request.file);
       form.append('genre', request.genre);
+      if (request.intent) form.append('intent', request.intent);
       if (request.referenceFile) form.append('reference_file', request.referenceFile);
       const notes = request.notes?.trim();
       if (notes) form.append('notes', notes);

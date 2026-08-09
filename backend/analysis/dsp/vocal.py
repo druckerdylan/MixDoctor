@@ -11,22 +11,52 @@ defensible:
   Multiplying the mid magnitude by that mask gives the centre; everything else
   (the rest of the mid, plus all of the side) is "instruments".
 
-* **A voice test, not a level test.** `vocal_present` is decided by the
-  temporal signature — sustained energy in 300 Hz-6 kHz whose envelope is
-  modulated at the syllabic rate, 2-8 Hz — and, crucially, by whether that
-  modulation is *specific to the centre*. A hard-limited mix pumps its whole
-  spectrum at the tempo; comparing the centre's syllabic modulation against the
-  non-centre's stops that pumping from being reported as a singer.
+* **A voice test, not a level test.** A voice is identified by its temporal
+  signature — sustained energy in 300 Hz-6 kHz whose envelope is modulated at
+  the syllabic rate, 2-8 Hz — and, crucially, by whether that modulation is
+  *specific to the centre*. A hard-limited mix pumps its whole spectrum at the
+  tempo; comparing the centre's syllabic modulation against the side channel's
+  stops that pumping from being reported as a singer.
+
+Graded, not binary
+------------------
+A single boolean was too eager. Centre energy plus 2-8 Hz modulation is also
+what a centred synth lead, a plucked arpeggio and a mono-ish arrangement look
+like, so on a beat with a hook tucked under the drums the boolean fired and
+every downstream detector then judged the "vocal" as if it were a lead. Three
+things fix that:
+
+* **`vocal_confidence`** is a weighted *geometric* mean of five independent
+  tests, so any one of them coming back empty collapses the score rather than
+  being averaged away by the other four. `vocal_present` is that float crossing
+  a threshold, which means a detector can ask how sure we are instead of only
+  whether we committed.
+
+* **An articulation test** separates a voice from a sustained centred
+  instrument. Speech alternates vowels and consonants, so the ratio of
+  1-4 kHz to 300 Hz-1 kHz *swings* several dB from frame to frame. A synth lead
+  or a pad holds a fixed harmonic ratio however loud it gets, so its swing is a
+  couple of dB at most. This is the term that stops a centred lead synth from
+  reading as a singer.
+
+* **`vocal_prominence`** says where the lead sits rather than only that it
+  exists. A hook mixed deliberately under the beat so someone can rap over it
+  is "tucked", and that is a production decision, not a balance fault. The
+  detector layer reads it precisely so it can stop calling one the other.
 
 On a mono source there is no side channel, so centre extraction is meaningless.
-Rather than invent a verdict, `vocal_present` is False and the separation-derived
-figures are returned neutral; the purely spectral ones are still measured.
+Rather than invent a verdict, `vocal_present` is False, `vocal_confidence` is 0
+and `vocal_prominence` is "absent"; the purely spectral figures are still
+measured.
 
 Levels use A-weighting, so "is my vocal too quiet" is answered against what the
 ear hears rather than against the sub, which otherwise owns the energy budget
 and would make every mix look vocal-starved.
 
-Measurement only: no thresholds, no genre knowledge, no verdicts.
+Measurement only: no thresholds, no genre knowledge, no verdicts. The
+prominence bands below are the one place this module names a boundary, and they
+are deliberately genre-independent — "under the bed" is arithmetic; whether
+being under the bed is *wrong* is the detector layer's question, not this one's.
 """
 
 from __future__ import annotations
@@ -47,7 +77,7 @@ from ..core import (
     merge_spans,
     percentile_safe,
 )
-from ..types import Moment, VocalMeasurement
+from ..types import Moment, VocalMeasurement, VocalProminence
 
 # --- analysis constants ----------------------------------------------------
 
@@ -71,6 +101,45 @@ _VOCAL_MACRO = ("low_mid", "mid", "upper_mid", "presence", "brilliance")
 _MIN_CENTRE_RATIO = 0.03            # below this there is no centre to describe
 _MASK_WITHIN_DB = 3.0               # "non-centre sits within ~3 dB of the centre"
 _MOMENT_DB = 6.0                    # how far from its own median counts as an event
+
+# --- the voice test, as five graded terms ----------------------------------
+#
+# Each pair is (nothing-here, fully-convinced) for one piece of evidence. A
+# measurement at or below the first scores 0, at or above the second scores 1,
+# and it ramps linearly between. The old boolean used the *low* end of each of
+# these as a pass mark, which is why it fired on material that only just had a
+# centre and only just modulated.
+_R_CENTRE = (0.08, 0.28)        # share of 300 Hz-6 kHz that is centred
+_R_MOD = (0.22, 0.45)           # share of the centre's 0.5-16 Hz modulation in 2-8 Hz
+_R_SPECIFIC = (0.02, 0.20)      # how much more the centre modulates than the sides
+_R_ARTICULATION = (2.0, 9.0)    # dB swing of consonant-over-body within the centre
+_R_AUDIBLE = (-25.0, -10.0)     # A-weighted centre vocal band vs everything else, dB
+
+# Weights on those five, applied in the geometric mean. Modulation and its
+# centre-specificity are what make this a voice test rather than a level test,
+# so they carry the most; audibility only has to rule out a centre that is
+# effectively silent.
+_VOICE_WEIGHTS = (1.0, 1.4, 1.4, 1.1, 0.6)
+
+# `vocal_present` is `vocal_confidence` over this. Calibrated so the old
+# boolean's exact pass conditions (centre 0.12, modulation 0.30, specificity
+# 1.15x + 0.05) land around 0.42 — i.e. they no longer pass on their own.
+_PRESENT_AT = 0.55
+
+# Where the lead sits against the bed, from `vocal_to_instrument_db`. Every
+# genre profile places a lead vocal in (-4, +4) dB of the instrumental, so
+# these sit a dB outside that on each side: "tucked" means below anywhere a
+# genre would put a lead, "forward" means above all of them.
+_TUCKED_BELOW_DB = -5.0
+_FORWARD_ABOVE_DB = 5.0
+
+# Below this there is not enough evidence of a voice to say where it sits.
+_PROMINENCE_FLOOR = 0.25
+
+# Articulation needs frames with something in them; a swing measured across the
+# silence between phrases is measuring the silence.
+_ARTIC_ACTIVE_BELOW_DB = 25.0
+_ARTIC_MIN_FRAMES = 12
 
 
 # ---------------------------------------------------------------------------
@@ -139,6 +208,34 @@ def _ratio_db(num: float, den: float, floor: float = -60.0, ceil: float = 60.0) 
     if den <= EPS:
         return floor
     return _finite(clamp(10.0 * np.log10(max(num, EPS) / den), floor, ceil), floor)
+
+
+def _ramp(value: float, span: Tuple[float, float]) -> float:
+    """0 at or below `span[0]`, 1 at or above `span[1]`, linear between."""
+    lo, hi = float(span[0]), float(span[1])
+    if hi <= lo:
+        return 1.0 if float(value) >= hi else 0.0
+    return float(clamp((_finite(value, lo) - lo) / (hi - lo), 0.0, 1.0))
+
+
+def _weighted_geometric_mean(scores: Tuple[float, ...], weights: Tuple[float, ...]) -> float:
+    """Geometric mean, so one empty term collapses the result.
+
+    An arithmetic mean lets four weak-but-nonzero signals outvote a hard zero,
+    which is exactly the wrong behaviour here: no syllabic modulation means no
+    voice however much centre energy there is. The geometric mean cannot be
+    talked out of a zero.
+    """
+    total = float(sum(weights))
+    if total <= 0.0:
+        return 0.0
+    acc = 0.0
+    for score, weight in zip(scores, weights):
+        s = clamp(float(score), 0.0, 1.0)
+        if s <= 0.0:
+            return 0.0
+        acc += float(weight) * float(np.log(s))
+    return float(clamp(float(np.exp(acc / total)), 0.0, 1.0))
 
 
 # ---------------------------------------------------------------------------
@@ -276,9 +373,13 @@ def measure_vocal(buf: AudioBuffer) -> VocalMeasurement:
 
     if buf.is_mono:
         # No side channel: the "centre" is just the mix. Report the spectral
-        # facts, stay silent on everything separation-derived.
+        # facts, stay silent on everything separation-derived. There is no
+        # confidence to report either — not "we are sure there is no vocal",
+        # but "this file cannot be asked the question".
         return VocalMeasurement(
             vocal_present=False,
+            vocal_confidence=0.0,
+            vocal_prominence="absent",
             center_energy_ratio=1.0,
             vocal_to_instrument_db=0.0,
             intelligibility_index=0.5,
@@ -301,6 +402,8 @@ def measure_vocal(buf: AudioBuffer) -> VocalMeasurement:
         # spectral shape of what's left is measuring cancellation residue.
         return VocalMeasurement(
             vocal_present=False,
+            vocal_confidence=0.0,
+            vocal_prominence="absent",
             center_energy_ratio=round(center_energy_ratio, 4),
             vocal_to_instrument_db=round(vocal_to_instrument_db, 2),
             intelligibility_index=0.0,
@@ -356,18 +459,32 @@ def measure_vocal(buf: AudioBuffer) -> VocalMeasurement:
         times, v_db - reference, "vocal jumps forward", 1.0, buf.duration
     )
 
-    # -- is it actually a voice ---------------------------------------------
+    # -- is it actually a voice, and how sure are we -------------------------
+    #
+    # Five independent tests, combined geometrically. Read them as a sentence:
+    # there is a centre; it modulates at the syllable rate; that modulation is
+    # specific to the centre rather than the whole mix pumping; the centre
+    # alternates consonants and vowels the way speech does and a synth does
+    # not; and it is loud enough to be a lead rather than a ghost.
     mod_centre, mod_side = _modulation(buf)
-    vocal_present = bool(
-        center_energy_ratio >= 0.12
-        and c_voc_a > EPS
-        and vocal_to_instrument_db > -25.0
-        and mod_centre >= 0.30
-        and mod_centre >= mod_side * 1.15 + 0.05
+    articulation_db = _articulation_db(freqs, centre_p, voc)
+    vocal_confidence = 0.0 if c_voc_a <= EPS else _weighted_geometric_mean(
+        (
+            _ramp(center_energy_ratio, _R_CENTRE),
+            _ramp(mod_centre, _R_MOD),
+            _ramp(mod_centre - mod_side, _R_SPECIFIC),
+            _ramp(articulation_db, _R_ARTICULATION),
+            _ramp(vocal_to_instrument_db, _R_AUDIBLE),
+        ),
+        _VOICE_WEIGHTS,
     )
+    vocal_present = bool(vocal_confidence >= _PRESENT_AT)
+    vocal_prominence = _prominence(vocal_to_instrument_db, vocal_confidence)
 
     return VocalMeasurement(
         vocal_present=vocal_present,
+        vocal_confidence=round(vocal_confidence, 3),
+        vocal_prominence=vocal_prominence,
         center_energy_ratio=round(center_energy_ratio, 4),
         vocal_to_instrument_db=round(vocal_to_instrument_db, 2),
         intelligibility_index=round(intelligibility_index, 3),
@@ -383,6 +500,65 @@ def measure_vocal(buf: AudioBuffer) -> VocalMeasurement:
 # ---------------------------------------------------------------------------
 # pieces of the above
 # ---------------------------------------------------------------------------
+
+
+def _articulation_db(freqs: np.ndarray, centre_p: np.ndarray, voc: np.ndarray) -> float:
+    """How much the centre's consonant-over-body ratio swings, in dB.
+
+    The one cheap test that separates a voice from a sustained centred
+    instrument. Speech alternates vowels and consonants: on a vowel the energy
+    sits in 300 Hz-1 kHz, on an 's' or a 't' it moves to 1-4 kHz, so the ratio
+    between those two bands moves several dB within a single word. A synth
+    lead, a pad or a centred organ holds one harmonic structure — the ratio
+    barely moves however the note or the level changes. Centred *drums* swing
+    too, but they fail the syllabic-rate test instead, which is why both terms
+    are needed and neither is sufficient.
+
+    Returned as the interquartile spread rather than the full range so one
+    cymbal crash in the centre cannot manufacture a voice, and measured only on
+    frames where the centre is actually carrying something — a ratio computed
+    across the gaps between phrases is measuring the noise floor.
+    """
+    body = centre_p[:, _band_mask(freqs, *_BODY_HZ)].sum(axis=1)
+    cons = centre_p[:, _band_mask(freqs, *_CONSONANT_HZ)].sum(axis=1)
+    level = centre_p[:, voc].sum(axis=1)
+    if level.size < _ARTIC_MIN_FRAMES:
+        return 0.0
+
+    peak = float(level.max())
+    if peak <= EPS:
+        return 0.0
+    active = level > peak * 10.0 ** (-_ARTIC_ACTIVE_BELOW_DB / 10.0)
+    if int(np.count_nonzero(active)) < _ARTIC_MIN_FRAMES:
+        return 0.0
+
+    ratio = 10.0 * np.log10(
+        np.maximum(cons[active], EPS) / np.maximum(body[active], EPS)
+    )
+    ratio = ratio[np.isfinite(ratio)]
+    if ratio.size < _ARTIC_MIN_FRAMES:
+        return 0.0
+    return _finite(
+        clamp(float(np.percentile(ratio, 75.0) - np.percentile(ratio, 25.0)), 0.0, 40.0)
+    )
+
+
+def _prominence(v2i_db: float, confidence: float) -> VocalProminence:
+    """Where the lead sits against the bed — not whether that is correct.
+
+    A hook deliberately mixed under the drums so a rapper can go over it is
+    "tucked"; that is the right answer for a beat and a plausible one for
+    shoegaze, and nothing here decides which. Below `_PROMINENCE_FLOOR` there
+    is not enough evidence of a voice to place one, so the answer is "absent"
+    rather than a position for something that may not be there.
+    """
+    if confidence < _PROMINENCE_FLOOR:
+        return "absent"
+    if v2i_db < _TUCKED_BELOW_DB:
+        return "tucked"
+    if v2i_db > _FORWARD_ABOVE_DB:
+        return "forward"
+    return "balanced"
 
 
 def _masked_bands(
@@ -448,6 +624,8 @@ def _neutral(is_mono: bool) -> VocalMeasurement:
     """Nothing measurable — return a fully populated, opinion-free result."""
     return VocalMeasurement(
         vocal_present=False,
+        vocal_confidence=0.0,
+        vocal_prominence="absent",
         center_energy_ratio=1.0 if is_mono else 0.0,
         vocal_to_instrument_db=0.0,
         intelligibility_index=0.5,

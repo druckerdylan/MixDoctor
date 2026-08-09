@@ -500,6 +500,203 @@ _add(
 )
 
 
+_add(
+    "harshness.bright_transients",
+    Explainer(
+        headline=(
+            "The top of your beat is spitting, and it is the hats and shakers doing it — "
+            "not a vocal."
+        ),
+        what_it_is=(
+            "This is the same measurement that finds sibilance, reported honestly about a "
+            "different source. The analyser looks at 5-9 kHz and asks how much louder the "
+            "loudest frames are than the typical ones. A steady shimmer of cymbals and room "
+            "scores near zero however bright the mix is; something that arrives in short, hard "
+            "bursts scores high. An 's' does that — and so does a closed hi-hat, a shaker, a "
+            "tambourine and a rim click, which are all 30-60 millisecond noise bursts in "
+            "exactly the same octave.\n\n"
+            "So the number alone cannot tell you which. What decides it here is whether there "
+            "is a lead vocal sitting up in the mix for those bursts to belong to. On this "
+            "track there is not — either no voice was detected at all, or the voice that was "
+            "detected is tucked well under the bed, which is where a hook goes when somebody "
+            "is going to rap over the beat. Either way, the thing making the top burst is the "
+            "percussion, and this finding says so instead of calling it sibilance and sending "
+            "you to a de-esser.\n\n"
+            "Worth being straight about the confidence: without separated stems this is an "
+            "inference. It is a strong one — a bursty top octave on a track with no lead up "
+            "front is hats far more often than it is anything else — but it is not a "
+            "measurement of the hi-hat channel. Run the analysis with stem separation on and "
+            "the question is answered directly, by reading the 5-10 kHz share off each "
+            "separated source, and the confidence on this finding goes up accordingly."
+        ),
+        what_you_hear=(
+            "A top end that pecks at you. Individual hat hits poke out in front of the beat "
+            "instead of sitting in it, the shaker sounds like it is in a different, closer "
+            "room than everything else, and the groove reads as busy rather than tight. "
+            "Turn it up and it becomes tiring within a minute or two even though nothing "
+            "sounds obviously wrong — that fatigue is the tell, because the ear is at its "
+            "most sensitive right through this band.\n\n"
+            "It is worst exactly where your beat will actually be heard. Earbuds and phone "
+            "speakers both have a response peak in the same region, so a hat pattern that "
+            "sounds crisp on monitors turns into a tick track on a bus. And if a rapper puts "
+            "a vocal on top of it, their consonants land in this same octave and now have to "
+            "fight the hats for it — the words lose their edge and the natural response is to "
+            "brighten the vocal, which makes the whole top harder still."
+        ),
+        why_it_matters=(
+            "Three concrete costs, in the order they bite.\n\n"
+            "Your limiter sees every one of those bursts as a peak. It ducks the whole track "
+            "for a few milliseconds and lets go, so a busy hat pattern punches dozens of small "
+            "holes in the low end per bar. That is a large part of why a beat can measure loud "
+            "and still feel weak — the kick is being modulated by the hats.\n\n"
+            "Lossy encoders handle short, noisy, high-frequency events badly. A hat is close to "
+            "the worst case, and what comes out of the encoder is smeared and grainier than "
+            "what you exported. The louder and pointier the transient, the more obvious the "
+            "damage.\n\n"
+            "And it spends headroom on the part of the record that is not the record. If this "
+            "is a beat, the topline is going to want that 5-9 kHz room for consonants. "
+            "Whatever the hats are holding there, the vocal has to be pushed past."
+        ),
+        common_causes=(
+            "A stock hi-hat sample that is already bright, then a high shelf across the drum "
+            "bus on top of it. Most one-shots in a modern pack are pre-brightened, so the "
+            "shelf you would add to a live kit is a second helping.",
+            "A transient shaper or a clipper on the drum bus with attack pushed up. Both make "
+            "the hat's leading edge sharper, which is precisely the thing this measures.",
+            "Layered percussion: a closed hat, a shaker and a tambourine on the same 16ths. "
+            "Three sources with the same spectral centre stack into one burst that is far "
+            "louder than any of them, and the pattern reads as a single very loud hat.",
+            "Bus compression with a slow attack on the drums. It lets the transient through "
+            "untouched and then turns down the body behind it, which raises the transient's "
+            "level relative to everything around it.",
+            "Saturation or an exciter on the master. Both generate new high harmonics from the "
+            "sharpest edges in the mix, and the sharpest edges in a beat are the hats.",
+            "No dynamic control on the percussion group at all — normal, and usually fine, "
+            "until the hats are the loudest thing in the top two octaves.",
+        ),
+        how_to_fix=(
+            FixStep(
+                action="Solo the hats and confirm it before you treat anything.",
+                detail=(
+                    "Without stems this attribution is an inference. Loop eight bars and "
+                    "listen for where the spit lands. On the offbeats and the 16ths it is the "
+                    "hats and shakers, and everything below applies. On the consonants of a "
+                    "vocal it is sibilance and you want a de-esser instead. If you can, "
+                    "re-run the analysis with stem separation on and let it answer directly."
+                ),
+            ),
+            FixStep(
+                action="Pull the attack down on the percussion bus with a transient shaper.",
+                detail=(
+                    "This is the right tool and it is not the obvious one. The problem is not "
+                    "that the hats are loud, it is that their leading edge is far louder than "
+                    "their body — which is exactly the ratio a transient shaper controls and "
+                    "exactly the ratio an EQ cannot touch. Take the attack down 3-6 dB on the "
+                    "hat and shaker group and leave the level alone. The pattern keeps its "
+                    "place in the groove and stops pecking."
+                ),
+                needs="transient_shaper",
+                without=(
+                    "A fast compressor gets most of the way there: 4:1 or so, attack under "
+                    "1 ms so it actually catches the transient, fast release, and aim for "
+                    "2-4 dB of reduction on the hits and none between them. Slower than about "
+                    "5 ms of attack and you are doing the opposite of what you want — the "
+                    "transient passes through and the body gets ducked behind it."
+                ),
+            ),
+            FixStep(
+                action="Take the shelf off the hat bus before you add anything else.",
+                detail=(
+                    "If there is a high shelf on the drums or the master, bypass it and "
+                    "listen. On a pack sample that is usually the entire problem, and "
+                    "removing 2 dB of shelf you did not need beats adding a dynamic band to "
+                    "fight it."
+                ),
+                needs="eq_static",
+            ),
+            FixStep(
+                action="Put a dynamic band on the percussion group, not the master.",
+                detail=(
+                    "One band at 7-8 kHz, wide-ish (Q around 1.0), threshold set so it only "
+                    "moves on the loudest hits, range limited to 4 dB. On the percussion group "
+                    "it takes the peaks off the hats and leaves the vocal, the keys and the "
+                    "snare's body completely alone. The same band on the master would duck the "
+                    "whole record every time a hat lands, which is the mistake this step "
+                    "exists to avoid."
+                ),
+                needs="eq_dynamic",
+                without=(
+                    "A multiband compressor's top band does the same job: crossover around "
+                    "6 kHz, fast attack and release, 2-3 dB of reduction on the peaks. Put it "
+                    "on the percussion group for the same reason."
+                ),
+            ),
+            FixStep(
+                action="Thin the layers before you process them.",
+                detail=(
+                    "If a closed hat, a shaker and a tambourine are all on the 16ths, the "
+                    "cheapest fix is to keep one of them and drop the other two 6 dB, or "
+                    "filter each to a different part of the band so they stop stacking. "
+                    "Three bright sources on the same grid is an arrangement problem, and "
+                    "no amount of dynamics processing turns it back into one source."
+                ),
+            ),
+            FixStep(
+                action="If this is a beat, leave the topline room on purpose.",
+                detail=(
+                    "Check the hats against where a vocal will sit: pull the group down 1-2 dB "
+                    "and see whether the beat still reads. Most do, and the 5-9 kHz room you "
+                    "just freed is what stops the rapper's consonants from having to be shoved "
+                    "through the hat pattern later."
+                ),
+            ),
+            FixStep(
+                action="Keep it if the brightness is the point.",
+                detail=(
+                    "Hats cutting hard is a genre choice and a good one in plenty of records. "
+                    "This is a difference from the reference, not a defect. If the beat is "
+                    "supposed to feel fast and glassy and it does, the correct action is none "
+                    "— just know the limiter and the encoder are both paying for it, and give "
+                    "the master a little more headroom than you otherwise would."
+                ),
+            ),
+        ),
+        how_to_verify=(
+            "Loop the busiest eight bars at a realistic volume and listen for a full minute. "
+            "The hats should read as part of the groove rather than as individual events in "
+            "front of it, and you should not feel like turning it down. Then watch the "
+            "limiter's gain-reduction meter with the drums soloed: it should not be moving on "
+            "every hat. In a fresh analysis the 5-9 kHz burstiness index should come back "
+            "under the ceiling — which is set wider on a track with no lead vocal than on one "
+            "with a singer, because percussion is supposed to cut and consonants are not. And "
+            "check the low end afterwards: taking the peaks off a busy hat pattern usually "
+            "makes the kick sound louder without you touching it, because the limiter has "
+            "stopped ducking underneath it."
+        ),
+        learn_more=(
+            "Why this measurement cannot name its own source, and why that matters. A "
+            "fricative is turbulent noise lasting 50-150 ms with a broad spectral peak "
+            "somewhere between 5 and 9 kHz. A closed hi-hat is a metal-on-metal impulse "
+            "lasting 30-60 ms with a broad spectral peak in the same place. In a summed "
+            "two-track they are the same kind of object: short, noisy, bright, intermittent. "
+            "No statistic computed on the stereo file separates them, which is why the honest "
+            "move is to look for corroborating evidence — is there a voice on this record at "
+            "all, and if so is it sitting where a lead sits — rather than to assume.\n\n"
+            "That distinction is not academic, because the two problems have opposite fixes. "
+            "Sibilance wants a split-band de-esser on the vocal, which reduces a band for the "
+            "50 ms an 's' lasts and leaves the vowel untouched. A spitting hat wants attack "
+            "control on the percussion bus, which changes the shape of the transient and "
+            "leaves the band alone. Apply the first to the second and you dull the whole top "
+            "of the record every time a hat lands; apply the second to the first and you "
+            "flatten the singer's diction. Getting the attribution right is most of getting "
+            "the fix right, and it is the reason separating stems is worth the extra minute "
+            "of processing on anything percussive."
+        ),
+        minutes=15,
+    ),
+)
+
+
 # ---------------------------------------------------------------------------
 # Frequency balance — one explainer per macro band, per direction.
 #
@@ -2575,17 +2772,30 @@ _add(
             "the air with something you did not want."
         ),
         learn_more=(
-            "Lossy codecs work by discarding what a psychoacoustic model predicts you will not "
-            "hear, and one of the first economies they make is to low-pass the signal — MP3 at "
-            "moderate bitrates typically throws away everything above about 16 kHz, because "
-            "almost no adult hears it and it is expensive to encode. That produces the "
-            "characteristic vertical cliff on an analyser, and it is a reliable fingerprint: no "
-            "microphone, instrument or filter you would deliberately use produces a wall that "
-            "steep at that frequency. When you spot one, the important information is not the "
-            "missing air. It is that the file went through a codec, which also means it carries "
-            "pre-echo on transients and quantisation noise in the mids — problems you can hear "
-            "but cannot see, on content you can see but cannot hear. The cliff is the cheap "
-            "detector for the expensive problem."
+            "Almost nothing up here is a sound in its own right. Above roughly 10 kHz you are "
+            "hearing the harmonics of things whose fundamentals sit far below — a cymbal's "
+            "shimmer, the noise of a breath, the first reflections off the walls of the room. "
+            "That is why air reads as *space* rather than as brightness: it is mostly "
+            "information about where a sound happened rather than what it was. It is also why "
+            "adding it with an EQ works less often than people expect. A shelf lifts whatever "
+            "is already there, and if the source never captured that detail there is nothing "
+            "under the shelf but noise and cymbal wash, which is the sound of a mix that has "
+            "been brightened rather than opened up.\n\n"
+            "Two very different things produce a thin top octave, and they call for opposite "
+            "responses. The ordinary one is that the balance is simply dark — a gentle slope "
+            "away from the top, common in lo-fi, in a lot of hip-hop, and on anything tracked "
+            "through warm analogue. That is a taste decision and it needs no fixing.\n\n"
+            "The other one is worth knowing how to spot, because it is invisible until you do. "
+            "Lossy codecs discard what a psychoacoustic model predicts you will not hear, and "
+            "one of their first economies is to low-pass the signal — MP3 at moderate bitrates "
+            "typically throws away everything above about 16 kHz. That leaves a vertical cliff "
+            "on an analyser, and the cliff is a reliable fingerprint: no microphone, instrument "
+            "or filter you would deliberately use produces a wall that steep at one frequency. "
+            "A slope is taste; a wall is a codec. If you find a wall, the missing air is the "
+            "least of it — the same encode left pre-echo on transients and quantisation noise "
+            "in the mids, problems you can hear but cannot see. The cliff is the cheap detector "
+            "for the expensive problem, so it is worth checking for even when the darkness "
+            "turns out to be deliberate."
         ),
         minutes=15,
     ),

@@ -53,6 +53,7 @@ function AppContent() {
       setSubmission(next);
       void analyze({
         file: next.file,
+        intent: next.intent,
         genre: next.genre,
         referenceFile: next.referenceFile,
         notes: next.notes,

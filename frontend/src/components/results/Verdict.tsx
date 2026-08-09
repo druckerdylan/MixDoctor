@@ -5,6 +5,8 @@ import type { EngineerStatus } from '../../hooks/useAnalysis';
 import {
   DIMENSION_LABELS,
   SEVERITY_VAR,
+  TRACK_INTENT_LABELS,
+  TRACK_INTENT_SHORT,
   formatTime,
   severityFromScore,
   type DimensionScore,
@@ -210,6 +212,21 @@ export default function Verdict({ analysis, engineerStatus = 'idle' }: VerdictPr
               /
             </span>
             <span className="eyebrow">{analysis.genre}</span>
+          </>
+        ) : null}
+        {/* What the analyser assumed the file was. Next to the genre because
+            the two together are the whole frame the report was written in —
+            and because a reader who sees "judged as a full mix" over a beat
+            now knows the fix is one radio button, not an argument. */}
+        {analysis.intent ? (
+          <>
+            <span aria-hidden="true" className="text-ink-faint/60">
+              /
+            </span>
+            <span className="eyebrow" title={TRACK_INTENT_LABELS[analysis.intent]}>
+              <span className="text-ink-faint/70">judged as</span>{' '}
+              {TRACK_INTENT_SHORT[analysis.intent]}
+            </span>
           </>
         ) : null}
         {durationLabel ? (

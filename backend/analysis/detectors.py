@@ -101,6 +101,7 @@ from .types import (
     DimensionScore,
     Evidence,
     Finding,
+    FindingKind,
     MaskingPair,
     Measurements,
     Moment,
@@ -109,10 +110,12 @@ from .types import (
     Severity,
     StemAnalysis,
     StemMeasurement,
+    TRACK_INTENTS,
+    TrackIntent,
     Verdict,
 )
 
-__all__ = ["detect_all", "score_dimensions"]
+__all__ = ["detect_all", "score_dimensions", "finding_kind"]
 
 
 # ---------------------------------------------------------------------------
@@ -124,6 +127,193 @@ __all__ = ["detect_all", "score_dimensions"]
 # value sits one full tolerance unit outside the genre's window.
 _MAJOR_AT = 1.5
 _CRITICAL_AT = 3.0
+
+
+# ---------------------------------------------------------------------------
+# Defects and deviations
+#
+# The distinction the whole report now turns on, and the reason a beat stopped
+# being told its hi-hats are a vocal problem.
+#
+# A **defect** is wrong independent of genre, intent, artist and decade. Nobody
+# chose a squared-off waveform, an inverted channel or a mix that vanishes in
+# mono, and no reference curve is involved in noticing it — the threshold is
+# arithmetic or physics. Defects keep the full severity range and the full pull
+# on the health score.
+#
+# Everything else is a **deviation**: a measured difference from a reference,
+# where the reference is the genre profile in `targets.py` or a curve derived
+# from it. Loudness, dynamic range, width, spectral balance, sub weight, vocal
+# level, punch — every one of these is a decision somebody could reasonably make
+# differently, and on some records the departure *is* the record. A deviation is
+# reported as a difference with a cost and a benefit, never as damage.
+# ---------------------------------------------------------------------------
+
+_DEFECT_IDS: frozenset = frozenset({
+    "phase.polarity_inverted",
+    "phase.mono_incompatible",
+    "phase.band_cancellation",
+    "limiter.over_driven",
+    "low_end.not_mono",
+    "stereo_width.channel_imbalance",
+})
+
+# `clipping.*` in full: hard clipping and inter-sample overs are both the same
+# kind of fact — the waveform, or the decoder's reconstruction of it, does not
+# fit in the container. No genre wants that.
+_DEFECT_PREFIXES: Tuple[str, ...] = ("clipping.",)
+
+
+def finding_kind(finding_id: str) -> FindingKind:
+    """Defect or deviation, from the finding id alone.
+
+    Kept as a pure function of the id so the classification is auditable in one
+    place and a new detector cannot quietly invent a third category.
+    """
+    fid = str(finding_id or "")
+    if fid in _DEFECT_IDS or fid.startswith(_DEFECT_PREFIXES):
+        return "defect"
+    return "deviation"
+
+
+# Where a deviation is allowed to reach "major": the distance at which a *defect*
+# would be critical. The rule is "one severity step gentler at the same distance"
+# — a deviation 3 tolerance units out is a major, where a defect that far out is
+# a critical. "critical" belongs to defects and a deviation never reaches it.
+#
+# This was 2x `_CRITICAL_AT` (6.0) and that number is unreachable: across every
+# fixture and every genre the largest deviation measured is ~4.2 tolerance units,
+# so *every* deviation bucketed to "minor". Combined with a penalty table keyed
+# only on the label, that made a trap master judged against ambient score
+# identically to one judged against rock — the genre signal was not softened, it
+# was discarded. See `deviation_penalty` for the other half of the fix.
+_DEVIATION_MAJOR_AT = _CRITICAL_AT
+
+
+def _severity_for(kind: str, ratio: float) -> Severity:
+    """Severity under the defect/deviation rule.
+
+    Defects use the shared mapping unchanged. Deviations cap at major and only
+    reach it a long way outside the window — a departure from a reference is
+    never a five-alarm, however far it goes.
+    """
+    if kind == "defect":
+        return _severity(ratio)
+    r = _fin(ratio, 0.0)
+    if r >= _DEVIATION_MAJOR_AT:
+        return "major"
+    if r > 0.0:
+        return "minor"
+    return "clean"
+
+
+# ---------------------------------------------------------------------------
+# Track intent
+#
+# The second half of the same idea. The genre says what a finished record of
+# this kind usually measures; the intent says whether this file is trying to be
+# one. A beat is an instrumental built for somebody else to rap over: the lead
+# is deliberately absent or tucked, the mid-range is deliberately left open, and
+# the 5-9 kHz burstiness that a full mix would owe to consonants is hi-hats.
+# Judging it against a finished-song checklist produces exactly the complaint
+# this module exists to stop producing.
+# ---------------------------------------------------------------------------
+
+# No lead vocal is expected on the record, so nothing about a lead is reported.
+_NO_LEAD_INTENTS: Tuple[str, ...] = ("beat", "instrumental", "stem", "reference")
+
+# How much wider the 5-9 kHz window is when the burstiness in it is percussion
+# rather than consonants.
+#
+# `sibilance_max` is written for a record with a singer on it, where a bursty
+# 5-9 kHz band means one thing and the ear is unforgiving about it. With no lead
+# on the file the same measurement is hi-hats, shakers and rim clicks, and every
+# genre that has a hat pattern expects those to cut — trap's ceiling of 0.36
+# exists to protect a vocal that a trap *beat* does not have yet. 1.6x puts
+# trap's percussion ceiling at 0.58 and pop's at 0.64, which on the fixtures is
+# the difference between "your hats are bright" firing on a normal beat and
+# firing only on one that will genuinely fatigue.
+_PERCUSSION_SIB_FACTOR = 1.6
+
+# One element in isolation. Almost every whole-mix balance judgement is a
+# category error against it: a bass stem is *supposed* to be all low end, a
+# vocal stem is supposed to have nothing under 100 Hz, and neither has a
+# "mix" to be muddy or congested.
+_STEM_SUPPRESSED_DIMENSIONS: Tuple[str, ...] = (
+    "mud", "clarity", "vocal_balance", "frequency_balance",
+)
+_STEM_SUPPRESSED_IDS: Tuple[str, ...] = ("low_end.kick_bass_collision",)
+
+# A rough. Where it lands on the loudness ladder and how its limiter behaves are
+# questions about a master that has not been attempted yet. Structure, balance
+# and anything actually broken still matter — a demo with an inverted channel is
+# still an inverted channel.
+_DEMO_SUPPRESSED_IDS: Tuple[str, ...] = (
+    "loudness.cannot_reach_level",
+    "dynamic_range.unmastered",
+)
+_DEMO_SUPPRESSED_DIMENSIONS: Tuple[str, ...] = ("limiter",)
+
+# A beat is unfinished on purpose: the headroom it is carrying is the room the
+# topline needs. Telling a producer their beat "has not been mastered yet" is
+# describing the brief back to them.
+_BEAT_SUPPRESSED_IDS: Tuple[str, ...] = ("dynamic_range.unmastered",)
+
+# The pocket a topline drops into. On a beat these bands reading light against
+# the genre curve is the arrangement leaving room, not a hole in the mix, so the
+# "thin" side of the frequency-balance test stands down there. The "hot" side
+# still fires: mids that are *full* are the thing that leaves a rapper nowhere
+# to sit.
+_TOPLINE_BANDS: Tuple[str, ...] = ("mid", "upper_mid")
+
+# How sure the centre-channel voice test has to be, and how far up in the bed
+# the lead has to sit, before the word "sibilance" is used for bursty 5-9 kHz
+# energy. Below either bar the energy is still reported — it is measured, and it
+# is fatiguing whatever makes it — but it is attributed to percussion, which is
+# what it usually is when the voice test is unsure or the voice is tucked.
+_LEAD_UP_FRONT_CONFIDENCE = 0.65
+
+# Share of the 5-10 kHz band a separated source has to own before it is called
+# the owner. Four stems splitting a band evenly sit at 0.25 each, so 0.40 is a
+# clear plurality without demanding a majority — a real lead shares the top with
+# the cymbals on every record ever made, and requiring it to beat them outright
+# would attribute every sibilant vocal to the drums.
+_TOP_OWNER_SHARE = 0.40
+
+# `band_occupancy` is keyed by macro band, and the macro band covering 5-9 kHz
+# is `brilliance` at 5-10 kHz. The extra octave-tenth on top is cymbal wash
+# rather than consonant, so this over-credits percussion very slightly — which
+# is the safe direction: it can only ever make us less willing to say
+# "sibilance", never more.
+_TOP_BAND = "brilliance"
+
+# Above this the voice test is sure enough that a lead sitting under the bed is
+# worth reporting at full weight. Below it, "tucked" is treated as a decision:
+# the finding is still emitted, because the producer may want to know, but it is
+# held to an observation.
+_TUCKED_SURE_AT = 0.80
+
+# The ceiling that holds it there. `_severity` returns "minor" for anything
+# under `_MAJOR_AT`, so capping the ratio just below that is the whole mechanism
+# — no second severity table, no special case in the scorer.
+_TUCKED_MAX_RATIO = _MAJOR_AT - 0.01
+
+
+def _normalise_intent(intent: Optional[str]) -> TrackIntent:
+    key = str(intent or "full_mix").strip().lower().replace("-", "_").replace(" ", "_")
+    aliases = {
+        "mix": "full_mix", "full": "full_mix", "song": "full_mix", "master": "full_mix",
+        "instrumental_beat": "beat", "type_beat": "beat",
+        "rough": "demo", "sketch": "demo", "wip": "demo",
+        "ref": "reference",
+        "stems": "stem", "single_stem": "stem",
+    }
+    key = aliases.get(key, key)
+    # Read off the contract rather than a second copy of it: a value added to
+    # `TrackIntent` cannot be silently rejected here.
+    if key not in TRACK_INTENTS:
+        return "full_mix"
+    return key  # type: ignore[return-value]
 
 # Health-score points recoverable if a dimension's worst problem is fixed.
 # These are ceiling values, reached only by a fully critical finding; the actual
@@ -148,6 +338,17 @@ _IMPACT_WEIGHT: Dict[str, float] = {
 # A second finding in the same dimension is mostly the same fix, so it recovers
 # less; a third, less again.
 _REPEAT_DISCOUNT = (1.0, 0.45, 0.25)
+
+# `impact` carries no deviation discount either, for the same reason
+# `engine.compute_health` does not: a deviation now pulls the score by its
+# measured distance, so closing one returns what closing one actually returns.
+# Discounting here while the score charges full price made `ceiling_score`
+# quietly disagree with `health_score` — the report would show a mix at 65 with
+# 8 points of recoverable work when the work was worth 20.
+#
+# Defects still read *first*. That is an ordering preference and it lives in
+# `_rank_key`, where changing it cannot corrupt a number the ceiling is built
+# from.
 
 # Total recoverable points across the whole report. `ceiling_score` is built
 # from these, so they must never be able to sum past 100 — 60 leaves the
@@ -540,6 +741,21 @@ class _BandView:
     def span(self) -> str:
         return f"{_num(self.low_hz, 0)}-{_num(self.high_hz, 0)} Hz"
 
+    @property
+    def is_plural(self) -> bool:
+        """"the mids run", "the low bass runs".
+
+        Listed rather than inferred: "low bass" and "brilliance" both end in an
+        s and neither takes a plural verb.
+        """
+        return self.name in _PLURAL_BANDS
+
+    def verb(self, singular: str, plural: str) -> str:
+        return plural if self.is_plural else singular
+
+
+# The macro bands whose label takes a plural verb.
+_PLURAL_BANDS: frozenset = frozenset({"low_mid", "mid", "upper_mid"})
 
 _BAND_LABELS: Dict[str, str] = {
     "sub": "sub",
@@ -566,10 +782,16 @@ class _Hit:
     The ratio drives impact, and impact has to be assigned globally (it is
     capped across the whole report), so it cannot be baked in at the point the
     detector runs.
+
+    `observation` marks a finding that is not a problem at all — a confirmed
+    virtue, or a reading taken off a record nobody is being asked to change. It
+    carries no severity, no impact and no significance floor: it exists to be
+    read, so the ratio gate that drops trivial misses must not drop it.
     """
 
     finding: Finding
     ratio: float
+    observation: bool = False
 
 
 def _expects_arrangement_lift(profile: targets.GenreProfile) -> bool:
@@ -722,6 +944,7 @@ class _Ctx:
     duration: float
     is_mono: bool
     no_programme: bool
+    intent: TrackIntent = "full_mix"
     # Optional depth. Both are always present as objects (never None), so a
     # detector reads `.available` rather than null-checking every access.
     stems: StemAnalysis = field(default_factory=StemAnalysis)
@@ -737,6 +960,94 @@ class _Ctx:
 
     def has(self, key: str) -> bool:
         return self.duration >= _MIN_SEC.get(key, 0.0)
+
+    # -- intent ------------------------------------------------------------
+
+    @property
+    def expects_lead(self) -> bool:
+        """Could there be a lead vocal on this file to have an opinion about?
+
+        Intent decides this on its own, deliberately. The genre profile's
+        `vocal_expected` says whether records of this kind *usually* carry a
+        lead, which is the right input for a clean-report sentence and the wrong
+        one for a gate: a lo-fi track with a vocal on it still has a vocal
+        balance, and `targets.py` marks lo-fi as vocal_expected=False. Intent is
+        a statement about this file rather than about the genre, so it is what
+        gets to say there is no lead — and on `full_mix` it never does, which is
+        what keeps today's behaviour unchanged.
+        """
+        return self.intent not in _NO_LEAD_INTENTS
+
+    @property
+    def lead_confidence(self) -> float:
+        """How sure the DSP layer is that a real lead voice is there, 0-1.
+
+        `vocal_present` is this crossing a threshold. Reading the float instead
+        is what lets a detector be gentle about a borderline call rather than
+        treating a 0.56 and a 0.98 as the same fact.
+        """
+        return _clamp(_fin(getattr(self.m.vocal, "vocal_confidence", 0.0), 0.0), 0.0, 1.0)
+
+    @property
+    def lead_prominence(self) -> str:
+        """absent / tucked / balanced / forward — where the lead sits in the bed.
+
+        Forced to "absent" when the intent says no lead belongs on this file, so
+        one accessor answers the question and no caller has to remember to check
+        both.
+        """
+        if not self.expects_lead:
+            return "absent"
+        return str(getattr(self.m.vocal, "vocal_prominence", "absent"))
+
+    @property
+    def lead_on_record(self) -> bool:
+        """Is a lead vocal actually present *and* expected?
+
+        The gate for anything that describes a voice. The DSP layer's voice test
+        is a syllabic-modulation and articulation test on the centre channel; on
+        a beat it can still fire on a chopped sample or a tucked hook that is not
+        the lead at all, which is why intent has a vote.
+        """
+        return (
+            self.expects_lead
+            and bool(self.m.vocal.vocal_present)
+            and self.lead_prominence != "absent"
+        )
+
+    @property
+    def lead_is_up_front(self) -> bool:
+        """A lead sitting in or above the bed, and confidently enough to own the top.
+
+        The gate for blaming a lead vocal for something. A tucked hook is a real
+        voice and still not what is making the top of the mix spit, and a
+        borderline voice call is not enough to put the word "sibilance" on a
+        finding — that word sends the producer to a de-esser, and a de-esser is
+        the wrong tool for a hi-hat.
+        """
+        return (
+            self.lead_on_record
+            and self.lead_prominence in ("balanced", "forward")
+            and self.lead_confidence >= _LEAD_UP_FRONT_CONFIDENCE
+        )
+
+    @property
+    def is_reference(self) -> bool:
+        return self.intent == "reference"
+
+    def advice(self, text: str) -> str:
+        """A prescriptive clause, dropped when the file is somebody else's record.
+
+        On a reference the report's job is to say what the record does. "Back
+        the input drive off" is not an observation about a finished master, it
+        is an instruction to change it, so it is not written.
+        """
+        return "" if self.is_reference else text
+
+    @property
+    def ref(self) -> str:
+        """'the Trap reference' — how a deviation names what it differs from."""
+        return f"the {self.profile.label} reference"
 
     @property
     def has_stems(self) -> bool:
@@ -788,7 +1099,7 @@ class _Ctx:
         return round(_clamp(base * factor, 0.05, 0.99), 2)
 
 
-def _build_ctx(m: Measurements, genre: str) -> _Ctx:
+def _build_ctx(m: Measurements, genre: str, intent: str = "full_mix") -> _Ctx:
     key = targets.normalise_genre(genre)
     profile = targets.get_profile(key)
     curve = np.asarray(targets.target_curve(key, THIRD_OCTAVE_CENTERS), dtype=np.float64)
@@ -837,6 +1148,7 @@ def _build_ctx(m: Measurements, genre: str) -> _Ctx:
         bands=bands,
         duration=max(_fin(m.duration_seconds, 0.0), 0.0),
         is_mono=bool(m.is_mono or m.stereo.is_mono_source),
+        intent=_normalise_intent(intent),
         no_programme=(
             _fin(m.loudness.integrated_lufs, -70.0) <= NO_PROGRAMME_LUFS
             or _fin(m.loudness.true_peak_dbtp, -120.0) <= NO_PROGRAMME_LUFS
@@ -1184,18 +1496,20 @@ def _detect_loudness(ctx: _Ctx) -> List[_Hit]:
     if miss > 0.0:
         ratio = _ratio(miss, 1.5)
         detail = (
-            f"Integrated loudness is {_num(integrated, 2)} LUFS, {_num(miss, 2)} LU above the "
-            f"{_win(window, 1, ' LUFS')} window {ctx.profile.label} masters sit in. "
-            f"Spotify, YouTube and Tidal all normalise to -14 LUFS, so this is turned down "
-            f"{_num(spotify_delta, 1)} LU on playback — the loudness is handed back, while "
+            f"This runs {_num(miss, 2)} LU louder than {ctx.ref}: integrated loudness is "
+            f"{_num(integrated, 2)} LUFS against the {_win(window, 1, ' LUFS')} window "
+            f"{ctx.profile.label} masters sit in. What that costs is specific — Spotify, "
+            f"YouTube and Tidal all normalise to -14 LUFS, so the extra "
+            f"{_num(spotify_delta, 1)} LU is turned straight back down on playback while "
             f"whatever was done to reach it (PLR is {_num(lo.plr_db, 1)} dB, loudness range "
-            f"{_num(lo.loudness_range_lu, 1)} LU) stays in the file."
+            f"{_num(lo.loudness_range_lu, 1)} LU) stays in the file. What it buys is the "
+            f"level on anything that does not normalise: a club rig, a car, a download."
         )
         return [_Hit(
             Finding(
                 id="loudness.too_loud",
                 dimension="loudness",
-                title=f"Louder than {ctx.profile.label} masters run",
+                title=f"Runs louder than {ctx.ref}",
                 severity=_severity(ratio),
                 confidence=ctx.trust(0.96, "loudness"),
                 detail=detail,
@@ -1211,18 +1525,20 @@ def _detect_loudness(ctx: _Ctx) -> List[_Hit]:
 
     ratio = _ratio(attain_miss, 2.0)
     detail = (
-        f"Integrated loudness is {_num(integrated, 2)} LUFS against a {_win(window, 1, ' LUFS')} "
-        f"window for {ctx.profile.label}, and there is only {_num(headroom, 1)} dB of clean gain "
-        f"left before -1.0 dBTP — turning it up as far as the peaks allow still lands at "
-        f"{_num(attainable, 2)} LUFS, {_num(abs(attain_miss), 2)} LU short. Reaching level from "
-        f"here costs limiting, so this is a gain-staging problem in the mix rather than a "
-        f"mastering fader move."
+        f"This sits under {ctx.ref} and cannot gain up to it cleanly. Integrated loudness is "
+        f"{_num(integrated, 2)} LUFS against a {_win(window, 1, ' LUFS')} window for "
+        f"{ctx.profile.label}, and there is only {_num(headroom, 1)} dB of clean gain left "
+        f"before -1.0 dBTP — turning it up as far as the peaks allow still lands at "
+        f"{_num(attainable, 2)} LUFS, {_num(abs(attain_miss), 2)} LU short. Being quiet is "
+        f"free (every platform leaves quiet tracks alone); what this costs is the choice: "
+        f"reaching the window from here means limiting, so the gain staging in the mix is "
+        f"what decides how much of it you pay."
     )
     return [_Hit(
         Finding(
             id="loudness.cannot_reach_level",
             dimension="loudness",
-            title="Cannot reach genre level without limiting",
+            title=f"Sits under {ctx.ref} with no clean gain left",
             severity=_severity(ratio),
             confidence=ctx.trust(0.92, "loudness"),
             detail=detail,
@@ -1332,8 +1648,11 @@ def _detect_limiter(ctx: _Ctx) -> List[_Hit]:
         "The limiter is being driven past holding a ceiling and into generating one: "
         + "; ".join(parts)
         + f". Estimated gain reduction is {_num(gr, 1)} dB and micro-dynamics are down to "
-        f"{_num(d.micro_dynamics_db, 1)} dB. Back the input drive off and let the ceiling "
-        f"do less work — the level lost is recoverable, the harmonics are not."
+        f"{_num(d.micro_dynamics_db, 1)} dB."
+        + ctx.advice(
+            " Back the input drive off and let the ceiling do less work — the level lost "
+            "is recoverable, the harmonics are not."
+        )
     )
 
     # Confidence follows the weakest link in the case being made. PSR is
@@ -1407,21 +1726,24 @@ def _detect_arrangement(ctx: _Ctx) -> List[_Hit]:
         ratio = _ratio(lift_miss, _CHORUS_LIFT_SCALE)
         part = loudest.label if not loudest.label.startswith("section ") else "loudest section"
         detail = (
-            f"Across {n} measured sections the loudest one ({part} at "
-            f"{_clock(loudest.t_start)}) sits only {_num(lift, 1)} LU above the median "
-            f"section, against the {_num(_CHORUS_LIFT_MIN_LU, 1)} LU a {ctx.profile.label} "
-            f"arrangement needs before a listener reads it as the payoff — most records "
-            f"put 2-4 LU there. Loudest to quietest across the whole record is "
-            f"{_num(spread, 1)} LU and EBU loudness range is {_num(lra, 1)} LU. "
-            f"Every part arrives at the same size, so nothing in the arrangement lands; "
-            f"this is a fader and an arrangement problem, not a mastering one, and no "
-            f"amount of limiting on the master will put the lift back."
+            f"The sections arrive at more even levels than {ctx.ref} does. Across {n} "
+            f"measured sections the loudest one ({part} at {_clock(loudest.t_start)}) sits "
+            f"{_num(lift, 1)} LU above the median section, against the "
+            f"{_num(_CHORUS_LIFT_MIN_LU, 1)} LU a {ctx.profile.label} arrangement usually "
+            f"puts there — most records run 2-4 LU. Loudest to quietest across the whole "
+            f"record is {_num(spread, 1)} LU and EBU loudness range is {_num(lra, 1)} LU. "
+            f"An even record buys relentlessness, which is the right call on plenty of "
+            f"material; it costs the moment where the hook reads as the payoff."
+            + ctx.advice(
+                " If that moment is wanted, it comes from faders and arrangement — no "
+                "amount of limiting on the master puts a lift back."
+            )
         )
         hits.append(_Hit(
             Finding(
                 id="dynamic_range.no_section_lift",
                 dimension="dynamic_range",
-                title="The loudest section does not lift",
+                title=f"Sections arrive at one size against {ctx.ref}",
                 # Every LUFS figure here is a direct BS.1770 measurement; the
                 # uncertainty is in where the boundaries were placed, which is
                 # a segmenter's judgement.
@@ -1473,21 +1795,23 @@ def _detect_arrangement(ctx: _Ctx) -> List[_Hit]:
         weak_share = _fin(low_rel[weak_i], 0.0)
         strong_share = _fin(low_rel[strong_i], 0.0)
         detail = (
-            f"Sub and low bass carry {_num(weak_share, 1)} dB of {weakest.label}'s own "
-            f"energy at {_clock(weakest.t_start)} against {_num(strong_share, 1)} dB in "
+            f"The bottom end moves between sections further than {ctx.ref} does. Sub and low "
+            f"bass carry {_num(weak_share, 1)} dB of {weakest.label}'s own energy at "
+            f"{_clock(weakest.t_start)} against {_num(strong_share, 1)} dB in "
             f"{strongest.label} at {_clock(strongest.t_start)} — a {_num(swing, 1)} dB swing "
-            f"across the {int(core_idx.size)} sections carrying this record, over the "
-            f"{_num(swing_max, 1)} dB {ctx.profile.label} holds. This is measured as each "
-            f"section's *share* of its own level, so it is not the quiet parts being quiet: "
-            f"{weakest.label} is within {_num(_LOW_CORE_LU, 0)} LU of the loudest section and "
-            f"still has no bottom under it. On a full-range system that part of the "
-            f"arrangement drops out from underneath."
+            f"across the {int(core_idx.size)} sections carrying this record, against the "
+            f"{_num(swing_max, 1)} dB {ctx.profile.label} typically holds. It is measured as "
+            f"each section's *share* of its own level, so this is not the quiet parts being "
+            f"quiet: {weakest.label} is within {_num(_LOW_CORE_LU, 0)} LU of the loudest "
+            f"section and still has little under it. Dropping the bottom out buys contrast "
+            f"and makes the return hit harder; it costs a section that reads thin on a "
+            f"full-range system, so the question is whether the listener is meant to notice."
         )
         hits.append(_Hit(
             Finding(
                 id="low_end.section_collapse",
                 dimension="low_end",
-                title=f"Low end collapses in {weakest.label}",
+                title=f"Low end steps back in {weakest.label}",
                 severity=_severity(ratio),
                 confidence=ctx.trust(0.84, "arrangement"),
                 detail=detail,
@@ -1597,17 +1921,18 @@ def _detect_dynamic_range(ctx: _Ctx) -> List[_Hit]:
                 f"loudness range is {_num(lra, 1)} LU against {_win(lra_window, 1, ' LU')}"
             )
         detail = (
-            "There is less level movement here than the genre lives on: "
+            f"This moves less than {ctx.ref} does: "
             + "; ".join(parts)
-            + f". At {_num(lo.integrated_lufs, 1)} LUFS integrated, the difference between the "
-            f"quietest and loudest moment of this mix is small enough that nothing lands — "
-            f"every section arrives at the same size."
+            + f". At {_num(lo.integrated_lufs, 1)} LUFS integrated, the gap between the "
+            f"quietest and loudest moment is narrow enough that the record reads as one "
+            f"continuous level. That buys density and a mix that never drops away on a "
+            f"phone; it costs the contrast that makes a section feel like it arrived."
         )
         return [_Hit(
             Finding(
                 id="dynamic_range.squashed",
                 dimension="dynamic_range",
-                title=f"Flatter than {ctx.profile.label} needs",
+                title=f"Flatter than {ctx.ref}",
                 severity=_severity(ratio),
                 confidence=ctx.trust(0.90, "dynamics"),
                 detail=detail,
@@ -1624,18 +1949,21 @@ def _detect_dynamic_range(ctx: _Ctx) -> List[_Hit]:
     if crest_miss > 1.5 and level_miss < 0.0:
         ratio = min(_ratio(crest_miss - 1.5, 2.0), 2.4)   # never critical: not damage
         detail = (
-            f"Crest factor is {_num(crest, 1)} dB and TT-DR {_num(d.dr_value, 1)}, above the "
-            f"{_win(crest_window, 1, ' dB')} that {ctx.profile.label} masters carry, and "
-            f"integrated loudness is {_num(lo.integrated_lufs, 1)} LUFS — "
-            f"{_num(abs(level_miss), 1)} LU under the {_win(ctx.profile.integrated_lufs, 1, ' LUFS')} "
-            f"window. Nothing is broken; this reads as a mix that has not been mastered yet, "
-            f"and it will sit quiet and soft next to anything else in the genre."
+            f"This carries more dynamic range than {ctx.ref} does, at a lower level. Crest "
+            f"factor is {_num(crest, 1)} dB and TT-DR {_num(d.dr_value, 1)}, above the "
+            f"{_win(crest_window, 1, ' dB')} {ctx.profile.label} masters hold, and integrated "
+            f"loudness is {_num(lo.integrated_lufs, 1)} LUFS — {_num(abs(level_miss), 1)} LU "
+            f"under the {_win(ctx.profile.integrated_lufs, 1, ' LUFS')} window. Nothing here "
+            f"is damaged: that combination is what an unmastered mix measures like, and the "
+            f"headroom is worth something to whoever masters it. What it costs today is "
+            f"comparison — played next to anything else in the genre it will read quiet and "
+            f"soft."
         )
         return [_Hit(
             Finding(
                 id="dynamic_range.unmastered",
                 dimension="dynamic_range",
-                title=f"More dynamic range than {ctx.profile.label} masters carry",
+                title=f"Wider dynamics and lower level than {ctx.ref}",
                 severity=_severity(ratio),
                 confidence=ctx.trust(0.85, "dynamics"),
                 detail=detail,
@@ -1698,19 +2026,20 @@ def _detect_compression(ctx: _Ctx) -> List[_Hit]:
     if micro_miss < 0.0:
         ratio = _ratio(micro_miss, 1.5)
         detail = (
-            f"Inside a single hit there is only {_num(micro, 1)} dB between peak and RMS, "
-            f"against the {_win(micro_window, 1, ' dB')} {ctx.profile.label} keeps, and the "
-            f"crest collapse between loud and moderate sections puts estimated gain reduction "
-            f"at {_num(gr, 1)} dB. Macro level movement can survive this "
-            f"(crest factor is still {_num(d.crest_factor_db, 1)} dB) while every individual "
-            f"hit has had its attack flattened — which is the mix that measures fine and "
-            f"sounds dead."
+            f"Inside each hit this is flatter than {ctx.ref}: there is {_num(micro, 1)} dB "
+            f"between peak and RMS in a 50 ms window against the "
+            f"{_win(micro_window, 1, ' dB')} {ctx.profile.label} keeps, and the crest collapse "
+            f"between loud and moderate sections puts estimated gain reduction at "
+            f"{_num(gr, 1)} dB. Macro level movement can survive that — crest factor is still "
+            f"{_num(d.crest_factor_db, 1)} dB — while every individual hit has had its attack "
+            f"taken off. That buys glue and consistency; it costs the impact that makes the "
+            f"same arrangement feel like it is being played rather than played back."
         )
         hits.append(_Hit(
             Finding(
                 id="compression.micro_dynamics_lost",
                 dimension="compression",
-                title="Transients flattened inside each hit",
+                title=f"Hits sit flatter inside than {ctx.ref}",
                 severity=_severity(ratio),
                 confidence=ctx.trust(0.82, "dynamics"),
                 detail=detail,
@@ -1726,19 +2055,20 @@ def _detect_compression(ctx: _Ctx) -> List[_Hit]:
     if pump_miss > 0.0 and gr >= 2.5 and micro <= micro_window[0] + 1.0:
         ratio = min(_ratio(pump_miss, 0.15), 3.0)
         detail = (
-            f"The broadband envelope is modulating at {_num(rate, 2)} Hz "
-            f"({_num(rate * 60.0, 0)} BPM, against a detected tempo of "
-            f"{_num(ctx.m.transients.estimated_tempo, 0)}) with a pumping index of "
-            f"{pumping:.2f}, and it is corroborated: estimated gain reduction is "
-            f"{_num(gr, 1)} dB and micro-dynamics are {_num(micro, 1)} dB against "
-            f"{_win(micro_window, 1, ' dB')}. The whole mix breathes on the beat instead of "
-            f"individual elements moving."
+            f"The whole mix breathes on the beat more than {ctx.ref} does. The broadband "
+            f"envelope modulates at {_num(rate, 2)} Hz ({_num(rate * 60.0, 0)} BPM, against a "
+            f"detected tempo of {_num(ctx.m.transients.estimated_tempo, 0)}) with a pumping "
+            f"index of {pumping:.2f}, and two other numbers agree: estimated gain reduction "
+            f"is {_num(gr, 1)} dB and micro-dynamics are {_num(micro, 1)} dB against "
+            f"{_win(micro_window, 1, ' dB')}. Audible pumping is a production choice in "
+            f"plenty of dance and hip-hop — it buys groove and forward motion. It costs "
+            f"independence: every element moves together instead of separately."
         )
         hits.append(_Hit(
             Finding(
                 id="compression.pumping",
                 dimension="compression",
-                title="Whole mix breathing on the beat",
+                title=f"Breathes on the beat harder than {ctx.ref}",
                 severity=_severity(ratio),
                 # Inferred from envelope periodicity, and the DSP layer cannot
                 # separate a compressor from a groove. Said plainly.
@@ -1821,21 +2151,24 @@ def _detect_stem_compression(ctx: _Ctx) -> List[_Hit]:
         "distant no matter how far the fader comes up."
     )
     detail = (
-        f"The separated {label} stem carries {_num(value, 1)} dB of {metric} against the "
-        f"{_win(window, 1, ' dB')} window {ctx.profile.label} holds on the finished master, "
-        f"and its own crest collapse and peak pinning put an estimated {_num(gr, 1)} dB of "
-        f"gain reduction on it. This is a per-element reading: the two-track's crest factor "
-        f"is {_num(ctx.m.dynamics.crest_factor_db, 1)} dB and its micro-dynamics "
-        f"{_num(ctx.m.dynamics.micro_dynamics_db, 1)} dB, which cannot tell a flattened "
+        f"The separated {label} stem is flatter than {ctx.ref}: it carries "
+        f"{_num(value, 1)} dB of {metric} against the {_win(window, 1, ' dB')} window "
+        f"{ctx.profile.label} holds on the finished master, and its own crest collapse and "
+        f"peak pinning put an estimated {_num(gr, 1)} dB of gain reduction on it. This is a "
+        f"per-element reading, which is the point: the two-track's crest factor is "
+        f"{_num(ctx.m.dynamics.crest_factor_db, 1)} dB and its micro-dynamics "
+        f"{_num(ctx.m.dynamics.micro_dynamics_db, 1)} dB, and those cannot tell a flattened "
         f"{label} under an untouched mix from a flattened master — separating them can. "
-        f"{consequence} The fix is on the {label} bus, not the master."
+        f"{consequence}"
+        + ctx.advice(f" If that is not the sound, it is the {label} bus that decides it, "
+                     f"not the master.")
     )
 
     return [_Hit(
         Finding(
             id=f"compression.stem_{kind}_flat",
             dimension="compression",
-            title=f"The {label} stem is over-compressed",
+            title=f"The {label} stem is flatter than {ctx.ref}",
             severity=_severity(ratio),
             # Directly measured on the separated source; the uncertainty that
             # is left belongs to the separation, not to the statistic.
@@ -2021,7 +2354,7 @@ def _detect_low_end(ctx: _Ctx) -> List[_Hit]:
                 id="low_end.kick_bass_collision",
                 dimension="low_end",
                 title=("Kick and bass share a fundamental" if same_note
-                       else "Kick and bass occupy the same low-end range"),
+                       else f"Kick and bass overlap more than {ctx.ref}"),
                 severity=_severity(ratio),
                 # With stems these are two separated objects compared directly.
                 # Without them, the kick's spectrum is at-onset minus
@@ -2049,23 +2382,27 @@ def _detect_low_end(ctx: _Ctx) -> List[_Hit]:
         hot = sub_miss > 0.0
         band = ctx.bands.get("sub")
         detail = (
-            f"Energy below 60 Hz is {_num(sub, 1)} dB relative to the whole band, "
-            f"{_num(abs(sub_miss), 1)} dB {'above' if hot else 'below'} the "
-            f"{_win(sub_window, 1, ' dB')} window {ctx.profile.label} works in"
-            + (f", and the sub macro band measures {_num(band.deviation_db, 1)} dB "
+            f"Sub energy runs {_num(abs(sub_miss), 1)} dB "
+            f"{'above' if hot else 'below'} where {ctx.profile.label} masters typically sit: "
+            f"energy under 60 Hz measures {_num(sub, 1)} dB relative to the whole band, "
+            f"against a {_win(sub_window, 1, ' dB')} window"
+            + (f", and the sub macro band reads {_num(band.deviation_db, 1)} dB "
                f"{'over' if band.deviation_db > 0 else 'under'} its target curve"
                if band else "")
-            + (". That much weight under 60 Hz eats the limiter's headroom and will not "
-               "reproduce on anything smaller than a full-range system."
+            + (". Weight down there buys the size and the physical push the genre is built "
+               "on; it costs limiter headroom, and none of it reproduces on anything smaller "
+               "than a full-range system, so it is level the small speakers never hear."
                if hot else
-               ". The bottom octave is not carrying its share, so the mix will feel small "
-               "on a system that can actually play it.")
+               ". A light bottom octave buys headroom and translation on small speakers; it "
+               "costs the size the genre usually carries, so the mix will read smaller on a "
+               "system that can actually play it.")
         )
         hits.append(_Hit(
             Finding(
                 id="low_end.sub_energy_hot" if hot else "low_end.sub_energy_thin",
                 dimension="low_end",
-                title="Too much energy below 60 Hz" if hot else "Sub octave is underweight",
+                title=(f"Sub energy runs hot against {ctx.ref}" if hot
+                       else f"Sub octave sits light against {ctx.ref}"),
                 severity=_severity(ratio),
                 confidence=0.90,   # a band energy ratio, directly measured
                 detail=detail,
@@ -2136,19 +2473,20 @@ def _detect_low_end(ctx: _Ctx) -> List[_Hit]:
     if rumble_miss > 0.0:
         ratio = _ratio(rumble_miss, 4.0)
         detail = (
-            f"{_num(rumble, 1)} dB of the total energy sits below 25 Hz, over the "
-            f"{_num(rumble_ceiling, 1)} dB point where the figure stops being spectral "
-            f"leakage from the bass fundamental and starts being real content — a ceiling "
-            f"set from {ctx.profile.label}'s own target curve, which is why it is not the "
-            f"same number for every genre. None of it is "
-            f"audible on any playback system, and all of it is costing limiter headroom — a "
-            f"24 dB/octave high-pass at 25 Hz gives that headroom back for free."
+            f"There is more sub-25 Hz energy here than {ctx.ref} carries: {_num(rumble, 1)} dB "
+            f"of the total sits below 25 Hz, over the {_num(rumble_ceiling, 1)} dB point where "
+            f"the figure stops being spectral leakage from the bass fundamental and starts "
+            f"being real content — a ceiling set from {ctx.profile.label}'s own target curve, "
+            f"which is why it is not the same number for every genre. It buys nothing audible: "
+            f"no playback system reproduces it. It costs limiter headroom that the rest of the "
+            f"record could be using."
+            + ctx.advice(" A 24 dB/octave high-pass at 25 Hz hands that back for free.")
         )
         hits.append(_Hit(
             Finding(
                 id="low_end.subsonic_rumble",
                 dimension="low_end",
-                title="Inaudible energy below 25 Hz",
+                title=f"More sub-25 Hz energy than {ctx.ref} carries",
                 severity=_severity(ratio),
                 confidence=0.80,
                 detail=detail,
@@ -2245,20 +2583,27 @@ def _detect_mud(ctx: _Ctx) -> List[_Hit]:
         res_text += "."
 
     masking_text = ""
-    if ctx.m.vocal.vocal_present and ctx.m.vocal.masked_bands:
+    # `lead_on_record` rather than the raw boolean: on a beat, or where the
+    # voice test placed nothing, "the centre vocal is being crowded" is a
+    # sentence about a singer who is not on the file.
+    if ctx.lead_on_record and ctx.m.vocal.masked_bands:
         masking_text = (
             f" The centre vocal is being crowded in "
-            f"{', '.join(b.replace('_', ' ') for b in ctx.m.vocal.masked_bands)}."
+            f"{', '.join(b.replace('_', ' ') for b in ctx.m.vocal.masked_bands)}"
+            + (" — though it is tucked under the bed here, so some of that is where it was "
+               "placed rather than the low mids covering it."
+               if ctx.lead_prominence == "tucked" else ".")
         )
 
     detail = (
-        f"150-400 Hz is carrying {_num(mud_ratio, 1)} dB relative to 60-120 Hz against a "
+        f"The low mids run heavier here than {ctx.ref} does. 150-400 Hz carries "
+        f"{_num(mud_ratio, 1)} dB relative to 60-120 Hz against a "
         f"{_win(mud_window, 1, ' dB')} window for {ctx.profile.label}, and it sits "
         f"{_num(m2m, 1)} dB over 1-3 kHz where this genre's target curve puts it at "
         f"{_num(m2m_target, 1)} dB. 300-600 Hz reads {_num(boxy, 1)} dB against the mix's own "
-        f"broadband median, {_num(boxy - boxy_target, 1)} dB more than the curve wants."
-        f"{res_text} Everything above the bass is being covered by the region directly under "
-        f"it — that is the blanket."
+        f"broadband median, {_num(boxy - boxy_target, 1)} dB more than the curve carries."
+        f"{res_text} Weight in that region buys warmth and body; what it costs is everything "
+        f"above the bass, which the region directly under it is covering."
         f"{masking_text}"
         f"{_mask_sentence(mask_pairs)}"
         + _moment_span(moments)
@@ -2269,7 +2614,7 @@ def _detect_mud(ctx: _Ctx) -> List[_Hit]:
         Finding(
             id="mud.low_mid_buildup",
             dimension="mud",
-            title="Low-mid buildup covering the mix",
+            title=f"Low mids run heavier than {ctx.ref}",
             severity=_severity(ratio),
             # A long-term spectrum, directly measured. With a separated source
             # named as the masker it stops being "this region is heavy" and
@@ -2308,16 +2653,249 @@ def _detect_mud(ctx: _Ctx) -> List[_Hit]:
 
 # ---------------------------------------------------------------------------
 # 10. Harshness & sibilance
+#
+# Who owns the bursty top, and how we know.
+#
+# `sibilance_index` measures exactly one thing: how much louder the loudest
+# 5-9 kHz frames are than the typical ones. A consonant does that. So does a
+# closed hi-hat, a shaker, a tambourine and a rim click — a hat is a 40 ms noise
+# burst in the same band, and on a beat there are two of them a beat. The index
+# cannot tell them apart and was never asked to. Naming the source is this
+# layer's job, and it was doing it by assumption.
+#
+# There are three states of knowledge here and the report should sound different
+# in each. With stems we know, because the sources are separated and we can read
+# the band off each one. Without stems but with a lead sitting up in the bed, it
+# is a fair inference that the bursts are consonants. Without stems and without a
+# lead up front, the only honest reading is percussion — and the confidence has
+# to say that we inferred it.
 # ---------------------------------------------------------------------------
 
 
+@dataclass
+class _TopBand:
+    """The attribution of bursty 5-9 kHz energy to a source."""
+
+    #: True when the bursts are consonants, i.e. the finding is sibilance.
+    vocal: bool
+    #: True when separation answered this, rather than us inferring it.
+    measured: bool
+    confidence: float
+    #: The sentence naming the source and saying how we know.
+    attribution: str
+    #: What to call the culprit in the rest of the prose.
+    culprit: str
+    #: The evidence row carrying whichever figure did the attributing.
+    evidence: Evidence
+
+
+def _percussion_label(occ: Dict[str, float]) -> str:
+    """Name the bright non-vocal sources, loudest first, in a producer's words.
+
+    A second source is only named when it is genuinely comparable to the first.
+    "The drums and the synths, guitars and everything else" is technically true
+    of an 88/12 split and reads like a machine wrote it.
+    """
+    names = {
+        "drums": "the drums",
+        "other": "the synths, guitars and everything else",
+        "bass": "the bass",
+    }
+    ranked = [k for k in sorted(occ, key=lambda k: -occ[k]) if occ[k] > 0.05 and k in names]
+    if not ranked:
+        return "the percussion"
+    if len(ranked) > 1 and occ[ranked[1]] >= 0.5 * occ[ranked[0]]:
+        return f"{names[ranked[0]]} and {names[ranked[1]]}"
+    return names[ranked[0]]
+
+
+def _attribute_top_band(ctx: _Ctx) -> _TopBand:
+    """Decide what is making 5-9 kHz burst before the report names it.
+
+    Ordered by how good the evidence is, not by convenience.
+
+    1. **Stems.** `band_occupancy` is the share of a macro band each separated
+       source owns, measured on the sources themselves. If the vocal stem owns
+       the top, the bursts are consonants and we can say so outright; if the
+       drums own it, they are hats and we can say that outright too. This is the
+       only branch that is entitled to a high confidence, and the only one whose
+       prose is allowed to say "measured".
+
+    2. **A lead sitting up in the bed.** No stems, but the centre-channel voice
+       test is confident and the lead is balanced or forward. Consonants are the
+       likeliest explanation, so the finding is sibilance at the confidence a
+       centre estimate has always earned.
+
+    3. **Everything else.** No stems, and either no lead at all or a lead tucked
+       under the bed. This is the case the whole rewrite exists for: a beat with
+       a hook mixed low so someone can rap over it has a voice on it *and* its
+       top octave is still hi-hats. Attributing that to the singer sends the
+       producer to a de-esser to fix a hat pattern.
+    """
+    voc_sib = _fin(ctx.m.vocal.sibilance_db, -60.0)
+
+    # -- 1. measured ---------------------------------------------------------
+    if ctx.has_stems:
+        occ = {
+            kind: _fin((st.band_occupancy or {}).get(_TOP_BAND, 0.0), 0.0)
+            for kind, st in ctx.stems_by_kind.items()
+        }
+        voc_occ = occ.get("vocals", 0.0)
+        rest = {k: v for k, v in occ.items() if k != "vocals"}
+        rest_occ = sum(rest.values())
+
+        if voc_occ >= _TOP_OWNER_SHARE and voc_occ >= rest_occ:
+            return _TopBand(
+                vocal=True,
+                measured=True,
+                confidence=ctx.trust(0.90, "stem"),
+                culprit="the lead vocal",
+                attribution=(
+                    f"Separation settles it rather than inferring it: the vocal stem owns "
+                    f"{voc_occ * 100:.0f}% of the 5-10 kHz energy against "
+                    f"{rest_occ * 100:.0f}% for everything else, so the bursts really are "
+                    f"consonants."
+                ),
+                evidence=_ev(
+                    "Vocal stem share of 5-10 kHz", voc_occ, "",
+                    target_range=(0.0, _TOP_OWNER_SHARE),
+                    verdict="problem" if voc_occ >= _TOP_OWNER_SHARE else "good",
+                    detail="Measured on the separated sources. This is the one case where "
+                           "the source of the burstiness is known rather than inferred.",
+                ),
+            )
+
+        culprit = _percussion_label(rest)
+        return _TopBand(
+            vocal=False,
+            measured=True,
+            confidence=ctx.trust(0.88, "stem"),
+            culprit=culprit,
+            attribution=(
+                f"Separation settles it rather than inferring it: {culprit} own "
+                f"{rest_occ * 100:.0f}% of the 5-10 kHz energy against "
+                f"{voc_occ * 100:.0f}% for the vocal stem"
+                + ("" if "vocals" in ctx.stems_by_kind
+                   else ", and the separator found no vocal source on this file at all")
+                # Deliberately does not re-name the culprit: the detector's next
+                # sentence does that, and `culprit` is not always percussion.
+                + ". Whatever is bursting up there, it is not a singer's consonants."
+            ),
+            evidence=_ev(
+                "Share of 5-10 kHz outside the vocal", rest_occ, "",
+                target_range=(0.0, 1.0), verdict="good",
+                detail=f"Measured on the separated sources: {culprit} against "
+                       f"{voc_occ * 100:.0f}% for the vocal stem. A measurement, not a "
+                       f"centre-channel guess.",
+            ),
+        )
+
+    # -- 2. inferred, lead up front -----------------------------------------
+    if ctx.lead_is_up_front:
+        return _TopBand(
+            vocal=True,
+            measured=False,
+            confidence=0.72,
+            culprit="the lead vocal",
+            attribution=(
+                f"There is a lead vocal on this record for the bursts to belong to — the "
+                f"voice test scores {ctx.lead_confidence:.2f} and puts the lead "
+                f"{ctx.lead_prominence} in the bed — and in the centre channel the "
+                f"95th-percentile 5-9 kHz level sits {_num(voc_sib, 1)} dB against the median "
+                f"vocal-band level. That is an inference from a centre estimate, not a stem."
+            ),
+            evidence=_ev(
+                "Centre 5-9 kHz vs vocal band", voc_sib, "dB", target=-12.0,
+                verdict="watch" if voc_sib > -12.0 else "good",
+                detail="Derived from centre extraction — an inference, not a stem.",
+            ),
+        )
+
+    # -- 3. inferred, no lead up front --------------------------------------
+    if ctx.lead_prominence == "tucked":
+        why = (
+            f"There is a voice here, but the voice test puts it tucked under the bed at "
+            f"{_num(_fin(ctx.m.vocal.vocal_to_instrument_db), 1)} dB against the "
+            f"instruments, which is where a hook goes when it is meant to be rapped over. "
+            f"A lead that far down is not what is making the top of the mix burst"
+        )
+    elif not ctx.expects_lead:
+        why = {
+            "beat": "A beat has no topline recorded yet, so nothing up here can be a consonant",
+            "instrumental": "This is an instrumental, so nothing up here can be a consonant",
+            "stem": "This is a single stem, so nothing up here can be a consonant",
+        }.get(str(ctx.intent), "No lead vocal belongs on this file, so nothing up here "
+                               "can be a consonant")
+    elif ctx.lead_confidence > 0.0:
+        why = (
+            f"The voice test scores only {ctx.lead_confidence:.2f}, which is not enough to "
+            f"put a singer behind these bursts"
+        )
+    else:
+        why = (
+            "No lead vocal was detected, so there is no voice here for these bursts to be "
+            "the consonants of"
+        )
+
+    return _TopBand(
+        vocal=False,
+        measured=False,
+        confidence=0.55,
+        culprit="the hats, shakers and rim clicks",
+        attribution=(
+            f"{why}. Without separated stems this is an inference rather than a measurement, "
+            f"which is what the confidence on this finding reflects — but a burst in this band "
+            f"is a burst whatever makes it, and percussion is the overwhelmingly likelier "
+            f"source."
+        ),
+        evidence=_ev(
+            "Voice-test confidence", ctx.lead_confidence, "",
+            target_range=(_LEAD_UP_FRONT_CONFIDENCE, 1.0),
+            verdict="good",
+            detail=f"Below {_num(_LEAD_UP_FRONT_CONFIDENCE, 2)}, or a lead sitting under the "
+                   f"bed, means the 5-9 kHz bursts are attributed to percussion instead of "
+                   f"consonants. Separate the stems to turn this inference into a measurement.",
+        ),
+    )
+
+
 def _detect_harshness(ctx: _Ctx) -> List[_Hit]:
-    """2-5 kHz edge and 5-9 kHz sibilance, against the genre's ceilings.
+    """2-5 kHz edge and 5-9 kHz top-end burstiness, against the genre's ceilings.
 
     Both indices already answer "does this region stick out of the curve its own
     neighbours draw" rather than "is this region loud", so a legitimately bright
     mix scores near zero on them. The genre ceilings come straight from
     `targets.py`: rock tolerates 0.46, R&B 0.34, lo-fi 0.28.
+
+    **The 5-9 kHz arm does not assume a singer.** `sibilance_index` measures
+    frame-to-frame burstiness in 5-9 kHz, and that is the signature of a
+    consonant *and* the signature of a closed hi-hat, a shaker, a tambourine and
+    a rim click, which are not distinguishable from it. This detector used to
+    fire on the index alone and title the result "Sibilance" whether or not
+    there was a voice on the record — so a trap beat, whose whole top octave is
+    hats by design, was told it had a vocal problem it could not possibly have.
+
+    So the arm asks `_attribute_top_band` what is making the band burst before it
+    names it, and emits a different finding depending on the answer:
+
+    * **`harshness.sibilance`** when the bursts are consonants — either measured
+      on a separated vocal stem, or inferred from a lead the voice test is
+      confident about that is sitting in or above the bed. The window is the
+      genre's own `sibilance_max`, which is written for exactly that record.
+    * **`harshness.bright_transients`** otherwise. Not "no problem found": the
+      measurement is real and a peaky, bursty top octave is fatiguing whatever
+      makes it. But it is hats, shakers and rim clicks, the prose says so, and
+      the fixes point at a transient shaper and the percussion bus rather than
+      at a de-esser. The window widens by `_PERCUSSION_SIB_FACTOR`, because on
+      that material the burstiness is the arrangement and hats are supposed to
+      cut.
+
+    A tucked lead lands in the second branch on purpose. A hook mixed low so a
+    rapper can go over it is a real voice and is still not what is making the
+    top of the mix spit, and sending that producer to a de-esser would have them
+    dulling a vocal that is already too quiet to hear.
+
+    Both are deviations either way: how much air and how much hat is taste.
     """
     if ctx.no_programme:
         return []
@@ -2352,24 +2930,24 @@ def _detect_harshness(ctx: _Ctx) -> List[_Hit]:
                 + (f", with another at {_num(res[1].freq_hz, 0)} Hz." if len(res) > 1 else ".")
             )
         detail = (
-            f"2-5 kHz scores {harsh:.3f} on the harshness index against a "
-            f"{_num(harsh_window[1], 2)} ceiling for {ctx.profile.label}, and psychoacoustic "
-            f"sharpness reads {_num(sharp, 2)} acum against {_num(sharp_window[1], 1)}. "
-            f"This is not brightness — the index measures how far the region stands above the "
-            f"line its own neighbours draw, so a mix with an ordinary downward tilt scores near "
-            f"zero.{res_text}"
+            f"2-5 kHz pushes harder here than {ctx.ref} does: the harshness index scores "
+            f"{harsh:.3f} against a {_num(harsh_window[1], 2)} ceiling for "
+            f"{ctx.profile.label}, and psychoacoustic sharpness reads {_num(sharp, 2)} acum "
+            f"against {_num(sharp_window[1], 1)}. This is not the same as brightness — the "
+            f"index measures how far the region stands above the line its own neighbours "
+            f"draw, so a mix with an ordinary downward tilt scores near zero.{res_text}"
             + (f" The presence band sits {_num(band.deviation_db, 1)} dB "
                f"{'over' if band.deviation_db > 0 else 'under'} the {ctx.profile.label} curve."
                if band else "")
-            + " This is the region that becomes fatiguing at volume and unlistenable on "
-              "earbuds."
+            + " Energy here buys cut and presence on small speakers; it costs listening "
+              "fatigue at volume and is the first thing that turns unpleasant on earbuds."
             + _moment_span(moments)
         )
         hits.append(_Hit(
             Finding(
                 id="harshness.upper_mid_edge",
                 dimension="harshness",
-                title="Harsh 2-5 kHz edge",
+                title=f"2-5 kHz pushes harder than {ctx.ref}",
                 severity=_severity(ratio),
                 # A modelled 0-1 index over a directly measured spectrum.
                 confidence=0.78,
@@ -2402,43 +2980,90 @@ def _detect_harshness(ctx: _Ctx) -> List[_Hit]:
         ctx.tags.add("harsh")
 
     # -- 5-9 kHz -------------------------------------------------------------
+    # What is making this band burst decides what it gets called, which finding
+    # is emitted, what window it is held to, and how confident the report is
+    # allowed to be about it. `_attribute_top_band` is the whole decision.
+    top = _attribute_top_band(ctx)
     sib = _fin(s.sibilance_index, 0.0)
-    sib_window = (0.0, _fin(ctx.profile.sibilance_max, 0.40))
+    genre_sib_max = _fin(ctx.profile.sibilance_max, 0.40)
+    sib_ceiling = genre_sib_max if top.vocal else genre_sib_max * _PERCUSSION_SIB_FACTOR
+    sib_window = (0.0, sib_ceiling)
     sib_miss = targets.range_miss(sib, sib_window)
     if sib_miss > 0.0:
         ratio = min(_ratio(sib_miss, 0.15), 6.0)
         res = _res_in(5000.0, 9000.0)
         moments = _moments([mo for r in res[:2] for mo in (r.moments or [])])
-        voc_sib = _fin(ctx.m.vocal.sibilance_db, -60.0)
-        detail = (
-            f"5-9 kHz scores {sib:.3f} on the sibilance index against a "
-            f"{_num(sib_window[1], 2)} ceiling for {ctx.profile.label}. The index separates "
-            f"sibilance from air by the frame-to-frame burstiness of the band, so a steady "
-            f"shimmer does not register and 'ess' sounds do"
-            + (f"; in the centre channel the 95th-percentile 5-9 kHz level sits "
-               f"{_num(voc_sib, 1)} dB against the median vocal-band level."
-               if ctx.m.vocal.vocal_present else ".")
-            + (f" The narrowest peak is {_num(res[0].freq_hz, 0)} Hz at "
-               f"{_num(res[0].prominence_db, 1)} dB prominence." if res else "")
-            + _moment_span(moments)
+        brilliance = ctx.bands.get("brilliance")
+        peak_text = (
+            f" The narrowest peak is {_num(res[0].freq_hz, 0)} Hz at "
+            f"{_num(res[0].prominence_db, 1)} dB prominence." if res else ""
         )
+        index_text = (
+            f"The 5-9 kHz band is burstier than {ctx.ref} runs: it scores {sib:.3f} on the "
+            f"burstiness index against a {_num(sib_ceiling, 2)} ceiling"
+            + ("" if top.vocal else
+               f" ({_num(genre_sib_max, 2)} for {ctx.profile.label}, widened because there is "
+               f"no lead vocal up front for the band to be protecting)")
+            + f". The index reads how far the loudest frames in the band stand above the "
+              f"typical ones rather than how loud the band is, so a steady shimmer of cymbals "
+              f"and room does not register at all — but a consonant and a closed hi-hat are "
+              f"both short, bright noise bursts and the index cannot tell them apart. "
+        )
+
+        if top.vocal:
+            finding_id = "harshness.sibilance"
+            title = f"5-9 kHz sibilance runs above {ctx.ref}"
+            detail = (
+                index_text
+                + top.attribution
+                + peak_text
+                + ctx.advice(
+                    " De-essing buys smoother consonants and costs air on everything else "
+                    "sharing the band, so it is worth doing on the vocal rather than the bus."
+                )
+                + _moment_span(moments)
+            )
+        else:
+            finding_id = "harshness.bright_transients"
+            title = f"Bright percussive transients above {ctx.ref}"
+            detail = (
+                index_text
+                + top.attribution
+                + f" So this is {top.culprit}: transients landing hard in the same octave an "
+                  f"'ess' would, which means a de-esser is the wrong tool and a transient "
+                  f"shaper on the percussion group is the right one."
+                + peak_text
+                + (" Hats cutting this hard is a choice, not a fault: it buys a top end that "
+                   "reads on a phone and through a rapper sitting on top of it, and it costs "
+                   "listening fatigue at volume plus headroom the topline is going to want."
+                   if str(ctx.intent) == "beat" else
+                   " It buys presence on small speakers and costs fatigue at volume — worth "
+                   "keeping if the brightness is the point, worth controlling if it is not.")
+                + _moment_span(moments)
+            )
+
         hits.append(_Hit(
             Finding(
-                id="harshness.sibilance",
+                id=finding_id,
                 dimension="harshness",
-                title="Sibilance in the 5-9 kHz band",
+                title=title,
                 severity=_severity(ratio),
-                confidence=0.72,
+                confidence=top.confidence,
                 detail=detail,
                 evidence=[
-                    _ev("Sibilance index", sib, "", target_range=sib_window,
-                        verdict=_verdict(sib, sib_window, 0.15)),
-                    _ev("Centre 5-9 kHz vs vocal band", voc_sib, "dB", target=-12.0,
-                        verdict="watch" if voc_sib > -12.0 else "good",
-                        detail="Derived from centre extraction — an inference, not a stem."),
+                    _ev("5-9 kHz burstiness index", sib, "", target_range=sib_window,
+                        verdict=_verdict(sib, sib_window, 0.15),
+                        detail=(
+                            f"Attributed to {top.culprit}, "
+                            + ("measured on the separated sources."
+                               if top.measured else
+                               "inferred without stems — separate them to know for certain.")
+                        )),
+                    top.evidence,
                     _ev("Brilliance band vs target",
-                        ctx.bands["brilliance"].deviation_db
-                        if "brilliance" in ctx.bands else 0.0, "dB", target=0.0,
+                        brilliance.deviation_db if brilliance else 0.0, "dB", target=0.0,
+                        target_range=(-(brilliance.tolerance_db if brilliance else 3.0),
+                                      (brilliance.tolerance_db if brilliance else 3.0)),
                         verdict="watch"),
                 ],
                 band_hz=(5000.0, 9000.0),
@@ -2446,7 +3071,9 @@ def _detect_harshness(ctx: _Ctx) -> List[_Hit]:
             ),
             ratio,
         ))
-        ctx.tags.add("sibilance")
+        # Either way the brilliance band has now been spoken for, so the
+        # frequency-balance detector stands down on it (rule 5).
+        ctx.tags.add("sibilance" if top.vocal else "bright_transients")
 
     return hits
 
@@ -2462,6 +3089,7 @@ _COVERED_BY: Dict[str, Tuple[str, ...]] = {
     "mud": ("upper_bass", "low_mid"),
     "harsh": ("presence",),
     "sibilance": ("brilliance",),
+    "bright_transients": ("brilliance",),
     "sub_energy": ("sub", "low_bass"),
 }
 
@@ -2483,6 +3111,19 @@ def _detect_frequency_balance(ctx: _Ctx) -> List[_Hit]:
             covered.update(names)
 
     candidates = [b for b in ctx.bands.values() if b.miss_db != 0.0 and b.name not in covered]
+
+    # A beat leaves the mid-range open on purpose: that is where the topline
+    # goes. Reading light there against a curve fitted to finished songs — which
+    # have a voice filling exactly those bands — is the arrangement doing its
+    # job, so the thin side stands down for the two bands a lead occupies. The
+    # hot side is untouched, because mids that are *full* are the actual problem
+    # a rapper runs into.
+    if ctx.intent == "beat":
+        candidates = [
+            b for b in candidates
+            if not (b.name in _TOPLINE_BANDS and b.miss_db < 0.0)
+        ]
+
     if not candidates:
         return []
 
@@ -2508,18 +3149,22 @@ def _detect_frequency_balance(ctx: _Ctx) -> List[_Hit]:
         near = neighbours[0] if neighbours else None
 
         detail = (
-            f"The {band.label} band ({band.span}) measures {_num(band.level_db, 1)} dB against "
-            f"a {_num(band.target_db, 1)} dB target for {ctx.profile.label} — "
-            f"{_num(abs(band.deviation_db), 1)} dB "
-            f"{'over' if sign > 0 else 'under'}, which is {_num(abs(band.miss_db), 1)} dB "
-            f"outside the {_pm(band.tolerance_db)} dB this genre allows there"
+            f"The {band.label} band ({band.span}) sits {_num(abs(band.deviation_db), 1)} dB "
+            f"{'above' if sign > 0 else 'below'} where {ctx.ref} puts it: the band measures "
+            f"{_num(band.level_db, 1)} dB against a {_num(band.target_db, 1)} dB target for "
+            f"{ctx.profile.label}, which is {_num(abs(band.miss_db), 1)} dB outside the "
+            f"{_pm(band.tolerance_db)} dB of room the reference leaves there"
             + (f", while {near.label} next to it sits {_num(near.deviation_db, 1)} dB "
                f"from its own target" if near else "")
             + f". Overall tilt is {_num(measured_tilt, 1)} dB/decade against "
             f"{_num(target_tilt, 1)} dB/decade for the {ctx.profile.label} curve"
-            + (f", so the whole balance is {'darker' if tilt_miss < 0 else 'brighter'} than the "
-               f"genre and not just this one band." if tilt_miss != 0.0
-               else ", so the overall slope is right and this is a single-band problem.")
+            + (f", so the whole balance reads {'darker' if tilt_miss < 0 else 'brighter'} than "
+               f"the reference and not just this one band." if tilt_miss != 0.0
+               else ", so the overall slope matches and this is one band, not a tonality.")
+            + (f" That buys {'weight and size' if sign > 0 else 'clarity and headroom'} and "
+               f"costs {'clarity and headroom' if sign > 0 else 'weight and size'} — worth "
+               f"keeping if it is the sound you want."
+               if ctx.intent != "reference" else "")
         )
 
         hits.append(_Hit(
@@ -2527,7 +3172,9 @@ def _detect_frequency_balance(ctx: _Ctx) -> List[_Hit]:
                 id=f"frequency_balance.{band.name}_{direction}",
                 dimension="frequency_balance",
                 title=f"{band.label[:1].upper()}{band.label[1:]} "
-                      f"{'too hot' if sign > 0 else 'underweight'} for {ctx.profile.label}",
+                      + (band.verb("runs hot", "run hot") if sign > 0
+                         else band.verb("sits light", "sit light"))
+                      + f" against {ctx.ref}",
                 severity=_severity(ratio),
                 confidence=0.88,
                 detail=detail,
@@ -2567,6 +3214,77 @@ def _detect_frequency_balance(ctx: _Ctx) -> List[_Hit]:
 # ---------------------------------------------------------------------------
 
 
+def _topline_headroom(ctx: _Ctx) -> List[_Hit]:
+    """The one vocal-dimension finding a beat can produce, and it is good news.
+
+    A beat is sold on whether somebody can rap over it. That needs two things
+    at once and they are separately measurable: nothing hogging the centre at
+    lead level, and nothing filling the 400 Hz-6 kHz pocket a voice lives in.
+    Both are already measured for other reasons, so confirming them costs
+    nothing and answers the question the producer actually has.
+
+    This is an observation, not a problem: severity "clean", no impact, and it
+    is only emitted when the space is genuinely there. Silence is the answer
+    when it is not — telling a producer their beat is *too full* for a topline
+    is a real finding, but it comes from the mids running hot against the genre
+    curve, which `_detect_frequency_balance` already reports.
+    """
+    v = ctx.m.vocal
+    if ctx.is_mono or not ctx.has("vocal"):
+        # Centre extraction needs a side channel, and the syllabic test needs
+        # material. Without both there is nothing measured to confirm.
+        return []
+
+    v2i = _fin(v.vocal_to_instrument_db, 0.0)
+    v2i_window = ctx.profile.vocal_to_instrument_db
+    centre_open = v2i <= _fin(v2i_window[0], -4.0)
+
+    pocket = [ctx.bands[n] for n in _TOPLINE_BANDS if n in ctx.bands]
+    pocket_open = bool(pocket) and all(b.miss_db <= 0.0 for b in pocket)
+    if not (centre_open and pocket_open):
+        return []
+
+    hottest = max(pocket, key=lambda b: b.deviation_db)
+    return [_Hit(
+        Finding(
+            id="vocal_balance.topline_headroom",
+            dimension="vocal_balance",
+            title="Centre is open for a topline",
+            kind="deviation",
+            severity="clean",
+            confidence=ctx.trust(0.60, "vocal"),
+            detail=(
+                f"There is room for a rapper or a singer to sit in this, and both halves of "
+                f"that measure clean. The centre 300 Hz-6 kHz runs {_num(v2i, 1)} dB against "
+                f"everything else, at or under the {_win(v2i_window, 1, ' dB')} band "
+                f"{ctx.profile.label} puts a lead in — so a topline can come up to level "
+                f"without anything having to move out of its way. The pocket a voice occupies "
+                f"is clear too: the mids and upper mids are inside the {ctx.profile.label} "
+                f"curve's tolerance, the fullest of them "
+                f"({hottest.label}, {hottest.span}) sitting {_num(hottest.deviation_db, 1)} dB "
+                f"from target against {_pm(hottest.tolerance_db)} dB of allowance. Nothing "
+                f"about the missing lead is being scored as a fault on this file."
+            ),
+            evidence=[
+                _ev("Centre vs everything else", v2i, "dB", target_range=v2i_window,
+                    verdict="good",
+                    detail="A-weighted centre 300 Hz-6 kHz. Under the lead window means "
+                           "space, not a buried vocal — there is no vocal here yet."),
+                _ev("Centre energy ratio", _fin(v.center_energy_ratio), "",
+                    target_range=(0.0, 1.0), verdict="good"),
+            ] + [
+                _ev(f"{b.label.title()} vs target", b.deviation_db, "dB", target=0.0,
+                    target_range=(-b.tolerance_db, b.tolerance_db), verdict="good",
+                    detail=f"{b.span}, against the {ctx.profile.label} curve.")
+                for b in pocket
+            ],
+            band_hz=(300.0, 6000.0),
+        ),
+        0.0,
+        True,
+    )]
+
+
 def _detect_vocal(ctx: _Ctx) -> List[_Hit]:
     """Lead vocal level, consistency and intelligibility.
 
@@ -2587,9 +3305,30 @@ def _detect_vocal(ctx: _Ctx) -> List[_Hit]:
     Confidence goes to 0.90/0.84, the sentence cites the stem ratio, and the
     detector stops needing a stereo field at all — a mono file has no centre
     channel and still has a vocal stem.
+
+    **A tucked lead is a decision until proven otherwise.** This detector reads
+    `vocal_prominence` and `vocal_confidence`, not the boolean. A lead the centre
+    estimate places under the bed, at a confidence that only just cleared the
+    line, gets an observation and never a verdict: the miss ratio is held under
+    `_MAJOR_AT` so the severity cannot exceed "minor", the sentence says what
+    being down there costs and what it buys, and the health score barely moves.
+    That is the correct answer for a beat with a hook mixed low for someone to
+    rap over, and a plausible one for shoegaze, lo-fi and half of modern indie.
+    With stems in hand the cap comes off, because then the level is measured on
+    the vocal itself rather than on everything that happens to be centred.
     """
     v = ctx.m.vocal
     if ctx.no_programme:
+        return []
+
+    # Intent gate, before anything is measured. On a beat, an instrumental, a
+    # stem or somebody else's record there is no lead vocal to balance, so no
+    # vocal finding of any kind is emitted — a tucked hook under a beat is the
+    # brief, not a buried vocal. The beat case gets one thing back: a positive
+    # confirmation that the space a topline needs is actually there.
+    if not ctx.expects_lead:
+        if ctx.intent == "beat":
+            return _topline_headroom(ctx)
         return []
 
     stem = ctx.stem("vocals")
@@ -2600,7 +3339,7 @@ def _detect_vocal(ctx: _Ctx) -> List[_Hit]:
         and ctx.stems.vocal_to_instrument_db is not None
     )
     if not from_stems:
-        if ctx.is_mono or not ctx.has("vocal") or not bool(v.vocal_present):
+        if ctx.is_mono or not ctx.has("vocal") or not ctx.lead_on_record:
             return []
 
     hits: List[_Hit] = []
@@ -2608,7 +3347,33 @@ def _detect_vocal(ctx: _Ctx) -> List[_Hit]:
     # The centre measurement stays usable as *supporting* evidence whenever it
     # was meaningful — it is what carries the timeline moments and the
     # intelligibility index, neither of which the stem pass produces.
-    centre_valid = bool(v.vocal_present) and not ctx.is_mono
+    centre_valid = ctx.lead_on_record and not ctx.is_mono
+
+    # How the two graded figures from the DSP layer change what may be said.
+    # `tucked` is the whole point of this: a lead the centre estimate places
+    # under the bed is a production decision far more often than it is a
+    # mistake, and nothing below is allowed to call it broken. Confidence does
+    # not gate that — how sure we are that a voice is there does not make being
+    # under the bed any more of a fault — it only decides how hard the sentence
+    # hedges. What does gate it is stems: once the level is measured on the
+    # vocal itself rather than on everything that happens to be centred, the
+    # figure is about the singer and stands on its own.
+    lead_conf = ctx.lead_confidence
+    prominence = ctx.lead_prominence
+    tucked = (not from_stems) and prominence == "tucked"
+    hedge = (
+        "and on this file that may well be the point"
+        if lead_conf < _TUCKED_SURE_AT
+        else "and on this file that is very likely deliberate"
+    )
+
+    def _centre_trust(base: float) -> float:
+        """Confidence for a centre-derived vocal finding, scaled by the voice test.
+
+        A 0.58 voice call and a 0.96 one are not the same evidence, and until
+        `vocal_confidence` existed they produced identical numbers on the report.
+        """
+        return _clamp(ctx.trust(base, "vocal") * (0.45 + 0.55 * lead_conf), 0.05, 0.99)
 
     v2i_window = ctx.profile.vocal_to_instrument_db
     if from_stems:
@@ -2698,6 +3463,11 @@ def _detect_vocal(ctx: _Ctx) -> List[_Hit]:
     if v2i_miss != 0.0:
         ratio = _ratio(v2i_miss, 1.5)
         buried = v2i_miss < 0.0
+        # The cap. A tucked lead under the genre window is the one case where
+        # the measurement is right and the verdict would be wrong.
+        gentle = tucked and buried
+        if gentle:
+            ratio = min(ratio, _TUCKED_MAX_RATIO)
         moments = _moments(v.buried_moments if buried else v.loud_moments) if centre_valid else []
         if not moments and vocal_masking:
             moments = _moments([mo for p in vocal_masking for mo in (p.moments or [])])
@@ -2714,7 +3484,36 @@ def _detect_vocal(ctx: _Ctx) -> List[_Hit]:
                    f"of the track" if stem is not None else "")
                 + "."
                 + (f" Intelligibility scores {intel:.2f}." if centre_valid else "")
+                # The centre estimate agreeing that the lead is under the bed is
+                # a second, independent source saying the same thing — which
+                # makes it likelier to be a decision, not an accident.
+                + (" The centre estimate places it tucked under the bed too, so treat this as "
+                   "a difference from the reference rather than a fault: what it costs is "
+                   "intelligibility, what it buys is room for whatever goes on top."
+                   if buried and prominence == "tucked" else "")
                 + _mask_sentence(vocal_masking)
+                + _moment_span(moments)
+            )
+        elif gentle:
+            detail = (
+                f"The lead is sitting under {ctx.ref}, {hedge}. The centre 300 Hz-6 kHz "
+                f"measures {_num(v2i, 1)} dB against everything "
+                f"else (A-weighted), {_num(abs(v2i_miss), 1)} dB below the "
+                f"{_win(v2i_window, 1, ' dB')} window {ctx.profile.label} usually places a "
+                f"lead in, at a voice-test confidence of {lead_conf:.2f}. That figure says a "
+                f"voice is there; nothing in it says the voice was meant to be louder. A hook "
+                f"tucked this far down is what you do when somebody is going to rap over the "
+                f"beat, and it is the sound of shoegaze, lo-fi and a good deal of indie. "
+                f"What it costs is intelligibility, currently {intel:.2f}"
+                + (f", with {', '.join(b.replace('_', ' ') for b in masked)} carrying "
+                   f"non-centre content within 3 dB of it" if masked else "")
+                + ". What it buys is space — the arrangement reads as the record rather than "
+                  "as a backing track, and anything added on top later has somewhere to sit. "
+                  "Reported as a difference from the reference, not as a fault"
+                + ctx.advice(
+                    "; if the lead is meant to be the focus, 2-3 dB is the whole fix"
+                )
+                + "."
                 + _moment_span(moments)
             )
         else:
@@ -2725,21 +3524,25 @@ def _detect_vocal(ctx: _Ctx) -> List[_Hit]:
                 f"{ctx.profile.label} places a lead vocal in"
                 + (f", and {', '.join(b.replace('_', ' ') for b in masked)} carry non-centre "
                    f"content within 3 dB of the vocal there" if masked and buried else "")
-                + f". Intelligibility scores {intel:.2f}. This is measured from a centre "
-                f"estimate rather than a stem, so read it as the balance of everything "
-                f"centred, not of the vocal alone."
+                + f". The voice test scores {lead_conf:.2f} and places the lead "
+                f"{prominence} in the bed. Intelligibility scores {intel:.2f}. This is "
+                f"measured from a centre estimate rather than a stem, so read it as the "
+                f"balance of everything centred, not of the vocal alone."
                 + _moment_span(moments)
             )
         hits.append(_Hit(
             Finding(
                 id="vocal_balance.buried" if buried else "vocal_balance.too_loud",
                 dimension="vocal_balance",
-                title="Vocal sits under the mix" if buried else "Vocal sits over the mix",
+                title=(f"Lead sits under {ctx.ref} — deliberate or not" if gentle
+                       else f"Vocal sits under {ctx.ref}" if buried
+                       else f"Vocal sits over {ctx.ref}"),
                 severity=_severity(ratio),
-                # 0.90 against a separated source, 0.55 against a centre
-                # estimate that cannot tell a singer from a centred synth.
+                # 0.90 against a separated source; against a centre estimate that
+                # cannot tell a singer from a centred synth, 0.55 scaled by how
+                # sure the voice test actually was.
                 confidence=(ctx.trust(0.90, "stem") if from_stems
-                            else ctx.trust(0.55, "vocal")),
+                            else _centre_trust(0.55)),
                 detail=detail,
                 evidence=evidence,
                 band_hz=(300.0, 6000.0),
@@ -2750,6 +3553,11 @@ def _detect_vocal(ctx: _Ctx) -> List[_Hit]:
 
     if consistency_miss > 0.0 or intel_miss < 0.0:
         ratio = max(_ratio(consistency_miss, 2.0), _ratio(intel_miss, 0.12))
+        # Same cap, same reason. Low intelligibility on a deliberately tucked
+        # lead is not a wandering vocal — it is the direct consequence of where
+        # the vocal was put, and it is already described by the finding above.
+        if tucked:
+            ratio = min(ratio, _TUCKED_MAX_RATIO)
         moments = (
             _moments(list(v.buried_moments or []) + list(v.loud_moments or []))
             if centre_valid else []
@@ -2770,23 +3578,28 @@ def _detect_vocal(ctx: _Ctx) -> List[_Hit]:
                 f"intelligibility scores {intel:.2f} against a {_num(intel_window[0], 2)} floor"
             )
         detail = (
-            "The lead is not holding a steady place in the mix: "
+            f"The lead moves around more than {ctx.ref} holds it: "
             + "; ".join(parts)
             + (f". 1-4 kHz consonant energy is competing with non-centre content in "
                f"{', '.join(b.replace('_', ' ') for b in masked)}." if masked else ".")
             + (" Measured on the separated vocal, over the frames it is singing on."
                if consistency_source == "stem" else
-               " Inferred from centre extraction, so treat the figure as directional.")
+               f" Inferred from centre extraction at a voice-test confidence of "
+               f"{lead_conf:.2f}, so treat the figure as directional.")
+            + (" The lead is tucked under the bed here, so some of this is simply where it "
+               "was placed rather than the lead failing to hold a level — which is why this "
+               "is reported as an observation."
+               if tucked else "")
             + _moment_span(moments)
         )
         hits.append(_Hit(
             Finding(
                 id="vocal_balance.inconsistent",
                 dimension="vocal_balance",
-                title="Vocal level and intelligibility wander",
+                title=f"Vocal level wanders wider than {ctx.ref}",
                 severity=_severity(ratio),
                 confidence=(ctx.trust(0.84, "stem") if consistency_source == "stem"
-                            else ctx.trust(0.50, "vocal")),
+                            else _centre_trust(0.50)),
                 detail=detail,
                 evidence=evidence,
                 band_hz=(300.0, 6000.0),
@@ -2851,24 +3664,25 @@ def _detect_stereo_width(ctx: _Ctx) -> List[_Hit]:
         ratio = _ratio(width_miss, 0.08)
         wide = width_miss > 0.0
         detail = (
-            f"Side/Mid measures {_num(width, 2)} against the {_win(width_window, 2)} window "
-            f"{ctx.profile.label} works in — {_num(abs(width_miss), 2)} "
-            f"{'wider' if wide else 'narrower'} than the genre. The widest band is "
+            f"This sits {_num(abs(width_miss), 2)} {'wider' if wide else 'narrower'} than "
+            f"{ctx.ref}: Side/Mid measures {_num(width, 2)} against the "
+            f"{_win(width_window, 2)} window {ctx.profile.label} works in. The widest band is "
             f"{widest.replace('_', ' ') or 'n/a'} at {_num(band_width.get(widest, 0.0), 2)} and "
             f"the narrowest {narrowest.replace('_', ' ') or 'n/a'} at "
             f"{_num(band_width.get(narrowest, 0.0), 2)}, with correlation at "
             f"{_num(st.correlation, 2)} and a {_num(st.mono_sum_loss_db, 1)} dB mono fold-down "
             f"cost."
-            + (" Width past the genre's window costs centre density and mono translation "
-               "without buying any more space."
+            + (" A wide field buys scale on headphones; past this window it costs centre "
+               "density and mono translation without buying any more space."
                if wide else
-               " The mix is collapsing toward the centre, so nothing has anywhere to sit.")
+               " A narrow field buys centre weight and translates anywhere; this far in it "
+               "costs the separation that gives each element somewhere to sit.")
         )
         hits.append(_Hit(
             Finding(
                 id="stereo_width.too_wide" if wide else "stereo_width.too_narrow",
                 dimension="stereo_width",
-                title=f"{'Wider' if wide else 'Narrower'} than {ctx.profile.label} sits",
+                title=f"{'Wider' if wide else 'Narrower'} than {ctx.ref}",
                 severity=_severity(ratio),
                 confidence=0.92,   # second-order statistics, directly computed
                 detail=detail,
@@ -2929,14 +3743,15 @@ def _detect_transients(ctx: _Ctx) -> List[_Hit]:
     moments = _moments(t.weak_moments)
 
     detail = (
-        f"Punch scores {punch:.2f} against a {_num(punch_window[0], 2)} floor for "
-        f"{ctx.profile.label}: across {int(_fin(t.onset_density) * ctx.duration)} detected "
-        f"onsets the average hit is only {_num(t.transient_to_sustain_db, 1)} dB above its own "
-        f"level 50 ms later, with a {_num(t.attack_time_ms, 1)} ms 10-90% attack and a "
-        f"smearing index of {t.smearing_index:.2f}. The weakest band is "
+        f"The hits land softer than {ctx.ref}: punch scores {punch:.2f} against a "
+        f"{_num(punch_window[0], 2)} floor for {ctx.profile.label}. Across "
+        f"{int(_fin(t.onset_density) * ctx.duration)} detected onsets the average hit sits "
+        f"{_num(t.transient_to_sustain_db, 1)} dB above its own level 50 ms later, with a "
+        f"{_num(t.attack_time_ms, 1)} ms 10-90% attack and a smearing index of "
+        f"{t.smearing_index:.2f}. The weakest band is "
         f"{weakest.replace('_', ' ') or 'n/a'} at {_num(band_punch.get(weakest, 0.0), 2)}. "
-        f"The ear reads the drop after a hit, not the peak, so with this little fall-off the "
-        f"drums arrive without landing."
+        f"The ear reads the drop after a hit rather than the peak, so a small fall-off buys "
+        f"a smoother, more continuous feel and costs the sense that the drums arrived."
         + _moment_span(moments)
     )
 
@@ -2944,7 +3759,7 @@ def _detect_transients(ctx: _Ctx) -> List[_Hit]:
         Finding(
             id="transients.no_punch",
             dimension="transients",
-            title=f"Hits do not land for {ctx.profile.label}",
+            title=f"Hits land softer than {ctx.ref}",
             severity=_severity(ratio),
             confidence=ctx.trust(0.80, "transients"),
             detail=detail,
@@ -3045,18 +3860,19 @@ def _detect_clarity(ctx: _Ctx) -> List[_Hit]:
         confidence = ctx.trust(0.80, "stem")
     else:
         detail = (
-            f"Clarity scores {clarity:.2f} against a {_num(clarity_window[0], 2)} floor for "
-            f"{ctx.profile.label}, with {masking * 100:.1f}% of the mix's audible loudness "
-            f"sitting under its own masking threshold (ceiling "
-            f"{masking_ceiling * 100:.1f}%). The worst band is "
-            f"{worst.replace('_', ' ') or 'n/a'} at "
-            f"{congestion.get(worst, 0.0):.2f} congestion, and transient frames are only "
-            f"{_num(c.definition_db, 1)} dB above sustained ones. Energy is stacked rather "
-            f"than spread: elements are present but not separately audible."
+            f"Elements overlap more here than {ctx.ref} does. Clarity scores {clarity:.2f} "
+            f"against a {_num(clarity_window[0], 2)} floor for {ctx.profile.label}, with "
+            f"{masking * 100:.1f}% of the mix's audible loudness sitting under its own "
+            f"masking threshold against a {masking_ceiling * 100:.1f}% ceiling. The worst "
+            f"band is {worst.replace('_', ' ') or 'n/a'} at "
+            f"{congestion.get(worst, 0.0):.2f} congestion, and transient frames sit "
+            f"{_num(c.definition_db, 1)} dB above sustained ones. Stacking energy buys "
+            f"density and a wall of sound; it costs separation, so elements are present "
+            f"without being separately audible."
             + _mask_sentence(pairs)
             + _moment_span(moments)
         )
-        title = "Elements are masking each other"
+        title = f"Elements overlap more than {ctx.ref}"
         finding_id = "clarity.congested"
         # A psychoacoustic spreading model over a measured spectrum, and with
         # separated sources naming the masker it is no longer only a model.
@@ -3130,17 +3946,26 @@ _DETECTORS = (
 _SEVERITY_RANK: Dict[str, int] = {"critical": 0, "major": 1, "minor": 2, "clean": 3}
 
 
-def _rank_key(hit: _Hit) -> Tuple[int, float]:
-    """Severity first, then recoverable points.
+def _rank_key(hit: _Hit) -> Tuple[int, int, float]:
+    """Severity first, then defects before deviations, then recoverable points.
 
-    Ranking the second key by `impact` rather than by the raw miss ratio is
+    Ranking the last key by `impact` rather than by the raw miss ratio is
     deliberate. The ratio says how many tolerance units a number is out by,
     which is not the same question as how much the listener gets back — a
     30 dB hole in the air band is a larger ratio than a clipped master and a
     smaller problem. `_IMPACT_WEIGHT` is where "how much this matters" lives,
     so the ordering the user sees is driven by it.
+
+    Defects sort above deviations of equal severity because that is the order
+    to work in: fix what is broken before reconsidering what was chosen. This
+    is the *only* place that preference is expressed — it used to be baked into
+    `impact` itself, which quietly made the recoverable-points figure wrong.
     """
-    return (_SEVERITY_RANK.get(hit.finding.severity, 3), -_fin(hit.finding.impact))
+    return (
+        _SEVERITY_RANK.get(hit.finding.severity, 3),
+        0 if hit.finding.kind == "defect" else 1,
+        -_fin(hit.finding.impact),
+    )
 
 
 def _cap(hits: List[_Hit], limit: int = MAX_FINDINGS) -> List[_Hit]:
@@ -3150,6 +3975,11 @@ def _cap(hits: List[_Hit], limit: int = MAX_FINDINGS) -> List[_Hit]:
     finding of a louder dimension, which leaves that dimension scored as clean
     when it is not. So the first pass takes one per dimension and the second
     fills whatever room is left.
+
+    Observations sort last (severity "clean", no impact) and so are the first
+    thing squeezed out when there are real problems to report — which is the
+    right order: nobody needs to be congratulated on their mid-range while
+    twelve other things are outstanding.
     """
     ordered = sorted(hits, key=_rank_key)
     primary: List[_Hit] = []
@@ -3182,17 +4012,32 @@ def _assign_impact(hits: List[_Hit], rescale: bool = True) -> None:
     (`_cap` needs an impact to sort by); the second runs on the surviving set
     and applies `_IMPACT_TOTAL_CAP`, so dropped findings cannot deflate the
     points attributed to the ones the user actually sees.
+
+    A deviation's points are scaled by `_DEVIATION_IMPACT_WEIGHT`, matching the
+    pull it has on the health score. `impact` is documented as "health-score
+    points recoverable", so the two have to agree: if closing a stylistic gap
+    only moves the score by 40% of what closing a defect does, then that is the
+    number of points on offer, and `ceiling_score` must not promise more. It
+    also puts defects above deviations of equal severity in the ranking, which
+    is the order a producer should read them in.
     """
     per_dimension: Dict[str, int] = {}
     raw: List[float] = []
     for hit in sorted(hits, key=lambda h: -h.ratio):
         dim = hit.finding.dimension
+        if hit.observation:
+            # Nothing to recover: this is not a problem.
+            hit.finding.impact = 0.0
+            continue
         n = per_dimension.get(dim, 0)
         per_dimension[dim] = n + 1
         discount = _REPEAT_DISCOUNT[min(n, len(_REPEAT_DISCOUNT) - 1)]
         weight = _IMPACT_WEIGHT.get(dim, 5.0)
         hit.finding.impact = round(
-            _clamp(weight * _clamp(hit.ratio / _CRITICAL_AT, 0.18, 1.0) * discount, 0.0, 100.0),
+            _clamp(
+                weight * _clamp(hit.ratio / _CRITICAL_AT, 0.18, 1.0) * discount,
+                0.0, 100.0,
+            ),
             2,
         )
         raw.append(hit.finding.impact)
@@ -3204,15 +4049,84 @@ def _assign_impact(hits: List[_Hit], rescale: bool = True) -> None:
             hit.finding.impact = round(_clamp(hit.finding.impact * scale, 0.0, 100.0), 2)
 
 
-def detect_all(m: Measurements, genre: str) -> List[Finding]:
+def _suppressed_by_intent(ctx: _Ctx, finding: Finding) -> bool:
+    """Is this finding a category error against what the file is?
+
+    The gates that cannot be expressed inside a single detector, because they
+    are about whole dimensions rather than one measurement. Everything here
+    removes a finding that would be *wrong* on this material, not one that is
+    merely unwelcome.
+    """
+    fid = str(finding.id)
+    dim = str(finding.dimension)
+    intent = ctx.intent
+
+    # No lead on the record: nothing about a lead's balance can be true. The
+    # positive topline observation a beat produces is exempt — it is the one
+    # vocal-dimension statement that is *about* the absence.
+    if dim == "vocal_balance" and intent in _NO_LEAD_INTENTS:
+        return fid != "vocal_balance.topline_headroom"
+
+    if intent == "stem":
+        # One element in isolation. Whole-mix balance is meaningless against it:
+        # a bass stem is all low end, a vocal stem has no drums to collide with,
+        # and neither has a "mix" to be muddy or congested. The measurements
+        # still appear — under Details, and in every dimension's evidence — the
+        # verdicts do not.
+        if dim in _STEM_SUPPRESSED_DIMENSIONS or fid in _STEM_SUPPRESSED_IDS:
+            return True
+
+    if intent == "demo":
+        # A rough. Where it lands on the loudness ladder and how its limiter
+        # behaves are questions about a master nobody has attempted.
+        if fid in _DEMO_SUPPRESSED_IDS or dim in _DEMO_SUPPRESSED_DIMENSIONS:
+            return True
+
+    if intent == "beat" and fid in _BEAT_SUPPRESSED_IDS:
+        # The headroom a beat is carrying is the room the topline needs.
+        return True
+
+    return False
+
+
+def _as_observation(finding: Finding) -> None:
+    """Strip a finding of its verdict, leaving the measurement and the sentence.
+
+    What `intent="reference"` does to everything. Somebody measuring a record
+    they admire is asking what it does, and a released master is not a work
+    item — so it keeps every number and loses the severity, the recoverable
+    points and any clause telling anyone to change it (those are already absent:
+    see `_Ctx.advice`).
+    """
+    finding.severity = "clean"
+    finding.impact = 0.0
+
+
+def detect_all(
+    m: Measurements, genre: str, intent: str = "full_mix"
+) -> List[Finding]:
     """Turn a `Measurements` into evidence-backed `Finding`s for one genre.
 
     Every finding carries the figure that produced it, the window it missed,
     and a `detail` sentence that is complete without any AI layer. Nothing is
     emitted for a file with no measurable programme, and nothing is emitted for
     a measurement whose value sits inside this genre's window.
+
+    Two things happen to every finding on the way out, and they are the reason
+    a stylistic choice can no longer be reported as damage:
+
+    1. **It is classified.** `finding_kind` splits the list into defects — wrong
+       in any genre, for any artist, at any intent — and deviations, which are
+       measured differences from a reference somebody may well have chosen.
+    2. **A deviation's severity is re-derived under the deviation ceiling.** It
+       caps at major and only reaches it a long way outside the window.
+       "critical" is reserved for things that are actually broken.
+
+    `intent` then removes what is a category error against this file: no vocal
+    findings on a beat, no mix balance on a single stem, no mastering verdicts
+    on a rough, and no instructions at all on somebody else's record.
     """
-    ctx = _build_ctx(m, genre)
+    ctx = _build_ctx(m, genre, intent)
     if ctx.no_programme:
         return []
 
@@ -3225,8 +4139,32 @@ def detect_all(m: Measurements, genre: str) -> List[Finding]:
             # The dimension simply scores as unassessed.
             continue
 
+    # Classify, then re-derive severity under the rule for that class. Done here
+    # rather than in each detector so the two can never drift apart: a detector
+    # decides how far outside the window its number is, and nothing else.
+    for hit in hits:
+        hit.finding.kind = finding_kind(hit.finding.id)
+        # Carry the magnitude out with the finding. The severity label buckets it
+        # away, and the deviation scorer needs it back.
+        hit.finding.miss_ratio = round(max(_fin(hit.ratio, 0.0), 0.0), 4)
+        if hit.observation:
+            _as_observation(hit.finding)
+        elif hit.finding.kind == "deviation":
+            hit.finding.severity = _severity_for("deviation", hit.ratio)
+
+    hits = [h for h in hits if not _suppressed_by_intent(ctx, h.finding)]
+
+    # On a reference nothing is a work item. The findings stay — they are what
+    # the record does, which is the whole reason somebody uploaded it — and the
+    # verdicts come off.
+    if ctx.is_reference:
+        for hit in hits:
+            _as_observation(hit.finding)
+            hit.observation = True
+
     # Drop misses too small to state honestly at the precision we report in.
-    hits = [h for h in hits if h.ratio >= MIN_REPORTABLE_RATIO]
+    # Observations are exempt: they are not a miss at all.
+    hits = [h for h in hits if h.observation or h.ratio >= MIN_REPORTABLE_RATIO]
 
     _assign_impact(hits, rescale=False)   # gives _cap something meaningful to rank by
     hits = _cap(hits)
@@ -3245,9 +4183,125 @@ _PENALTY: Dict[str, float] = {"critical": 58.0, "major": 34.0, "minor": 15.0}
 _REPEAT_PENALTY = 8.0
 _MAX_REPEAT_PENALTY = 16.0
 
+# A deviation's penalty is a *curve*, not a table lookup — and the curve is the
+# reason the severity cap does not cost the score its genre signal.
+#
+# Two separate things get called "how bad is this", and conflating them is what
+# went wrong:
+#
+#   * The **label** is what a producer reads. Calling a stylistic choice
+#     "critical" tells them their record is broken when it is simply not the
+#     genre average, and that is the complaint this whole split exists to stop.
+#     So a deviation's label caps at "major", always. See `_severity_for`.
+#
+#   * The **penalty** is what the health score is made of, and the health score
+#     answers a different question: how far is this file from a finished record
+#     of this kind? Stylistic distance belongs in that answer. A trap master
+#     measured against an ambient reference *is* a long way from ambient, and a
+#     number that refuses to say so is not being kind, it is being useless.
+#
+# So the label is capped and the penalty is not. What the deviation split
+# actually buys is the wording, the absent imperatives, and the fact that
+# nothing stylistic is ever stamped "critical" — not a flattened score.
+#
+# The curve carries the same three values the defect table steps through, so a
+# deviation and a defect at comparable distance cost comparable points, and a
+# deviation at 4 tolerance units can no longer cost the same as one at 0.16.
+#
+# On where the anchors sit. A step table applies one value across a whole band;
+# a curve through the *band entry* would therefore over-charge everything above
+# it, because the table stays flat where the curve keeps climbing. So each
+# anchor places the table's value at a representative ratio *inside* its own
+# band — 1.0 within minor's [0, 1.5), 1.6 within major's [1.5, 3.0), 3.75 within
+# critical's [3.0, ∞).
+#
+# The exact positions are calibration, not derivation: they were fitted to
+# reproduce the catalogue behaviour the step table already had, against
+# reference_trap at trap/pop/rock/folk/ambient, reference_pop, reference_folk
+# and mix_problem. That fit holds every one of those to within 2.8 points while
+# making the score continuous in the miss. `tools/check_regressions.py` is the
+# executable version of that claim; re-run it if you touch these.
+_PENALTY_ANCHORS: Tuple[Tuple[float, float], ...] = (
+    (0.0, 0.0),
+    (1.0, _PENALTY["minor"]),
+    (1.6, _PENALTY["major"]),
+    (3.75, _PENALTY["critical"]),
+)
+
+
+def deviation_penalty(ratio: float) -> float:
+    """Points off a dimension for a deviation `ratio` tolerance units out.
+
+    Piecewise-linear through `_PENALTY_ANCHORS` and flat above the last one, so
+    it agrees with the defect table at the band boundaries but stays continuous
+    between them. Continuity is the point: two mixes differing only in how far
+    they sit from the reference must not score identically.
+    """
+    r = max(_fin(ratio, 0.0), 0.0)
+    lo_r, lo_p = _PENALTY_ANCHORS[0]
+    for hi_r, hi_p in _PENALTY_ANCHORS[1:]:
+        if r <= hi_r:
+            span = hi_r - lo_r
+            if span <= 0.0:
+                return hi_p
+            return lo_p + (hi_p - lo_p) * (r - lo_r) / span
+        lo_r, lo_p = hi_r, hi_p
+    return lo_p
+
+
+def _finding_penalty(finding: Finding) -> float:
+    """Points off a dimension for one finding, by kind.
+
+    Defects keep the severity table: the bands are a fair summary of damage and
+    they are what the fixture baselines were calibrated against. Deviations read
+    their measured distance instead. A deviation with no recorded distance (an
+    older payload, or a detector that never set one) falls back to its band, so
+    it can never score as harmless by accident.
+    """
+    severity = str(finding.severity)
+    if severity == "clean":
+        return 0.0
+    if str(getattr(finding, "kind", "deviation")) == "defect":
+        return _PENALTY.get(severity, 15.0)
+    ratio = _fin(getattr(finding, "miss_ratio", 0.0), 0.0)
+    if ratio <= 0.0:
+        return _PENALTY.get(severity, 15.0)
+    return deviation_penalty(ratio)
+
+
+def scoring_grade(finding: Finding) -> Severity:
+    """The band a finding's *cost* puts it in, ignoring the label it displays.
+
+    A deviation's displayed severity caps at "major" so nothing stylistic is
+    ever stamped "critical" at a producer. But the compound penalty and the
+    score ceiling in `engine.compute_health` are scoring machinery, not wording,
+    and keying them on the displayed label quietly switched off the critical
+    ceiling for every deviation — which is most of how the cross-genre spread
+    was produced in the first place.
+
+    So the display reads `Finding.severity` and the scorer reads this. They
+    agree for defects and for anything under the major threshold; they differ
+    exactly where the cap bites, which is the one place they should.
+    """
+    penalty = _finding_penalty(finding)
+    if penalty >= _PENALTY["critical"]:
+        return "critical"
+    if penalty >= _PENALTY["major"]:
+        return "major"
+    if penalty > 0.0:
+        return "minor"
+    return "clean"
+
+
 # Score for a dimension with nothing to report but nothing to praise either —
 # a measurement that could not be made rather than one that came back healthy.
 _UNASSESSED_SCORE = 90.0
+
+# Score for a dimension whose only entry is an observation: a confirmed virtue
+# rather than a silence. Above the unassessed figure because something *was*
+# measured and it came back the way it should, and under 100 because one
+# confirmed thing is not the same as a whole dimension with nothing to say.
+_OBSERVED_SCORE = 95.0
 
 
 def _comfort(value: float, window: Tuple[float, float]) -> float:
@@ -3284,6 +4338,51 @@ def _elsewhere(
     )
 
 
+def _intent_silence(dim: str, ctx: _Ctx) -> Optional[str]:
+    """The headline for a dimension this file's intent took off the table.
+
+    Returns None when the dimension is in play as normal. When it is not, the
+    sentence says which question was not asked and why — never "clean", because
+    a question that was never put has no healthy answer.
+    """
+    intent = ctx.intent
+    label = ctx.profile.label
+
+    if dim == "vocal_balance" and intent in _NO_LEAD_INTENTS:
+        if intent == "beat":
+            return (
+                "No lead to balance: this is a beat, so the topline is somebody else's and "
+                "the space where it goes is the point. Nothing about a missing or tucked "
+                "vocal is scored against this file."
+            )
+        if intent == "instrumental":
+            return ("No lead to balance: this is an instrumental and is complete without "
+                    "one. Vocal balance is not a question here.")
+        if intent == "stem":
+            return ("No lead to balance: a single stem has no mix for a vocal to sit in.")
+        return (
+            "Vocal balance is reported as a measurement rather than a verdict on a "
+            "reference track — see Details for the centre-channel figures."
+        )
+
+    if intent == "stem" and dim in _STEM_SUPPRESSED_DIMENSIONS:
+        return (
+            f"Not judged on a single stem: {DIMENSION_LABELS.get(dim, dim).lower()} is a "
+            f"property of a mix, and one element in isolation has no mix to have it. A bass "
+            f"stem is supposed to be all low end and a vocal stem is supposed to have nothing "
+            f"under it — the {label} curve has nothing to say about either. The measurements "
+            f"are still in Details."
+        )
+
+    if intent == "demo" and dim in _DEMO_SUPPRESSED_DIMENSIONS:
+        return (
+            "Not judged on a rough: how the ceiling is being reached is a question about a "
+            "master, and there isn't one yet. The measurements are still in Details."
+        )
+
+    return None
+
+
 def _clean_report(dim: str, ctx: _Ctx) -> Tuple[str, float, bool]:
     """(headline, comfort 0-1, assessed) for a dimension with no findings.
 
@@ -3292,6 +4391,11 @@ def _clean_report(dim: str, ctx: _Ctx) -> Tuple[str, float, bool]:
     Where a measurement genuinely could not be made — a mono file's stereo
     field, a vocal that is not there, a 1.2 s file's loudness range — it says
     that instead of claiming health it cannot support.
+
+    A dimension that was *deliberately not asked about* is a third case, and it
+    says so: a beat has no lead to balance, a bass stem has no mix to be muddy,
+    a rough has no master to judge. Reporting those as clean would be praising
+    a question nobody put.
     """
     m = ctx.m
     p = ctx.profile
@@ -3300,6 +4404,10 @@ def _clean_report(dim: str, ctx: _Ctx) -> Tuple[str, float, bool]:
     if ctx.no_programme:
         return ("No measurable programme in this file — nothing assessed.",
                 0.0, False)
+
+    silent = _intent_silence(dim, ctx)
+    if silent is not None:
+        return (silent, 0.0, False)
 
     if dim == "clipping":
         tp = _fin(m.clipping.true_peak_dbtp, -120.0)
@@ -3447,10 +4555,19 @@ def _clean_report(dim: str, ctx: _Ctx) -> Tuple[str, float, bool]:
 
     if dim == "harshness":
         harsh = _fin(m.spectral.harshness_index, 0.0)
+        # The 5-9 kHz figure is named for whatever is actually making it, on the
+        # same rule the finding uses. Calling a beat's hat pattern "sibilance"
+        # in a clean headline is the same error as calling it that in a finding.
+        vocal_top = ctx.lead_is_up_front
+        top_ceiling = (_fin(p.sibilance_max) if vocal_top
+                       else _fin(p.sibilance_max) * _PERCUSSION_SIB_FACTOR)
         return (
             f"No edge in the ear's most sensitive region: harshness scores {harsh:.2f} against "
-            f"a {_num(p.harshness_max, 2)} ceiling for {label} and sibilance "
-            f"{_fin(m.spectral.sibilance_index):.2f} against {_num(p.sibilance_max, 2)}.",
+            f"a {_num(p.harshness_max, 2)} ceiling for {label}, and 5-9 kHz burstiness "
+            f"{_fin(m.spectral.sibilance_index):.2f} against {_num(top_ceiling, 2)}"
+            + (" — sibilance, with a lead vocal up front to own it." if vocal_top else
+               " — hats and percussion, with no lead vocal up front, which is why that "
+               "ceiling is the wider one."),
             _headroom_comfort(harsh, _fin(p.harshness_max), _fin(p.harshness_max)), True,
         )
 
@@ -3528,19 +4645,35 @@ def _clean_report(dim: str, ctx: _Ctx) -> Tuple[str, float, bool]:
         if not ctx.has("vocal"):
             return (f"Not assessed: {_num(ctx.duration, 1)} s is too short to test for the "
                     f"syllabic modulation that identifies a voice.", 0.0, False)
-        if not bool(v.vocal_present):
+        if not ctx.lead_on_record:
             if not p.vocal_expected:
                 return (
                     f"No lead vocal, which is how {label} usually works — "
                     f"{_fin(v.center_energy_ratio) * 100:.0f}% of the 300 Hz-6 kHz energy is "
-                    f"centred but it does not modulate at a syllabic rate.",
+                    f"centred but it does not carry the syllabic modulation and the "
+                    f"consonant-against-vowel swing a voice does.",
                     1.0, False,
                 )
             return (
                 f"No sustained lead vocal detected: {_fin(v.center_energy_ratio) * 100:.0f}% of "
-                f"300 Hz-6 kHz is centred, but its envelope does not modulate at 2-8 Hz any more "
-                f"than the sides do. Vocal balance is not assessed rather than guessed.",
+                f"300 Hz-6 kHz is centred, but the voice test scores only "
+                f"{ctx.lead_confidence:.2f} against a {_num(0.55, 2)} bar — the centre does "
+                f"not modulate at 2-8 Hz any more than the sides do, or it holds one fixed "
+                f"harmonic shape the way a synth does and speech does not. Vocal balance is "
+                f"not assessed rather than guessed.",
                 0.0, False,
+            )
+        if ctx.lead_prominence == "tucked":
+            return (
+                f"There is a lead here and it is deliberately under the bed: the centre sits "
+                f"{_num(v.vocal_to_instrument_db, 1)} dB against everything else, below the "
+                f"{_win(p.vocal_to_instrument_db, 1, ' dB')} window {label} usually places a "
+                f"lead in, at a voice-test confidence of {ctx.lead_confidence:.2f}. That is "
+                f"the correct answer for a beat somebody is going to rap over and a normal "
+                f"one for shoegaze or lo-fi, so it is reported as a difference from the "
+                f"reference rather than scored as a fault.",
+                # Not health, and not damage either: a decision we decline to grade.
+                0.5, False,
             )
         return (
             f"The lead holds its place: centre sits {_num(v.vocal_to_instrument_db, 1)} dB "
@@ -3612,7 +4745,7 @@ def _clean_report(dim: str, ctx: _Ctx) -> Tuple[str, float, bool]:
 
 
 def score_dimensions(
-    findings: List[Finding], m: Measurements, genre: str
+    findings: List[Finding], m: Measurements, genre: str, intent: str = "full_mix"
 ) -> List[DimensionScore]:
     """Roll findings up into one score per dimension — all fourteen, always.
 
@@ -3621,8 +4754,13 @@ def score_dimensions(
     not be made (mono file's stereo field, a vocal that is not there, a file too
     short for the statistic) says so plainly and scores neutral rather than
     claiming health it cannot support.
+
+    A dimension whose only entries are *observations* — a beat's open centre, or
+    anything at all on a reference — is not penalised for them. They are read
+    out as the headline and the dimension scores as healthy, because that is
+    what they say.
     """
-    ctx = _build_ctx(m, genre)
+    ctx = _build_ctx(m, genre, intent)
     by_dimension: Dict[str, List[Finding]] = {}
     for finding in findings or []:
         by_dimension.setdefault(str(finding.dimension), []).append(finding)
@@ -3635,14 +4773,35 @@ def score_dimensions(
 
     scores: List[DimensionScore] = []
     for dim in DIMENSIONS:
-        hits = sorted(
+        entries = sorted(
             by_dimension.get(dim, []),
             key=lambda f: (_SEVERITY_RANK.get(f.severity, 3), -_fin(f.impact)),
         )
+        # Severity "clean" on a finding means it was emitted as an observation:
+        # a confirmed virtue, or a reading off a record nobody is being asked to
+        # change. Neither is a problem, so neither carries a penalty.
+        hits = [f for f in entries if str(f.severity) != "clean"]
+        observations = [f for f in entries if str(f.severity) == "clean"]
+
+        if not hits and observations:
+            note = observations[0]
+            scores.append(DimensionScore(
+                dimension=dim,  # type: ignore[arg-type]
+                label=DIMENSION_LABELS.get(dim, dim),
+                score=_OBSERVED_SCORE,
+                severity="clean",
+                headline=note.title,
+                finding_ids=[f.id for f in observations],
+            ))
+            continue
 
         if hits:
+            # Rank by what each finding actually costs, not by its label: a
+            # deviation 4 tolerance units out outranks one a whisker outside the
+            # window even though both are stamped "minor".
+            hits.sort(key=lambda f: (-_finding_penalty(f), -_fin(f.impact)))
             worst = hits[0]
-            penalty = _PENALTY.get(worst.severity, 15.0)
+            penalty = _finding_penalty(worst)
             penalty += min(_REPEAT_PENALTY * (len(hits) - 1), _MAX_REPEAT_PENALTY)
             score = _clamp(100.0 - penalty, 2.0, 100.0)
             headline = worst.title

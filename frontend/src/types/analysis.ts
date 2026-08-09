@@ -112,10 +112,49 @@ export interface Evidence {
   detail: string;
 }
 
+/**
+ * Is this objectively wrong, or is it just different from the genre reference?
+ *
+ * A `defect` is wrong regardless of genre, intent or taste: clipping, an
+ * inverted channel, a mix that vanishes in mono. A `deviation` is a measured
+ * difference from what records in this genre usually do — it may well be
+ * deliberate, it caps at `major`, and it must never be presented as damage.
+ */
+export type FindingKind = 'defect' | 'deviation';
+
+/** What the uploaded file is, which decides which findings are asked for. */
+export type TrackIntent =
+  | 'full_mix'
+  | 'beat'
+  | 'instrumental'
+  | 'stem'
+  | 'reference'
+  | 'demo';
+
+export const TRACK_INTENT_LABELS: Record<TrackIntent, string> = {
+  full_mix: 'Full mix',
+  beat: 'Beat (instrumental for a topline)',
+  instrumental: 'Instrumental',
+  stem: 'Single stem',
+  reference: 'Reference track',
+  demo: 'Demo / rough',
+};
+
+/** Short forms for the results meta line, which is already dense. */
+export const TRACK_INTENT_SHORT: Record<TrackIntent, string> = {
+  full_mix: 'Full mix',
+  beat: 'Beat',
+  instrumental: 'Instrumental',
+  stem: 'Stem',
+  reference: 'Reference',
+  demo: 'Demo',
+};
+
 export interface Finding {
   id: string;
   dimension: Dimension;
   title: string;
+  kind: FindingKind;
   severity: Severity;
   confidence: number;
   detail: string;
@@ -123,6 +162,15 @@ export interface Finding {
   band_hz?: [number, number] | null;
   moments: Moment[];
   impact: number;
+  /**
+   * How far outside its window the measurement sits, in tolerance units.
+   * 0 = inside, 1.5 = a defect's `major`, 3.0 = a defect's `critical`.
+   *
+   * This is the magnitude `severity` buckets away. A deviation's label caps at
+   * `major` however far out it is, so two findings can share a label and not a
+   * distance — sort or emphasise by this, not by `severity` alone.
+   */
+  miss_ratio: number;
 }
 
 export interface DimensionScore {
@@ -253,8 +301,19 @@ export interface LowEndMeasurement {
   collision_moments: Moment[];
 }
 
+/**
+ * Where the lead sits against the instrument bed. A tucked lead is a production
+ * decision — the whole point of a beat someone is going to rap over — not a
+ * balance fault, so the UI must never present it as one.
+ */
+export type VocalProminence = 'absent' | 'tucked' | 'balanced' | 'forward';
+
 export interface VocalMeasurement {
   vocal_present: boolean;
+  /** Graded 0-1 confidence that a real lead voice is there. `vocal_present` is
+   *  this crossing a threshold, so prefer the float wherever nuance matters. */
+  vocal_confidence: number;
+  vocal_prominence: VocalProminence;
   center_energy_ratio: number;
   vocal_to_instrument_db: number;
   intelligibility_index: number;
@@ -444,6 +503,7 @@ export interface MixAnalysis {
   schema_version: number;
   filename: string;
   genre: string;
+  intent: TrackIntent;
   health_score: number;
   grade: string;
   ceiling_score: number;

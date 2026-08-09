@@ -34,6 +34,7 @@ import {
 import type { EngineerStatus } from '../../hooks/useAnalysis';
 import useKnowledge from '../../hooks/useKnowledge';
 import Explainer, { Chevron, Disclosure } from './Explainer';
+import KindChip from './KindChip';
 import {
   DIMENSION_LABELS,
   SEVERITY_RANK,
@@ -617,6 +618,10 @@ function PrescriptionCard({
                 <span aria-hidden="true">{SEV_GLYPH[sev]}</span>
                 {SEV_WORD[sev]}
               </span>
+              {/* Severity says how far; this says whether "far" is even the
+                  right frame. A prescription against a deviation is an option,
+                  not a repair, and the chip is what makes that visible. */}
+              <KindChip kind={finding?.kind} />
               <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-faint">
                 {DIMENSION_LABELS[p.dimension] ?? humanKey(p.dimension)}
               </span>
@@ -909,6 +914,7 @@ function FindingCard({
                   <span aria-hidden="true">{SEV_GLYPH[sev]}</span>
                   {SEV_WORD[sev]}
                 </span>
+                <KindChip kind={f.kind} />
                 <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-faint">
                   {DIMENSION_LABELS[f.dimension] ?? humanKey(f.dimension)}
                 </span>

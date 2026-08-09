@@ -219,10 +219,75 @@ def write_reference_fixtures(dur: float = 45.0) -> None:
               f"   crest {crest:5.1f} [{clo}, {chi}] {'OK ' if clo <= crest <= chi else 'OUT'}")
 
 
+
+def write_beat_fixture(sr: int = 48_000, dur: float = 30.0) -> None:
+    """A trap beat with bright hats and a hook tucked well down.
+
+    This is the regression case for a reported bug: the 5-9 kHz detector fired
+    on hi-hat bursts and called them vocal sibilance, because burstiness in that
+    band is what a consonant and a closed hat have in common. The hook sits 26 dB
+    under the drums on purpose — a beat is supposed to leave that room for
+    someone to rap over — so nothing here should read as a missing or buried
+    vocal either.
+    """
+    n = int(sr * dur)
+    t = np.arange(n) / sr
+    rng = np.random.default_rng(3)
+    spb = 60.0 / 140.0                      # 140 bpm
+    beats = np.arange(0, dur, spb)
+
+    def hits(times, decay):
+        e = np.zeros(n)
+        for tt in times:
+            i = int(tt * sr)
+            length = min(int(decay * sr), n - i)
+            if length > 0:
+                e[i : i + length] += np.exp(-np.arange(length) / (0.0015 * sr))
+        return e
+
+    sub = np.zeros(n)
+    for k, b in enumerate(beats):
+        f = [41.2, 41.2, 55.0, 49.0][k % 4]
+        i = int(b * sr)
+        length = min(int(spb * 1.6 * sr), n - i)
+        lt = np.arange(length) / sr
+        sub[i : i + length] += np.sin(2 * np.pi * f * lt) * np.exp(-lt / 0.55)
+
+    # Triplet hat rolls: the bursty top end that was being misread.
+    hat_times = np.sort(np.concatenate([beats, beats + spb / 3, beats + 2 * spb / 3,
+                                        beats + spb / 6]))
+    hats = sps.sosfilt(sps.butter(4, 6500 / (sr / 2), "high", output="sos"),
+                       hits(hat_times, 0.035) * rng.normal(0, 1, n))
+    snare = sps.sosfilt(sps.butter(2, [190 / (sr / 2), 8000 / (sr / 2)], "band", output="sos"),
+                        hits(beats[1::2], 0.18) * rng.normal(0, 1, n))
+    mel = sum(np.sin(2 * np.pi * f * t) * np.exp(-((t % spb) / 0.4))
+              for f in (329.6, 392.0, 493.9))
+    hook = sum(a * np.sin(2 * np.pi * f * t + 0.5 * np.sin(2 * np.pi * 5.0 * t))
+               for f, a in ((196, 1.0), (392, 0.5), (784, 0.3), (2400, 0.18), (6200, 0.12)))
+    hook *= 0.5 + 0.5 * np.sin(2 * np.pi * 0.55 * t)
+
+    def at(x, db):
+        return x / (np.max(np.abs(x)) + 1e-9) * 10 ** (db / 20)
+
+    left = at(sub, -4) + at(hats, -13) + at(snare, -10) + at(mel, -15) + at(hook, -26)
+    right = (at(sub, -4) + at(np.roll(hats, 410), -13) + at(snare, -10)
+             + at(np.roll(mel, 900), -15) + at(hook, -26))
+
+    st = np.column_stack([left, right])
+    st /= np.max(np.abs(st)) + 1e-9
+    st = np.tanh(st * 1.6) / np.tanh(1.6)
+    st = st / (np.max(np.abs(st)) + 1e-9) * CEILING
+    sf.write(f"{OUT_DIR}/beat_tucked_hook.wav", st, sr, subtype="PCM_24")
+    print(f"  {'beat_tucked_hook':16s} hats -13 dB, hook 26 dB down")
+
+
 def main() -> int:
     os.makedirs(OUT_DIR, exist_ok=True)
     print(f"Writing fixtures to {OUT_DIR}\n\nDefect fixtures:")
     write_defect_fixtures()
+    print("\nIntent fixture:")
+    write_beat_fixture()
+
     print("\nReference fixtures (must all read OK):")
     write_reference_fixtures()
     print("\nDone. These are gitignored — regenerate after a fresh clone.")

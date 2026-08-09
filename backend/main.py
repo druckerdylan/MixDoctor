@@ -28,7 +28,9 @@ import tempfile
 from typing import Any, Dict, List, Optional, Tuple
 
 from dotenv import load_dotenv
-from fastapi import Body, Depends, FastAPI, File, Form, HTTPException, Response, UploadFile
+from fastapi import (
+    Body, Depends, FastAPI, File, Form, HTTPException, Query, Response, UploadFile,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field, ValidationError
@@ -37,6 +39,7 @@ from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
 import engineer
+import report as report_builder
 from analysis import capabilities, core, engine, knowledge, targets
 from analysis.types import EngineerReport, MixAnalysis, OwnedPlugin
 from auth import decode_token
@@ -419,6 +422,16 @@ async def knowledge_base() -> Response:
 async def analyze(
     file: UploadFile = File(..., description="Audio file to analyse"),
     genre: str = Form(..., description="Music genre, e.g. 'trap', 'Rock', 'Hip Hop'"),
+    intent: str = Form(
+        "full_mix",
+        description=(
+            "What the file is: full_mix, beat, instrumental, stem, reference or demo. "
+            "Genre sets the reference the mix is compared against; intent sets which "
+            "comparisons are worth making at all — a beat's absent lead is correct, a "
+            "stem has no mix balance, and nobody is being asked to fix a released "
+            "record. Unknown values fall back to full_mix."
+        ),
+    ),
     reference_file: Optional[UploadFile] = File(
         None, description="Optional reference track to compare against"
     ),
@@ -504,6 +517,7 @@ async def analyze(
                 lambda: engine.analyze_mix(
                     path,
                     genre,
+                    intent=intent,
                     filename=file.filename or os.path.basename(path),
                     notes=notes,
                     reference_path=ref_path,
@@ -695,6 +709,83 @@ async def engineer_consult(
             detail="The engineer could not be reached. Your measured findings are still complete.",
         )
     return report
+
+
+@app.post("/report")
+async def download_report(
+    payload: Dict[str, Any] = Body(
+        ...,
+        description=(
+            "{analysis: MixAnalysis, plugins?: OwnedPlugin[]}. A bare MixAnalysis is also "
+            "accepted, exactly as on POST /engineer."
+        ),
+    ),
+    format: str = Query(
+        "markdown",
+        description=(
+            "'markdown' (default) returns the document as text/markdown. 'html' returns a "
+            "single self-contained page — inline CSS, no external requests — with print rules "
+            "so the browser's own Save-as-PDF produces a clean document."
+        ),
+    ),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    db: Session = Depends(get_db),
+) -> Response:
+    """The full write-up as a document the producer can keep.
+
+    Stateless in the same way `/engineer` is, and for the same reasons: the
+    client posts back the `MixAnalysis` it already holds, so there is no job
+    table to outlive a restart and no orphaned state when a connection drops.
+
+    **No AI is involved and no API key is needed.** Every section is built from
+    the measurements plus `analysis.knowledge`, which is the whole point of the
+    explainer layer — a report that stops working when a third party is down is
+    not a report. Where `analysis.engineer` did run and the client posts the
+    result back inside the payload, its prescriptions are woven into the defect
+    and deviation sections and attributed to it.
+
+    Plugins matter here as much as they do on `/engineer`: the fix steps are
+    resolved against the capabilities the producer actually owns, so somebody
+    with a dynamic EQ and somebody without get different instructions rather
+    than the same one with a caveat.
+    """
+    analysis, posted_plugins = _parse_engineer_body(payload)
+
+    user = _current_user(credentials, db)
+    plugins = _merge_plugins(posted_plugins, _db_plugins(db, user) if user else [])
+
+    wants_html = str(format or "").strip().lower() in {"html", "htm"}
+    try:
+        # CPU-bound string assembly over a large payload — small next to the
+        # analysis itself, but it still holds the thread, and this endpoint is
+        # hit while the results page is interactive.
+        body = await run_in_threadpool(
+            report_builder.render_html if wants_html else report_builder.render_markdown,
+            analysis,
+            plugins,
+        )
+    except Exception:
+        logger.exception("report generation failed for %s", analysis.filename)
+        raise HTTPException(
+            status_code=500,
+            detail="The document could not be generated. Your analysis on screen is unaffected.",
+        )
+
+    filename = report_builder.suggested_filename(analysis, "html" if wants_html else "md")
+    return Response(
+        content=body,
+        # Starlette appends `; charset=utf-8` to any text/* media type itself,
+        # so spelling it out here produces a duplicated parameter.
+        media_type="text/html" if wants_html else "text/markdown",
+        headers={
+            # `inline` for HTML because the client opens it in a tab to print;
+            # `attachment` for Markdown because that one is a download.
+            "Content-Disposition": (
+                f'{"inline" if wants_html else "attachment"}; filename="{filename}"'
+            ),
+            "Cache-Control": "no-store",
+        },
+    )
 
 
 MAX_PLUGINS = 200

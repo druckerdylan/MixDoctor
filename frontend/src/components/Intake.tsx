@@ -6,6 +6,7 @@ import { PluginVaultTrigger } from './PluginVault';
 import { usePluginVault } from '../hooks/usePluginVault';
 import { useCapabilities } from '../hooks/useCapabilities';
 import { ACCEPTED_EXTENSIONS, MAX_UPLOAD_BYTES, formatBytes } from '../config';
+import { TRACK_INTENT_SHORT, type TrackIntent } from '../types/analysis';
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 const NOTES_LIMIT = 500;
@@ -14,6 +15,73 @@ interface GenreGroup {
   label: string;
   genres: string[];
 }
+
+interface IntentOption {
+  value: TrackIntent;
+  title: string;
+  /** One line, plain. What the file is — not what the analyser will do with it. */
+  line: string;
+}
+
+/**
+ * What the file is, asked before genre because it changes more.
+ *
+ * Genre picks the reference a mix is measured against. This picks which
+ * questions are worth asking of the file at all — and getting it wrong is how
+ * a beat with the hook tucked under the drums gets told its vocal is buried and
+ * its hi-hats are sibilance.
+ */
+const INTENT_OPTIONS: IntentOption[] = [
+  { value: 'full_mix', title: 'Full mix', line: 'A finished song with a lead vocal.' },
+  {
+    value: 'beat',
+    title: 'Beat / instrumental for a topline',
+    line: 'Someone will rap or sing over this.',
+  },
+  { value: 'instrumental', title: 'Instrumental', line: 'Finished, no vocal expected.' },
+  { value: 'stem', title: 'Single stem', line: 'One element on its own.' },
+  {
+    value: 'reference',
+    title: 'Reference track',
+    line: "Someone else's record, measuring it to learn.",
+  },
+  { value: 'demo', title: 'Rough demo', line: 'Early, not polished yet.' },
+];
+
+/**
+ * The promise attached to each choice, shown the moment it is made.
+ *
+ * Every sentence here names something the analyser actually stops doing or
+ * starts doing — these are the intent gates in `detectors.py`, in plain words.
+ * If a gate changes there, change the sentence here: an unkept promise on this
+ * screen is worse than no promise at all.
+ */
+/** Reads inside "Ready. Read as …" on the submit line. Spelled out rather than
+ *  built from a short label and an article, which would produce "a
+ *  instrumental" the first time somebody picked it. */
+const INTENT_AS: Record<TrackIntent, string> = {
+  full_mix: 'a full mix',
+  beat: 'a beat for a topline',
+  instrumental: 'an instrumental',
+  stem: 'a single stem',
+  reference: 'a reference track',
+  demo: 'a rough demo',
+};
+
+const INTENT_PROMISE: Record<TrackIntent, string> = {
+  full_mix:
+    'Everything is measured, the lead vocal’s level against the music among it. This is the strictest reading — a finished song is held to the whole checklist.',
+  beat:
+    'The lead is meant to be absent or tucked, so nothing here will call that a fault. Bursty top end is read as hi-hats, shakers and rim clicks rather than vocal sibilance. Mids sitting light is the pocket you left for the topline, not a hole in the mix. And nobody tells you it hasn’t been mastered — that headroom is the room the vocalist needs.',
+  instrumental:
+    'No lead is expected, so vocal balance is not scored and the top end is read as percussion rather than consonants. Everything else is judged as a finished record.',
+  stem:
+    'Judged as one element, not as a mix. Mud, clarity, frequency balance and vocal balance stand down — a bass stem is supposed to be all low end, and a vocal stem has no kick to collide with. Every number still appears under Details.',
+  reference:
+    'Measured, not marked. You get every figure and no prescription, because nobody needs to be told to fix a record that already came out.',
+  demo:
+    'Nothing is judged as a master you haven’t attempted yet: “too quiet to compete”, “not mastered” and the limiter’s behaviour all stand down. Being louder than the genre is still reported — a rough that’s already slammed is still slammed. Anything genuinely broken still surfaces too: a rough with an inverted channel is still an inverted channel.',
+};
 
 /**
  * Grouped rather than an alphabetical list, because the grouping *is* the
@@ -31,6 +99,11 @@ const GENRE_GROUPS: GenreGroup[] = [
 
 export interface IntakeSubmission {
   file: File;
+  /**
+   * What the file is. Decides which findings are worth asking for at all, which
+   * is why it is collected before genre and defaulted rather than left blank.
+   */
+  intent: TrackIntent;
   genre: string;
   referenceFile: File | null;
   notes: string | null;
@@ -73,6 +146,9 @@ export default function Intake({
 
   const [file, setFile] = useState<File | null>(restore?.file ?? null);
   const [peaks, setPeaks] = useState<number[] | null>(restore?.peaks ?? null);
+  // Defaulted, not blank: the commonest case should cost nobody a click, and an
+  // unanswered "what is this?" would have to fall back to full_mix anyway.
+  const [intent, setIntent] = useState<TrackIntent>(restore?.intent ?? 'full_mix');
   const [genre, setGenre] = useState<string>(restore?.genre ?? '');
   const [referenceFile, setReferenceFile] = useState<File | null>(restore?.referenceFile ?? null);
   const [notes, setNotes] = useState(restore?.notes ?? '');
@@ -112,6 +188,7 @@ export default function Intake({
             }
             onSubmit({
               file,
+              intent,
               genre,
               referenceFile,
               notes: notes.trim() === '' ? null : notes.trim(),
@@ -138,15 +215,107 @@ export default function Intake({
             />
           </div>
 
+          {/* 02 — What is this? ------------------------------------------
+              Ahead of genre on purpose, and full width rather than tucked in a
+              column, because it changes more about the report than genre does.
+              Genre picks the reference; this picks which questions get asked. */}
+          <div className="mt-10">
+            <SectionHead index="02" label="What is this?" note="Changes the most" />
+
+            <p className="mb-5 max-w-2xl text-xs leading-relaxed text-ink-muted">
+              Genre sets the reference this gets measured against. This sets which questions are
+              worth asking of it at all. A beat with the hook tucked under the drums is doing its
+              job — say so here and nothing in the report will pretend otherwise.
+            </p>
+
+            <div
+              role="radiogroup"
+              aria-label="What is this?"
+              className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3"
+            >
+              {INTENT_OPTIONS.map((option) => {
+                const active = intent === option.value;
+                return (
+                  <label key={option.value} className="block h-full cursor-pointer">
+                    <input
+                      type="radio"
+                      name="intent"
+                      value={option.value}
+                      checked={active}
+                      disabled={busy}
+                      onChange={() => setIntent(option.value)}
+                      className="peer sr-only"
+                    />
+                    <span
+                      className={[
+                        'flex h-full items-start gap-2.5 rounded-xl border p-3.5',
+                        'transition-all duration-200 ease-cine',
+                        'peer-focus-visible:outline peer-focus-visible:outline-2',
+                        'peer-focus-visible:outline-offset-2 peer-focus-visible:outline-signal',
+                        active
+                          ? 'border-signal bg-signal/10'
+                          : 'border-void-line hover:border-ink-faint hover:bg-void-raised',
+                      ].join(' ')}
+                    >
+                      {/* Shape, not just colour, marks the selection. */}
+                      <span
+                        aria-hidden="true"
+                        className={[
+                          'mt-[3px] h-2 w-2 shrink-0 rounded-full',
+                          active ? 'bg-signal' : 'border border-void-line',
+                        ].join(' ')}
+                      />
+                      <span className="min-w-0">
+                        <span
+                          className={`block font-display text-[13px] font-semibold leading-tight tracking-tight ${
+                            active ? 'text-signal' : 'text-ink'
+                          }`}
+                        >
+                          {option.title}
+                        </span>
+                        <span className="mt-1 block text-[12px] leading-snug text-ink-muted">
+                          {option.line}
+                        </span>
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+
+            {/* The consequence, stated the moment the choice is made. Without
+                this the control is six radio buttons and a shrug; with it the
+                promise is on screen before the upload ever runs. */}
+            <div className="mt-4 rounded-xl border border-void-line/70 bg-void-deep/40 p-4">
+              <p className="eyebrow mb-2 text-signal-dim">
+                What that changes · {TRACK_INTENT_SHORT[intent]}
+              </p>
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.p
+                  key={intent}
+                  initial={reduce ? { opacity: 0 } : { opacity: 0, y: 4 }}
+                  animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3, ease: EASE }}
+                  aria-live="polite"
+                  className="max-w-3xl text-xs leading-relaxed text-ink-dim"
+                >
+                  {INTENT_PROMISE[intent]}
+                </motion.p>
+              </AnimatePresence>
+            </div>
+          </div>
+
           <div className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-[1.15fr_1fr] lg:gap-12">
-            {/* 02 — Genre ---------------------------------------------- */}
+            {/* 03 — Genre ---------------------------------------------- */}
             <div>
-              <SectionHead index="02" label="Genre" note="Required" />
+              <SectionHead index="03" label="Genre" note="Required" />
 
               <p className="mb-5 max-w-md text-xs leading-relaxed text-ink-muted">
-                Targets are genre-specific. A trap master is graded against a different loudness
-                window, low-end curve and dynamic-range floor than a folk record — scoring both
-                against one average is how generic tools get it wrong.
+                A trap master is measured against a different loudness window, low-end curve and
+                dynamic-range floor than a folk record — holding both to one average is how generic
+                tools get it wrong. Genre is a reference, though, not a rulebook: departing from it
+                comes back as a difference with its cost and its upside, never as a fault.
               </p>
 
               <div
@@ -208,10 +377,10 @@ export default function Intake({
               </div>
             </div>
 
-            {/* 03 / 04 — Reference and notes ---------------------------- */}
+            {/* 04 / 05 — Reference and notes ---------------------------- */}
             <div className="space-y-10">
               <div>
-                <SectionHead index="03" label="Reference" note="Optional" />
+                <SectionHead index="04" label="Reference" note="Optional" />
                 <DropZone
                   id="intake-reference"
                   file={referenceFile}
@@ -224,7 +393,7 @@ export default function Intake({
               </div>
 
               <div>
-                <SectionHead index="04" label="Notes" note="Optional" />
+                <SectionHead index="05" label="Notes" note="Optional" />
                 <label htmlFor="intake-notes" className="sr-only">
                   Notes for the engineer
                 </label>
@@ -250,9 +419,9 @@ export default function Intake({
             </div>
           </div>
 
-          {/* 05 — Plugins ----------------------------------------------- */}
+          {/* 06 — Plugins ----------------------------------------------- */}
           <div className="mt-10">
-            <SectionHead index="05" label="Your plugins" note="Optional" />
+            <SectionHead index="06" label="Your plugins" note="Optional" />
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <p className="max-w-xl text-xs leading-relaxed text-ink-muted">
                 Fixes are written against the tools you actually have. With soothe2 on the list a
@@ -271,11 +440,11 @@ export default function Intake({
             </div>
           </div>
 
-          {/* 06 — Deep analysis. Hidden entirely when the server cannot run
+          {/* 07 — Deep analysis. Hidden entirely when the server cannot run
               separation, rather than offered and then silently ignored. */}
           {caps.stems ? (
           <div className="mt-10">
-            <SectionHead index="06" label="Deep analysis" note="Optional · slower" />
+            <SectionHead index="07" label="Deep analysis" note="Optional · slower" />
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="max-w-xl">
                 <p className="text-xs leading-relaxed text-ink-muted">
@@ -367,7 +536,9 @@ export default function Intake({
                 >
                   {error ??
                     blocker ??
-                    `Ready. ${genre} targets, ${referenceFile ? 'with' : 'no'} reference${
+                    `Ready. Read as ${INTENT_AS[intent]} against ${genre} targets, ${
+                      referenceFile ? 'with' : 'no'
+                    } reference${
                       separateStems ? ', stem separation on — expect a few minutes' : ''
                     }.`}
                 </motion.p>

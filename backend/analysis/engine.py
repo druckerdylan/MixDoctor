@@ -160,6 +160,15 @@ _EXTRA_CRITICAL_PENALTY = 9.0
 _EXTRA_MAJOR_PENALTY = 3.0
 _MAX_COMPOUND_PENALTY = 24.0
 
+# There is deliberately no deviation discount here.
+#
+# A deviation is treated more gently than a defect at the same distance, but
+# that happens once, in `detectors.deviation_penalty`, where the size of the
+# miss is still in scope. A second flat multiplier at this level — applied to a
+# penalty table that had already collapsed every deviation into one band —
+# is what flattened the cross-genre gradient to three identical scores. If you
+# are tempted to add one back, the thing to change is the curve.
+
 # A soft ceiling, not a hard cap. Hard caps look right on one file and destroy
 # the ordering across a catalogue: three mixes with three criticals each all
 # pin to exactly the cap and become indistinguishable, which is what a score is
@@ -772,6 +781,22 @@ def compute_health(
     Step 3 is what makes the number usable across a catalogue rather than only
     on one file: a mix with one critical problem and a mix with four must not
     land on the same score.
+
+    **Defects and deviations pull differently, and that is handled upstream.**
+    A deviation's gentler treatment is applied once, in
+    `detectors.deviation_penalty`, where the measured distance from the
+    reference is still in scope: it costs less than a defect at the same
+    distance and can never cost as much as a critical. By the time a dimension
+    score arrives here that discount is already inside the number, so this
+    function takes every dimension at face value.
+
+    Discounting again here — as a flat multiplier on the deficit — is what
+    flattened the cross-genre gradient: the penalty table had already collapsed
+    every deviation into "minor", and a second multiplier on top made a trap
+    master score the same against ambient as against rock. Soften once, at the
+    point where the magnitude is still visible. The severity-class discount in
+    `_weights_for` below is a different thing and does still apply: it is about
+    which *class* of finding may pull a ceiling down, not how far out it is.
     """
     if not dimensions:
         return 0.0
@@ -792,11 +817,24 @@ def compute_health(
     health = _MEAN_SHARE * mean + _WORST_SHARE * worst_adjusted
 
     def _weights_for(severity: str) -> List[float]:
-        dims = {
-            str(f.dimension) for f in findings
-            if getattr(f, "severity", "") == severity
-        }
-        return sorted((_HEALTH_WEIGHTS.get(d, 0.6) for d in dims), reverse=True)
+        """Dimension weights carrying a finding of this grade, worst first.
+
+        Graded by `detectors.scoring_grade`, which reads what the finding costs
+        rather than the label it shows the user. A deviation's label is capped
+        at "major" for the producer's benefit; reading that cap here would take
+        the critical ceiling off every stylistic gap, however large, and the
+        ceiling is most of what separates a mix judged against its own genre
+        from the same mix judged against a distant one.
+        """
+        weights: Dict[str, float] = {}
+        for f in findings or []:
+            if str(detectors.scoring_grade(f)) != severity:
+                continue
+            dim_key = str(getattr(f, "dimension", ""))
+            base = _HEALTH_WEIGHTS.get(dim_key, 0.6)
+            # A dimension is charged once, at the heaviest thing in it.
+            weights[dim_key] = max(weights.get(dim_key, 0.0), base)
+        return sorted(weights.values(), reverse=True)
 
     critical = _weights_for("critical")
     major = _weights_for("major")
@@ -847,13 +885,20 @@ def compute_ceiling(health: float, findings: Sequence[Finding]) -> float:
 
 
 def mastering_readiness(
-    m: Measurements, findings: Sequence[Finding]
+    m: Measurements, findings: Sequence[Finding], intent: str = "full_mix"
 ) -> Tuple[bool, List[str]]:
     """Ready only when nothing is critical, nothing is clipped, and TP <= -1 dBTP.
 
     Every blocker names the figure that produced it. "Not ready" with no reason
     is a worse answer than no answer.
+
+    On a reference track the question is not asked. A released master is not
+    waiting to be mastered, so "not ready — re-export with the fader down" is
+    an instruction aimed at the wrong person about the wrong file. The same
+    facts are still measured and still reported, as readings, on the findings
+    list; here they are stated without the imperative.
     """
+    is_reference = str(intent) == "reference"
     blockers: List[str] = []
 
     clip = m.clipping
@@ -865,9 +910,10 @@ def mastering_readiness(
         blockers.append(
             f"{clipped:,} samples ({clip_pct:.4f}% of the file) are pinned at the ceiling in "
             f"{int(_fin(clip.flat_run_count))} flat-topped runs, the longest "
-            f"{int(_fin(clip.longest_flat_run))} samples. A mastering engineer cannot undo "
-            f"clipping that is already rendered into the file — re-export with the master "
-            f"fader down."
+            f"{int(_fin(clip.longest_flat_run))} samples."
+            + ("" if is_reference else
+               " A mastering engineer cannot undo clipping that is already rendered into the "
+               "file — re-export with the master fader down.")
         )
 
     if true_peak > TRUE_PEAK_CEILING_DBTP:
@@ -877,6 +923,7 @@ def mastering_readiness(
             f"{_num(true_peak - TRUE_PEAK_CEILING_DBTP, 2)} dB above the "
             f"{_num(TRUE_PEAK_CEILING_DBTP, 1)} dBTP every platform asks for"
             + (f"; 4x oversampling already finds {overs:,} inter-sample overs." if overs
+               else "." if is_reference
                else ". Leave the mastering engineer headroom to work in.")
         )
 
@@ -1185,6 +1232,10 @@ def _consult(
         findings=list(analysis.findings),
         dimensions=list(analysis.dimensions),
         genre=genre,
+        # The detectors have already gated on intent; the write-up has to know
+        # too, or it prescribes a topline for a beat the findings deliberately
+        # stayed quiet about.
+        intent=str(analysis.intent),
         platform_targets=list(analysis.platform_targets),
         reference=analysis.reference,
         user_notes=notes,
@@ -1207,6 +1258,7 @@ def analyze_mix_detailed(
     path: str,
     genre: str,
     *,
+    intent: str = "full_mix",
     filename: str = "",
     notes: Optional[str] = None,
     reference_path: Optional[str] = None,
@@ -1221,6 +1273,7 @@ def analyze_mix_detailed(
     warnings: List[str] = []
 
     genre_key = targets.normalise_genre(genre)
+    intent_key = detectors._normalise_intent(intent)
 
     # 1. Decode once. Everything below shares this buffer.
     t0 = time.perf_counter()
@@ -1255,8 +1308,10 @@ def analyze_mix_detailed(
 
     # 3. Judge.
     t0 = time.perf_counter()
-    findings = detectors.detect_all(measurements, genre_key)
-    dimensions = detectors.score_dimensions(findings, measurements, genre_key)
+    findings = detectors.detect_all(measurements, genre_key, intent_key)
+    dimensions = detectors.score_dimensions(
+        findings, measurements, genre_key, intent_key
+    )
     _mark_unassessed(dimensions, timings, warnings)
     timings["detect"] = round((time.perf_counter() - t0) * 1000.0, 1)
 
@@ -1264,7 +1319,7 @@ def analyze_mix_detailed(
     t0 = time.perf_counter()
     health = compute_health(dimensions, findings)
     ceiling = compute_ceiling(health, findings)
-    ready, blockers = mastering_readiness(measurements, findings)
+    ready, blockers = mastering_readiness(measurements, findings, intent_key)
     platforms = platform_targets(measurements)
     timings["score"] = round((time.perf_counter() - t0) * 1000.0, 1)
 
@@ -1295,6 +1350,7 @@ def analyze_mix_detailed(
     analysis = MixAnalysis(
         filename=filename or os.path.basename(path),
         genre=genre_key,
+        intent=intent_key,
         health_score=health,
         grade=grade_for(health),
         ceiling_score=ceiling,
@@ -1357,6 +1413,7 @@ def analyze_mix(
     path: str,
     genre: str,
     *,
+    intent: str = "full_mix",
     filename: str = "",
     notes: Optional[str] = None,
     reference_path: Optional[str] = None,
@@ -1371,6 +1428,15 @@ def analyze_mix(
     for a file that cannot be analysed at all — the API turns those into a 422
     carrying the message. Everything else is caught and downgraded to a warning
     on the returned report.
+
+    `genre` sets the reference every stylistic measurement is compared against;
+    `intent` sets which measurements are worth comparing at all. They are
+    different questions and the second one is the one that stops a beat being
+    told its hi-hats are vocal sibilance: a `beat` is an instrumental built for
+    somebody else's topline, so its absent lead is correct, its open mid-range
+    is the brief, and its 5-9 kHz burstiness is percussion. See
+    `types.TrackIntent` for what each value means and `detectors.detect_all`
+    for what each one changes.
 
     `separate_stems` adds the per-source pass: Demucs splits the mix into
     vocals/drums/bass/other and each source is measured on its own. That turns
@@ -1394,6 +1460,7 @@ def analyze_mix(
     analysis, _ = analyze_mix_detailed(
         path,
         genre,
+        intent=intent,
         filename=filename,
         notes=notes,
         reference_path=reference_path,

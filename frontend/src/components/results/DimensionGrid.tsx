@@ -11,6 +11,7 @@ import { useMemo, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import useKnowledge from '../../hooks/useKnowledge';
 import Explainer, { Chevron } from './Explainer';
+import KindChip from './KindChip';
 import {
   DIMENSIONS,
   DIMENSION_LABELS,
@@ -19,6 +20,7 @@ import {
   type Dimension,
   type DimensionScore,
   type Finding,
+  type FindingKind,
   type Severity,
 } from '../../types/analysis';
 
@@ -134,6 +136,25 @@ export default function DimensionGrid({
   const findingCounts = useMemo(() => {
     const m = new Map<Dimension, number>();
     for (const [dimension, list] of byDimFindings) m.set(dimension, list.length);
+    return m;
+  }, [byDimFindings]);
+
+  /**
+   * One kind per card. A defect anywhere in the dimension makes the whole card
+   * a defect card — a genuine fault is not softened by the deviations sitting
+   * next to it — and a dimension holding nothing but deviations says so, so a
+   * low score there reads as "different from the reference" rather than damage.
+   *
+   * Dimensions whose findings carry no `kind` at all (an older payload) are
+   * left out of the map entirely, and `KindChip` renders nothing for them.
+   */
+  const kindByDim = useMemo(() => {
+    const m = new Map<Dimension, FindingKind>();
+    for (const [dimension, list] of byDimFindings) {
+      const known = list.filter((f) => f.kind === 'defect' || f.kind === 'deviation');
+      if (!known.length) continue;
+      m.set(dimension, known.some((f) => f.kind === 'defect') ? 'defect' : 'deviation');
+    }
     return m;
   }, [byDimFindings]);
 
@@ -287,19 +308,23 @@ export default function DimensionGrid({
                   {d.headline || '—'}
                 </p>
 
-                <div className="mt-3 flex items-center justify-between gap-2 pt-1">
-                  <span className={`sev-chip ${SEV_CLASS[sev]}`}>
-                    <span aria-hidden="true">{SEV_GLYPH[sev]}</span>
-                    {SEV_WORD[sev]}
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    <span className={`sev-chip ${SEV_CLASS[sev]}`}>
+                      <span aria-hidden="true">{SEV_GLYPH[sev]}</span>
+                      {SEV_WORD[sev]}
+                    </span>
+                    <KindChip kind={kindByDim.get(d.dimension)} />
                   </span>
                   {count > 0 ? (
                     // The chevron is the promise that something opens. Without
                     // it a count reads as a statistic and the card as a dead end.
                     <span className="flex items-center gap-1.5">
                       <span className="stat text-micro uppercase text-ink-faint transition-colors duration-300 group-hover:text-signal">
+                        {/* Says where it went, now that selecting actually travels. */}
                         {isSelected && active
-                          ? 'explained below'
-                          : `${count} finding${count === 1 ? '' : 's'}`}
+                          ? 'showing the fix'
+                          : `${count} finding${count === 1 ? '' : 's'} · explain`}
                       </span>
                       <Chevron
                         open={Boolean(isSelected && active)}
@@ -332,6 +357,10 @@ export default function DimensionGrid({
                 <span aria-hidden="true">{SEV_GLYPH[active.severity]}</span>
                 {SEV_WORD[active.severity]}
               </span>
+              {/* The open finding's own kind, not the card's roll-up: a
+                  dimension can hold a defect and a deviation at once, and the
+                  panel is teaching exactly one of them. */}
+              <KindChip kind={active.kind} />
               <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-faint">
                 {DIMENSION_LABELS[selected]}
               </span>

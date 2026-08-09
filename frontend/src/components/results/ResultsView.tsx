@@ -30,6 +30,8 @@ import type { EngineerStatus } from '../../hooks/useAnalysis';
 import StereoScope from './StereoScope';
 import LoudnessTargets from './LoudnessTargets';
 import MetricsTable from './MetricsTable';
+import ReportDownload from './ReportDownload';
+import { usePluginVault } from '../../hooks/usePluginVault';
 
 import {
   SEVERITY_RANK,
@@ -152,6 +154,10 @@ export default function ResultsView({
 }: ResultsViewProps) {
   const reduce = useReducedMotion() ?? false;
 
+  // The document resolves its fix steps against what this producer owns, the
+  // same way the fix stack on screen does.
+  const { plugins } = usePluginVault();
+
   const [selected, setSelected] = useState<Dimension | null>(null);
 
   const timelineRef = useRef<HTMLElement>(null);
@@ -204,9 +210,45 @@ export default function ResultsView({
     return m;
   }, [analysis.findings]);
 
-  const handleSelect = useCallback((d: Dimension) => {
-    setSelected((prev) => (prev === d ? null : d));
-  }, []);
+  /**
+   * Selecting a dimension has to *go* somewhere.
+   *
+   * This used to only set state, so a card that said "explained below" did
+   * nothing visible — the explanation was six screens down and the user was
+   * left looking at the same grid. Selecting now travels to the first finding
+   * in that dimension and flashes it, and falls back to the fix section when a
+   * clean dimension has no finding to land on.
+   */
+  const handleSelect = useCallback(
+    (d: Dimension) => {
+      const next = selected === d ? null : d;
+      setSelected(next);
+      if (!next) return;
+
+      const target = (analysis.findings ?? [])
+        .filter((f) => f.dimension === d)
+        .sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity])[0];
+
+      // Let the expansion render before measuring where to scroll to.
+      window.requestAnimationFrame(() => {
+        let el: HTMLElement | null = null;
+        if (target) {
+          const cards = fixStackRef.current?.querySelectorAll<HTMLElement>('[data-finding-id]');
+          for (const c of Array.from(cards ?? [])) {
+            if (c.dataset.findingId === target.id) {
+              el = c;
+              break;
+            }
+          }
+        }
+        el = el ?? fixStackRef.current;
+        if (!el) return;
+        el.scrollIntoView({ behavior, block: target ? 'center' : 'start' });
+        flash(el);
+      });
+    },
+    [selected, analysis.findings, behavior, flash],
+  );
 
   /** A fix says "here is where this lives in the track". */
   const handleFocusFinding = useCallback(
@@ -353,6 +395,8 @@ export default function ResultsView({
               </span>
             ))}
           </span>
+
+          <ReportDownload analysis={analysis} plugins={plugins} variant="compact" />
 
           <button
             type="button"
@@ -547,8 +591,14 @@ export default function ResultsView({
           </Section>
         ) : null}
 
-        {/* The ask goes after the whole report — value first, then the jar. */}
+        {/* The document comes before the tip jar: the last thing the report
+            offers should be the report itself, not the ask. */}
         <div className="mt-16 sm:mt-20">
+          <ReportDownload analysis={analysis} plugins={plugins} />
+        </div>
+
+        {/* The ask goes after the whole report — value first, then the jar. */}
+        <div className="mt-12 sm:mt-16">
           <DonatePanel />
         </div>
 
