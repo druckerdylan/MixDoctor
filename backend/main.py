@@ -38,6 +38,7 @@ from sqlalchemy.orm import Session
 
 from starlette.concurrency import run_in_threadpool
 
+import budget
 import engineer
 import report as report_builder
 from analysis import capabilities, core, engine, knowledge, targets
@@ -105,12 +106,23 @@ security = HTTPBearer(auto_error=False)
 def _run_ai_enabled() -> bool:
     """Whether the engineer's write-up may be requested at all.
 
-    A kill switch, not a feature flag: it lets an operator shed the AI layer
-    without a deploy. Every finding still ships when it is off — measured, with
-    its own `detail` sentence — just without the prose around it.
+    **Off unless explicitly enabled.** Every `/engineer` call costs the operator
+    roughly 40 cents of Anthropic credit, uncapped and unauthenticated, so a
+    default of on means a public deployment bills its owner for every visitor —
+    and for every refresh. Defaulting off is the only safe posture for a site
+    anyone can reach.
+
+    Nothing else is lost when it is off. The measured findings, all 51
+    explainers, the clarification questions, the score card and the downloadable
+    report are deterministic and need no API at all. The write-up is the
+    track-specific layer on top; `/engineer` returns a clean 503 and the UI says
+    so rather than breaking.
+
+    Set `MIXDOCTOR_RUN_AI=1` to turn it on for a private instance, or once
+    there is a way to charge for it.
     """
-    return (os.environ.get("MIXDOCTOR_RUN_AI", "1").strip().lower()
-            not in {"0", "false", "no", "off"})
+    return (os.environ.get("MIXDOCTOR_RUN_AI", "0").strip().lower()
+            in {"1", "true", "yes", "on"})
 
 
 # The consult is deliberately NOT part of /analyze.
@@ -307,6 +319,36 @@ def _stems_enabled() -> bool:
         return False
 
 
+
+def _budget_snapshot() -> Dict[str, Any]:
+    """What the cap looks like right now, for /capabilities.
+
+    Opens its own short-lived session: this runs inside the capabilities
+    handler, which has no `db` dependency, and adding one there would make a
+    trivial probe hold a connection.
+    """
+    from database import SessionLocal
+
+    limit = budget.budget_usd()
+    if limit <= 0.0:
+        return {"enabled": False, "period": budget.budget_period()}
+    db = SessionLocal()
+    try:
+        state = budget.check_budget(db)
+        return {
+            "enabled": True,
+            "period": budget.budget_period(),
+            "budget_usd": round(limit, 2),
+            "remaining_usd": round(state.remaining, 2),
+            "reports_left": state.reports_left,
+        }
+    except Exception:
+        logger.exception("budget: snapshot failed")
+        return {"enabled": True, "period": budget.budget_period(), "error": True}
+    finally:
+        db.close()
+
+
 @app.get("/capabilities")
 async def capabilities_probe() -> Dict[str, Any]:
     """What this particular deployment can do.
@@ -319,6 +361,7 @@ async def capabilities_probe() -> Dict[str, Any]:
         "version": app.version,
         "stems": _stems_enabled(),
         "ai": bool(_run_ai_enabled() and os.environ.get("ANTHROPIC_API_KEY")),
+        "ai_budget": _budget_snapshot(),
         "max_upload_bytes": MAX_FILE_SIZE,
         "formats": sorted(SUPPORTED_FORMATS),
     }
@@ -713,7 +756,40 @@ async def engineer_consult(
         mastering_blockers=analysis.mastering_blockers,
     )
 
-    report = await run_in_threadpool(engineer.consult_engineer, ctx)
+    # Refuse before spending. A cap that only notices after the API call is
+    # not a cap — and this endpoint is unauthenticated, so "one more call" is
+    # whatever the internet decides it is.
+    state = budget.check_budget(db)
+    if not state.allowed:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "The engineer's write-up is unavailable: this server's AI budget for the "
+                "period is spent. Your measured findings are complete."
+                if state.reason == "exhausted"
+                else "The engineer's write-up is currently disabled on this server."
+            ),
+        )
+
+    usage: Dict[str, int] = {}
+    report = await run_in_threadpool(
+        lambda: engineer.consult_engineer(ctx, usage_sink=usage)
+    )
+
+    # Bill whatever the call reported, success or not. A run that generated
+    # tokens and then failed to parse still cost money.
+    if usage:
+        cost = budget.record_spend(
+            db,
+            input_tokens=usage.get("input_tokens", 0),
+            cached_tokens=usage.get("cached_tokens", 0),
+            output_tokens=usage.get("output_tokens", 0),
+        )
+        logger.info(
+            "engineer: consult cost $%.4f; $%.2f of $%.2f budget remains this %s",
+            cost, budget.remaining_usd(db), budget.budget_usd(), budget.budget_period(),
+        )
+
     if report is None:
         # consult_engineer never raises; None means unavailable, refused, or
         # unparseable. The client already has every measured finding, so this

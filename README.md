@@ -574,7 +574,9 @@ Both halves auto-deploy from a push to `main`: **Railway** builds `backend/`
 | `JWT_SECRET_KEY` | yes in production | Falls back to an insecure dev default otherwise. |
 | `DATABASE_URL` | **yes** | See the persistence warning below. |
 | `MIXDOCTOR_ENABLE_STEMS` | no | `1` to offer deep analysis. Requires `requirements-stems.txt` installed *and* the RAM to run it. |
-| `MIXDOCTOR_RUN_AI` | no | `0` sheds the AI layer without a deploy. |
+| `MIXDOCTOR_RUN_AI` | no | **Off by default.** `1` enables the write-up. Each call costs the operator ~$0.40, uncapped and unauthenticated, so a public deployment with this on bills you for every visitor. |
+| `MIXDOCTOR_AI_BUDGET_USD` | with AI on | Hard ceiling per period. `0` (default) means the layer will not run even with `MIXDOCTOR_RUN_AI=1`. Checked *before* the API call, and reserves a typical report's cost so the cap cannot be stepped over on its last call. Spend is stored in the database, so it survives restarts and is shared across workers. |
+| `MIXDOCTOR_AI_BUDGET_PERIOD` | no | `day` (default) or `month`. |
 
 **Vercel (frontend)**
 

@@ -2701,9 +2701,27 @@ def _client(api_key: Optional[str] = None):
     return Anthropic(api_key=key.strip())
 
 
-def _parse_draft(client, request: Dict[str, Any]) -> Optional[_ReportDraft]:
-    """One API round trip. Returns the validated draft, or None with a logged reason."""
+def _parse_draft(
+    client, request: Dict[str, Any], usage_sink: Optional[Dict[str, int]] = None
+) -> Optional[_ReportDraft]:
+    """One API round trip. Returns the validated draft, or None with a logged reason.
+
+    `usage_sink`, when given, is filled with the reported token counts even on
+    the failure paths — a call that produced tokens and then failed to parse
+    still cost money, and a spend ledger that only records successes will
+    quietly under-count its way past the cap.
+    """
     max_tokens = int(request["max_tokens"])
+
+    def _capture(message) -> None:
+        if usage_sink is None or message is None:
+            return
+        u = getattr(message, "usage", None)
+        if u is None:
+            return
+        usage_sink["input_tokens"] = int(getattr(u, "input_tokens", 0) or 0)
+        usage_sink["cached_tokens"] = int(getattr(u, "cache_read_input_tokens", 0) or 0)
+        usage_sink["output_tokens"] = int(getattr(u, "output_tokens", 0) or 0)
 
     if max_tokens > STREAM_ABOVE_TOKENS:
         # Large ceilings need the stream so a long generation can't trip an
@@ -2732,6 +2750,7 @@ def _parse_draft(client, request: Dict[str, Any]) -> Optional[_ReportDraft]:
             )
             return None
 
+        _capture(message)
         text = next((b.text for b in message.content if b.type == "text"), "")
         if not text:
             logger.warning("engineer: empty response (stop_reason=%s)", message.stop_reason)
@@ -2746,6 +2765,7 @@ def _parse_draft(client, request: Dict[str, Any]) -> Optional[_ReportDraft]:
 
     # `parse()` validates inside the SDK, so a truncated body surfaces as a
     # ValidationError rather than a readable stop_reason — say so in the log.
+    message = None
     try:
         message = client.messages.parse(output_format=_ReportDraft, **request)
     except ValidationError:
@@ -2776,6 +2796,7 @@ def consult_engineer(
     *,
     api_key: Optional[str] = None,
     max_tokens: int = MAX_TOKENS,
+    usage_sink: Optional[Dict[str, int]] = None,
 ) -> Optional[EngineerReport]:
     """Ask the engineer for a report.
 
@@ -2793,7 +2814,7 @@ def consult_engineer(
     request = build_request(analysis_ctx, max_tokens=max_tokens)
 
     try:
-        draft = _parse_draft(client, request)
+        draft = _parse_draft(client, request, usage_sink)
     except anthropic.RateLimitError as exc:
         retry_after = getattr(getattr(exc, "response", None), "headers", {}) or {}
         logger.warning(
