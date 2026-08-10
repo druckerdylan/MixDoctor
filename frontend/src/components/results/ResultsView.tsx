@@ -19,6 +19,7 @@ import type { ReactNode } from 'react';
 
 import { DonatePanel } from '../Donate';
 import Verdict from './Verdict';
+import Clarify from './Clarify';
 import MixMap from './MixMap';
 import DimensionGrid from './DimensionGrid';
 import Timeline from './Timeline';
@@ -142,6 +143,12 @@ export interface ResultsViewProps {
   engineerStatus?: EngineerStatus;
   engineerError?: string | null;
   onRetryEngineer?: () => void;
+  /**
+   * Where a re-scored report goes when the producer answers a question about
+   * what was deliberate. Without it the question section renders nothing — an
+   * answer that changes nothing is not worth asking for.
+   */
+  onAnalysisChange?: (next: MixAnalysis) => void;
 }
 
 export default function ResultsView({
@@ -151,6 +158,7 @@ export default function ResultsView({
   engineerStatus = 'idle',
   engineerError = null,
   onRetryEngineer,
+  onAnalysisChange,
 }: ResultsViewProps) {
   const reduce = useReducedMotion() ?? false;
 
@@ -309,9 +317,21 @@ export default function ResultsView({
 
   /* ------------------------------------------------------------- summary */
 
-  const score = Math.round(finite(analysis.health_score));
-  const sev = severityFromScore(finite(analysis.health_score));
-  const grade = analysis.grade?.trim() ? analysis.grade.trim() : '—';
+  /**
+   * The bar follows the verdict: with a `ScoreCard` it pins the technical
+   * score, because that is the one that answers "is anything wrong" and the
+   * only one that has earned a grade. Reference match is deliberately absent —
+   * it is not a number to be reminded of every time you scroll.
+   */
+  const scores = analysis.scores ?? null;
+  const barValue = finite(scores ? scores.technical : analysis.health_score);
+  const score = Math.round(barValue);
+  const sev = severityFromScore(barValue);
+  const grade = scores
+    ? scores.technical_grade?.trim() || '—'
+    : analysis.grade?.trim()
+      ? analysis.grade.trim()
+      : '—';
 
   const tally = useMemo(() => {
     const m: Record<Severity, number> = { critical: 0, major: 0, minor: 0, clean: 0 };
@@ -327,8 +347,21 @@ export default function ResultsView({
     [tally],
   );
 
-  const prescriptionCount = analysis.engineer?.prescriptions?.length ?? 0;
-  const findingCount = (analysis.findings ?? []).filter((f) => f.severity !== 'clean').length;
+  /**
+   * What is still work. A prescription against a finding the producer has
+   * confirmed was deliberate is not a fix, so it must not be counted as one
+   * here — the header would otherwise contradict the plan directly below it.
+   */
+  const acknowledgedIds = useMemo(
+    () => new Set((analysis.findings ?? []).filter((f) => f.acknowledged).map((f) => f.id)),
+    [analysis.findings],
+  );
+  const prescriptionCount = (analysis.engineer?.prescriptions ?? []).filter(
+    (p) => !acknowledgedIds.has(p.finding_id),
+  ).length;
+  const findingCount = (analysis.findings ?? []).filter(
+    (f) => f.severity !== 'clean' && !f.acknowledged,
+  ).length;
   const fixCount = prescriptionCount || findingCount;
 
   const momentCount = useMemo(
@@ -360,6 +393,12 @@ export default function ResultsView({
       {/* ------------------------------------------------------- verdict */}
       <div className="mx-auto w-full max-w-[1400px] px-4 pb-12 pt-10 sm:px-6 sm:pb-16 sm:pt-14 lg:px-10">
         <Verdict analysis={analysis} engineerStatus={engineerStatus} />
+
+        {/* Between the verdict and the diagnosis, because the answers change
+            how everything below it reads — and because by here the reader
+            knows what is being asked about. Renders nothing, including its own
+            spacing, when nothing on the report is ambiguous. */}
+        <Clarify analysis={analysis} onAnalysisChange={onAnalysisChange} />
       </div>
 
       {/* Pins itself the moment the verdict has scrolled away. */}
@@ -376,7 +415,7 @@ export default function ResultsView({
               style={{ background: SEVERITY_VAR[sev] }}
             />
             <span className="hidden font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted sm:inline">
-              {SEV_WORD[sev]}
+              {scores ? `${SEV_WORD[sev]} · technical` : SEV_WORD[sev]}
             </span>
           </div>
 
@@ -387,7 +426,9 @@ export default function ResultsView({
           </span>
 
           <span className="hidden shrink-0 items-center gap-2 md:flex">
-            <span className="sev-chip text-ink-muted">grade {grade}</span>
+            <span className="sev-chip text-ink-muted">
+              {scores ? 'technical' : 'grade'} {grade}
+            </span>
             {worstFirst.map((s) => (
               <span key={s} className={`sev-chip ${SEV_CLASS[s]}`}>
                 <span className="tabular-nums">{tally[s]}</span>

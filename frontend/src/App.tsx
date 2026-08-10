@@ -27,6 +27,7 @@ function AppContent() {
     error,
     audioUrl,
     analyze,
+    applyAnalysis,
     reset,
     engineerStatus,
     engineerError,
@@ -123,6 +124,7 @@ function AppContent() {
               analysis={analysis}
               audioUrl={audioUrl}
               onReset={handleReset}
+              onAnalysisChange={applyAnalysis}
               engineerStatus={engineerStatus}
               engineerError={engineerError}
               onRetryEngineer={retryEngineer}

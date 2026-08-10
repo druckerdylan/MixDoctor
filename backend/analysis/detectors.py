@@ -38,6 +38,15 @@ Five rules hold the whole file together.
    detector has already spoken. The list is ranked worst-first and capped, and
    every dimension keeps at least its own worst finding.
 
+6. **Where the number cannot tell a decision from a mistake, ask — but first
+   look at where it happened.** An empty intro, a lead under the beat and a
+   mono-leaning image all measure exactly like the accident that produces the
+   same reading, and the question that resolves them is written in `clarify.py`
+   rather than here. What belongs here is the context that makes the question
+   unnecessary: an intro is *expected* to shed its bottom end, so the detector
+   that noticed reads the section label before deciding whether there is
+   anything to ask about at all. See `_section_role`.
+
 Optional depth follows the same five rules, and rules 3 and 5 are what shape
 it. `Measurements.stems` and `Measurements.sections` do not add a parallel set
 of findings; they make the existing ones better:
@@ -93,7 +102,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
-from . import targets
+from . import clarify, targets
 from .core import THIRD_OCTAVE_CENTERS
 from .types import (
     DIMENSION_LABELS,
@@ -242,7 +251,17 @@ _PERCUSSION_SIB_FACTOR = 1.6
 _STEM_SUPPRESSED_DIMENSIONS: Tuple[str, ...] = (
     "mud", "clarity", "vocal_balance", "frequency_balance",
 )
-_STEM_SUPPRESSED_IDS: Tuple[str, ...] = ("low_end.kick_bass_collision",)
+# The two arrangement findings are suppressed for the same reason. A record's
+# lift and its low end are properties of the *whole* arrangement: a bass stem that
+# sits out the intro, or a pad that plays at one level under a chorus that
+# lifts around it, is doing its job. "The chorus does not lift" and "the low
+# end steps back in the intro" are statements about a mix, and a single element
+# is not one.
+_STEM_SUPPRESSED_IDS: Tuple[str, ...] = (
+    "low_end.kick_bass_collision",
+    "dynamic_range.no_section_lift",
+    "low_end.section_collapse",
+)
 
 # A rough. Where it lands on the loudness ladder and how its limiter behaves are
 # questions about a master that has not been attempted yet. Structure, balance
@@ -366,6 +385,8 @@ MIN_REPORTABLE_RATIO = 0.10
 # by up to ~1 dB; every major platform asks for -1.0 dBTP or lower. This is
 # codec arithmetic, not taste, so it does not vary by genre.
 TRUE_PEAK_CEILING_DBTP = -1.0
+# Slack on the ceiling comparison. See the note in the clipping detector.
+TRUE_PEAK_TOLERANCE_DB = 0.1
 
 # Two fully decorrelated channels lose 3.01 dB when summed. That is arithmetic.
 # Anything past this is cancellation, in any genre.
@@ -534,6 +555,54 @@ _LOW_SWING_FREE_DB = 7.0
 _LOW_SWING_SCALE_DB = 3.0
 _LOW_CORE_LU = 9.0          # matches sections.LOW_CORE_LU
 _AUDIBLE_FLOOR_LUFS = -60.0  # matches sections.AUDIBLE_FLOOR_LUFS
+
+
+# ---------------------------------------------------------------------------
+# Arrangement roles
+#
+# `sections.py` names every span from what it measured — intro, verse, chorus,
+# drop, bridge, outro, or "section N" where it could not justify a name. That
+# label was the one piece of context the section detectors ignored, and
+# ignoring it is what produced "the dominant issue is low end steps back in
+# intro" against a record whose intro is deliberately empty. The swing was
+# real; the verdict was about the wrong section.
+#
+# Three roles, because three different questions are being asked of them:
+#
+# * **bookend** — intro, outro. Pulling the bottom out at the top or tail of a
+#   record is how arrangements work. Nothing in the audio separates that from a
+#   mistake, and the prior is overwhelmingly "deliberate", so this stays quiet
+#   unless the departure is extreme *and* the section is long enough for a
+#   listener to sit in it. When it does speak it says so as an aside.
+# * **payoff** — chorus, drop. The section the record is built to arrive at. A
+#   hook with nothing under it is the case worth flagging and keeps the full
+#   strength it has today.
+# * **body** — verse, bridge, "section N". Genuinely ambiguous: reported, with
+#   a little more room than the payoff gets, and always with the question
+#   attached.
+# ---------------------------------------------------------------------------
+
+_BOOKEND_LABELS: frozenset = frozenset({"intro", "outro"})
+_PAYOFF_LABELS: frozenset = frozenset({"chorus", "drop"})
+
+# How far past the genre's own swing ceiling each role has to go before the
+# bottom falling out of it is worth a sentence. 1.0 is today's behaviour, kept
+# for the section that matters; the bookend factor is "roughly double", which
+# on trap moves the ceiling from 3.0 dB to 6.0 dB — past anything an
+# arrangement does casually.
+_ROLE_SWING_FACTOR: Dict[str, float] = {"payoff": 1.0, "body": 1.35, "bookend": 2.0}
+
+# And how much of the record a bookend has to occupy before its missing bottom
+# end can matter to a listener. A 6 s intro on a 3-minute record is 3% of it:
+# gone before the ear has decided anything is absent.
+_BOOKEND_MIN_SHARE = 0.12
+
+# The ceiling that holds an arrangement aside to "minor". Same mechanism as
+# `_TUCKED_MAX_RATIO`: `_severity` returns "minor" under `_MAJOR_AT`, so
+# capping the ratio just below it caps the label with no second severity table
+# — and because `deviation_penalty` reads the ratio rather than the label, it
+# caps what the finding can cost the score at the same time.
+_ARRANGEMENT_ASIDE_MAX_RATIO = _MAJOR_AT - 0.01
 
 
 # ---------------------------------------------------------------------------
@@ -888,6 +957,57 @@ def _section_low_shares(
     return low, lufs, core
 
 
+def _section_role(label: str) -> str:
+    """bookend / payoff / body, from the name `sections.py` gave the span.
+
+    Deliberately total: an unrecognised or numbered label falls to "body", the
+    middle-ground treatment, so a new label added to the segmenter can never
+    silently acquire either the suppression or the full strength.
+    """
+    key = str(label or "").strip().lower()
+    if key in _BOOKEND_LABELS:
+        return "bookend"
+    if key in _PAYOFF_LABELS:
+        return "payoff"
+    return "body"
+
+
+def _section_share(section: Section, duration: float) -> float:
+    """How much of the record one section occupies, 0-1."""
+    span = _fin(section.t_end, 0.0) - _fin(section.t_start, 0.0)
+    return _clamp(span / max(_fin(duration, 0.0), 1e-6), 0.0, 1.0)
+
+
+def _low_swing_case(
+    sections: Sequence[Section],
+    low_rel: np.ndarray,
+    idx: Sequence[int],
+    swing_max: float,
+    duration: float,
+) -> Optional[Tuple[int, int, float, float, str]]:
+    """The worst low-end swing inside one group of sections, if it clears its bar.
+
+    Returns `(weakest, strongest, swing_db, ceiling_db, role)`, where the bar
+    the swing had to clear is set by the *role of the weakest section* — which
+    is the whole point. The same 5 dB of swing is an ordinary arrangement when
+    it is the intro that is empty and a broken drop when it is the drop.
+    """
+    if len(idx) < 2:
+        return None
+    weak_i = min(idx, key=lambda i: _fin(low_rel[i], 0.0))
+    strong_i = max(idx, key=lambda i: _fin(low_rel[i], 0.0))
+    role = _section_role(sections[weak_i].label)
+    ceiling = max(_fin(swing_max, _LOW_SWING_SONG_DB), 0.1) * _ROLE_SWING_FACTOR.get(role, 1.0)
+    swing = _fin(low_rel[strong_i], 0.0) - _fin(low_rel[weak_i], 0.0)
+    if targets.range_miss(swing, (0.0, ceiling)) <= 0.0:
+        return None
+    # A bookend also has to be long enough to be sat in. Below that the
+    # listener is out of it before the missing bottom registers as anything.
+    if role == "bookend" and _section_share(sections[weak_i], duration) < _BOOKEND_MIN_SHARE:
+        return None
+    return weak_i, strong_i, swing, ceiling, role
+
+
 def _masking_window(profile: targets.GenreProfile) -> Tuple[Tuple[float, float], float]:
     """(window, tolerance unit) for `clarity.masking_index` in this genre.
 
@@ -1181,7 +1301,17 @@ def _detect_clipping(ctx: _Ctx) -> List[_Hit]:
     true_peak = _fin(c.true_peak_dbtp, -120.0)
     overs = int(_fin(c.inter_sample_overs, 0))
 
-    tp_window = (-120.0, TRUE_PEAK_CEILING_DBTP)
+    # A tolerance, because the ceiling is a delivery spec and not a knife edge.
+    #
+    # True peak is estimated by 4x oversampling, so the reading carries its own
+    # small error, and every limiter's own meter disagrees with ours by about
+    # this much. Without the slack a file at -0.99 dBTP is one hundredth of a
+    # decibel over, and the report calls it a defect and blocks mastering —
+    # which reads as pedantry and costs the score its credibility on exactly
+    # the tracks that got it right. 0.1 dB is inaudible and well inside what
+    # any encoder cares about; a master that is genuinely hot fails by whole
+    # decibels, not by rounding.
+    tp_window = (-120.0, TRUE_PEAK_CEILING_DBTP + TRUE_PEAK_TOLERANCE_DB)
     tp_miss = targets.range_miss(true_peak, tp_window)
 
     # -- flat tops: the waveform itself is damaged ---------------------------
@@ -1699,6 +1829,13 @@ def _detect_arrangement(ctx: _Ctx) -> List[_Hit]:
     Both are genre-gated, and the gates are derived rather than invented — see
     `_expects_arrangement_lift` and `_low_swing_ceiling`. Ambient and classical
     are not told their chorus should be 6 dB louder.
+
+    Both also read the section *labels*, not just the numbers, because which
+    part of the record a measurement lands on decides whether it is a fault at
+    all. An intro with the bottom pulled back and a chorus with the bottom
+    pulled back produce the same swing in dB and are not the same event: the
+    first is how arrangements work and the second is the record failing to
+    arrive. See `_section_role`.
     """
     sa = ctx.sections
     if ctx.no_programme or not sa.available:
@@ -1725,9 +1862,37 @@ def _detect_arrangement(ctx: _Ctx) -> List[_Hit]:
     if _expects_arrangement_lift(ctx.profile) and lift_miss < 0.0:
         ratio = _ratio(lift_miss, _CHORUS_LIFT_SCALE)
         part = loudest.label if not loudest.label.startswith("section ") else "loudest section"
+        # Which part of the record turned out to be the loudest changes what
+        # this finding is. A chorus that arrives at verse level is the complaint
+        # in its pure form. A record whose peak is its *intro* is a stranger
+        # observation and worth stating as one. And where the segmenter never
+        # found anything hook-shaped, the flatness is measured just as directly
+        # but the word "chorus" has nothing to attach to.
+        loudest_role = _section_role(loudest.label)
+        has_payoff = any(_section_role(s.label) == "payoff" for s in sections)
+        named = (f"the {loudest.label}" if not loudest.label.startswith("section ")
+                 else f"the section at {_clock(loudest.t_start)}")
+        if loudest_role == "payoff":
+            opening = (
+                f"The {loudest.label} is there and it arrives at the same size as everything "
+                f"around it. "
+            )
+        elif loudest_role == "bookend":
+            opening = (
+                f"The loudest thing on this record is its {loudest.label}, and nothing after "
+                f"it goes above that — which is unusual enough to be worth saying on its own. "
+            )
+        else:
+            opening = (
+                f"The sections arrive at more even levels than {ctx.ref} does"
+                + (", and nothing in this arrangement reads as a chorus or a drop, so this is "
+                   "a measurement of the levels rather than a claim about a hook. "
+                   if not has_payoff else f", and the loudest of them is {named}. ")
+            )
         detail = (
-            f"The sections arrive at more even levels than {ctx.ref} does. Across {n} "
-            f"measured sections the loudest one ({part} at {_clock(loudest.t_start)}) sits "
+            opening
+            + f"Across {n} measured sections the loudest one ({part} at "
+            f"{_clock(loudest.t_start)}) sits "
             f"{_num(lift, 1)} LU above the median section, against the "
             f"{_num(_CHORUS_LIFT_MIN_LU, 1)} LU a {ctx.profile.label} arrangement usually "
             f"puts there — most records run 2-4 LU. Loudest to quietest across the whole "
@@ -1781,37 +1946,87 @@ def _detect_arrangement(ctx: _Ctx) -> List[_Hit]:
         ctx.tags.add("section_lift")
 
     # -- one section's bottom end falls out ----------------------------------
+    #
+    # The swing is measured twice, and the order matters. First across the
+    # record's working body with the intro and outro set aside, because that is
+    # where a missing bottom end is a fault; only if the body holds together is
+    # the whole core looked at, which is the pass a bookend can reach — and it
+    # has to be twice as far out to get there. That ordering is what stops a
+    # deliberately empty intro either inventing the finding or masking a chorus
+    # with the same reading for a worse reason.
     low_rel, lufs, core = _section_low_shares(sections)
-    swing = _fin(sa.low_end_swing_db, 0.0)
     swing_max = _low_swing_ceiling(ctx.profile)
-    swing_window = (0.0, swing_max)
-    swing_miss = targets.range_miss(swing, swing_window)
-    core_idx = np.flatnonzero(core)
-    if swing_miss > 0.0 and core_idx.size >= 2:
+    core_idx = [int(i) for i in np.flatnonzero(core)]
+    body_idx = [i for i in core_idx if _section_role(sections[i].label) != "bookend"]
+
+    case = _low_swing_case(sections, low_rel, body_idx, swing_max, ctx.duration)
+    if case is None:
+        case = _low_swing_case(sections, low_rel, core_idx, swing_max, ctx.duration)
+
+    if case is not None:
+        weak_i, strong_i, swing, ceiling, role = case
+        swing_window = (0.0, ceiling)
+        swing_miss = targets.range_miss(swing, swing_window)
         ratio = min(_ratio(swing_miss, _LOW_SWING_SCALE_DB), 6.0)
-        weak_i = int(core_idx[int(np.argmin(low_rel[core_idx]))])
-        strong_i = int(core_idx[int(np.argmax(low_rel[core_idx]))])
         weakest, strongest = sections[weak_i], sections[strong_i]
         weak_share = _fin(low_rel[weak_i], 0.0)
         strong_share = _fin(low_rel[strong_i], 0.0)
-        detail = (
-            f"The bottom end moves between sections further than {ctx.ref} does. Sub and low "
-            f"bass carry {_num(weak_share, 1)} dB of {weakest.label}'s own energy at "
-            f"{_clock(weakest.t_start)} against {_num(strong_share, 1)} dB in "
-            f"{strongest.label} at {_clock(strongest.t_start)} — a {_num(swing, 1)} dB swing "
-            f"across the {int(core_idx.size)} sections carrying this record, against the "
-            f"{_num(swing_max, 1)} dB {ctx.profile.label} typically holds. It is measured as "
-            f"each section's *share* of its own level, so this is not the quiet parts being "
-            f"quiet: {weakest.label} is within {_num(_LOW_CORE_LU, 0)} LU of the loudest "
-            f"section and still has little under it. Dropping the bottom out buys contrast "
-            f"and makes the return hit harder; it costs a section that reads thin on a "
-            f"full-range system, so the question is whether the listener is meant to notice."
+        weak_pct = _section_share(weakest, ctx.duration) * 100.0
+        measured = (
+            f"Sub and low bass carry {_num(weak_share, 1)} dB of {weakest.label}'s own energy "
+            f"at {_clock(weakest.t_start)} against {_num(strong_share, 1)} dB in "
+            f"{strongest.label} at {_clock(strongest.t_start)} — a {_num(swing, 1)} dB swing. "
+            f"It is measured as each section's *share* of its own level, so this is not the "
+            f"quiet parts being quiet: {weakest.label} is within {_num(_LOW_CORE_LU, 0)} LU of "
+            f"the loudest section and still has little under it."
         )
+
+        if role == "bookend":
+            # The reported bug, and the shape of the fix: say the ordinary
+            # explanation first, because it is almost always the true one.
+            ratio = min(ratio, _ARRANGEMENT_ASIDE_MAX_RATIO)
+            title = f"{weakest.label.capitalize()} runs emptier than most {weakest.label}s"
+            detail = (
+                f"An {weakest.label} with the bottom pulled back is how arrangements work, and "
+                f"this is only raised because of how far it goes and how long it lasts. "
+                + measured
+                + f" The bar for an intro or an outro is {_num(ceiling, 1)} dB — already "
+                f"double the {_num(swing_max, 1)} dB the rest of the record is held to, "
+                f"precisely because a thin {weakest.label} is normal — and {weakest.label} "
+                f"runs {_num(weak_pct, 0)}% of the track, long enough to sit in. Held to a "
+                f"note rather than a fault: if the empty {weakest.label} is the intention, it "
+                f"is working."
+            )
+        elif role == "payoff":
+            title = f"Low end steps back in {weakest.label}"
+            detail = (
+                "The section this record is built to arrive at is the one carrying the least "
+                "bottom end. "
+                + measured
+                + f" A {ctx.profile.label} arrangement holds this to {_num(swing_max, 1)} dB "
+                f"across the {len(core_idx)} sections carrying the record. Taking the bottom "
+                f"out of the section everything else leads to buys contrast on the way in; it "
+                f"costs the moment the record exists for, and on a full-range system the "
+                f"{weakest.label} reads smaller than the part before it."
+            )
+        else:
+            title = f"Low end steps back in {weakest.label}"
+            detail = (
+                f"The bottom end moves between sections further than {ctx.ref} does. "
+                + measured
+                + f" {ctx.profile.label} typically holds {_num(swing_max, 1)} dB across the "
+                f"sections carrying a record; the bar here is {_num(ceiling, 1)} dB, because "
+                f"{weakest.label} is neither the intro — where a thin bottom is ordinary — nor "
+                f"the hook, where it is a fault, and that is the case the measurement cannot "
+                f"read on its own. Dropping the bottom out buys contrast and makes the return "
+                f"hit harder; it costs a section that reads thin on a full-range system."
+            )
+
         hits.append(_Hit(
             Finding(
                 id="low_end.section_collapse",
                 dimension="low_end",
-                title=f"Low end steps back in {weakest.label}",
+                title=title,
                 severity=_severity(ratio),
                 confidence=ctx.trust(0.84, "arrangement"),
                 detail=detail,
@@ -1819,18 +2034,23 @@ def _detect_arrangement(ctx: _Ctx) -> List[_Hit]:
                     _ev("Low-end swing across sections", swing, "dB",
                         target_range=swing_window,
                         verdict=_verdict(swing, swing_window, _LOW_SWING_SCALE_DB),
-                        detail="Sub+low-bass share of each section's own total, over the "
-                               "sections within 9 LU of the loudest."),
+                        detail=f"Sub+low-bass share of each section's own total, over the "
+                               f"sections within {_num(_LOW_CORE_LU, 0)} LU of the loudest. The "
+                               f"ceiling is {ctx.profile.label}'s {_num(swing_max, 1)} dB scaled "
+                               f"for a weakest section that is {'an' if role == 'bookend' else 'a'} "
+                               f"{role} ({weakest.label})."),
                     _ev(f"Low-end share in {weakest.label}", weak_share, "dB",
                         target=strong_share, verdict="problem",
                         detail=f"{_clock(weakest.t_start)}-{_clock(weakest.t_end)}, "
-                               f"{_num(weakest.integrated_lufs, 1)} LUFS."),
+                               f"{_num(weakest.integrated_lufs, 1)} LUFS, "
+                               f"{_num(weak_pct, 0)}% of the track."),
                     _ev(f"Low-end share in {strongest.label}", strong_share, "dB",
                         target=None, verdict="good",
                         detail=f"{_clock(strongest.t_start)}-{_clock(strongest.t_end)}, "
                                f"{_num(strongest.integrated_lufs, 1)} LUFS."),
-                    _ev("Sections carrying the record", float(core_idx.size), "sections",
-                        verdict="good"),
+                    _ev("Sections carrying the record", float(len(core_idx)), "sections",
+                        verdict="good",
+                        detail=f"{len(body_idx)} of them outside the intro and outro."),
                 ],
                 band_hz=(20.0, 120.0),
                 moments=[
@@ -4169,7 +4389,15 @@ def detect_all(
     _assign_impact(hits, rescale=False)   # gives _cap something meaningful to rank by
     hits = _cap(hits)
     _assign_impact(hits)                  # final points, capped across the kept set
-    return [hit.finding for hit in sorted(hits, key=_rank_key)]
+
+    findings = [hit.finding for hit in sorted(hits, key=_rank_key)]
+
+    # Last, because it needs the finished article: the classification (a defect
+    # may never be asked about), the final impact (which decides which four
+    # questions are worth a user's time) and the evidence rows the questions
+    # quote their figures from. Detectors that wrote their own question keep it;
+    # `clarify` fills the rest and refuses to leave one on a defect.
+    return clarify.attach(findings, ctx.profile.label, ask=not ctx.is_reference)
 
 
 # ---------------------------------------------------------------------------

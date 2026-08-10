@@ -49,6 +49,7 @@ from analysis.types import (
     PlatformTarget,
     Prescription,
     ReferenceDelta,
+    ScoreCard,
     SectionAnalysis,
     StemAnalysis,
 )
@@ -324,8 +325,46 @@ class EngineerContext:
     mastering_ready: Optional[bool] = None
     mastering_blockers: List[str] = field(default_factory=list)
 
+    # The split score. `health_score`/`grade` above are the legacy composite and
+    # are kept only because older callers still set them; this is what the brief
+    # leads with, because the composite conflated "is anything broken" with "does
+    # this sound like the genre" and the second question won. Optional so a
+    # caller that predates `ScoreCard` — including the shipped client posting an
+    # older `MixAnalysis` at `/engineer` — keeps working untouched.
+    scores: Optional[ScoreCard] = None
+
     def __post_init__(self) -> None:
         self.plugins = enrich_plugins(coerce_plugins(self.plugins))
+
+    # -- what the producer has already told us ------------------------------
+    #
+    # Three views over `findings`, because the brief has to say three different
+    # things about them. A finding the producer confirmed was deliberate is not
+    # a finding any more, it is a decision, and it must never reach the part of
+    # the brief that asks for prescriptions.
+
+    @property
+    def acknowledged(self) -> List[Finding]:
+        """Deviations the producer confirmed were on purpose. Never prescribe these."""
+        return [f for f in self.findings if bool(getattr(f, "acknowledged", False))]
+
+    @property
+    def live_findings(self) -> List[Finding]:
+        """Everything still open — the only findings a prescription may name."""
+        return [f for f in self.findings if not bool(getattr(f, "acknowledged", False))]
+
+    @property
+    def open_questions(self) -> List[Finding]:
+        """Findings carrying a question nobody has answered yet.
+
+        The analyser could not tell a decision from a mistake here, and neither
+        can the write-up. These get hedged, not asserted.
+        """
+        return [
+            f for f in self.findings
+            if getattr(f, "clarification", None) is not None
+            and not bool(getattr(f, "acknowledged", False))
+        ]
 
     @property
     def owned(self) -> List[str]:
@@ -414,7 +453,13 @@ class _MoveDraft(BaseModel):
 
 
 class _PrescriptionDraft(BaseModel):
-    finding_id: str = Field(description="Must be copied exactly from the FINDINGS table. Never invent an id.")
+    finding_id: str = Field(
+        description=(
+            "Must be copied exactly from the FINDINGS table. Never invent an id, and never "
+            "name a finding listed under 'Choices confirmed as deliberate' — the producer has "
+            "already said that one was on purpose."
+        )
+    )
     dimension: Dimension = Field(description="The dimension of the finding this addresses.")
     headline: str = Field(description="Under 60 characters. What is wrong, in the producer's language.")
     diagnosis: str = Field(
@@ -422,7 +467,10 @@ class _PrescriptionDraft(BaseModel):
             "2-4 sentences. What this sounds like on real playback, and why it is happening. "
             "Cite the measured numbers that prove it. Do not restate the measurement as if it "
             "were insight. If the finding is a deviation rather than a defect, this is where "
-            "you argue that its cost outweighs what it buys — and name both."
+            "you argue that its cost outweighs what it buys — and name both. If the brief "
+            "lists this finding under 'Open questions', the FIRST clause must be the "
+            "if-not-deliberate condition — 'if the pulled-back intro was not the plan, then...' "
+            "— so a producer who meant it can stop reading there."
         )
     )
     root_cause: str = Field(
@@ -460,8 +508,9 @@ class _ReportDraft(BaseModel):
         description=(
             "Two or three sentences, the way you'd talk after one listen: what is working, "
             "what is in the way, what to do first. Any defect belongs here. A deviation that "
-            "reads as deliberate and should be left alone belongs here too. "
-            "No preamble, no 'Great track!'."
+            "reads as deliberate and should be left alone belongs here too. If the brief's "
+            "defect count is zero, say so in the first sentence — a low reference-match figure "
+            "is never grounds for calling a track weak. No preamble, no 'Great track!'."
         )
     )
     the_one_thing: str = Field(
@@ -570,6 +619,41 @@ The converse holds as well. A number sitting comfortably inside its window can s
 this particular arrangement, and if you can see why, say so. The windows are a reference in both \
 directions, never a verdict.
 
+# What the producer has already told you
+
+Some of that guessing has been taken out of your hands, and where it has, the answer is not \
+yours to revisit.
+
+**Confirmed as deliberate.** When the brief carries a section headed *Choices confirmed as \
+deliberate*, the producer was shown that finding, asked whether it was on purpose, and said yes. \
+That is the end of the conversation about it. Those choices are **not** problems, **not** \
+candidates for a prescription, and **not** things to hedge about — no "you could still consider", \
+no "if you ever want to tighten that up", no move that quietly reverses one while addressing \
+something else. You may refer to a confirmed choice as context — it is often the reason another \
+number reads the way it does, and saying "the intro is thin because you wrote it thin, so the \
+low-end swing figure is describing your arrangement" is exactly the kind of connection worth \
+making. What you may not do is recommend changing it. Prescribing a fix for something the \
+producer has just told you was intentional is the single fastest way to make them stop reading, \
+because it proves you were not listening.
+
+If a confirmed choice genuinely creates a *separate* problem somewhere else — a real one, in \
+another element — prescribe on that other element and say plainly that the choice itself stays.
+
+**Open questions.** Where the brief lists a finding under *Open questions*, the analyser could \
+not tell a decision from a mistake and nobody has answered yet. You are in exactly the same \
+position, so do not pretend otherwise and do not pick for them. Write it as a fork: what it \
+means if it was deliberate, and what to do if it was not.
+
+Not: "The low end steps back in the intro — bring it up."
+But: "The low end steps back through the intro. If that is the arrangement — and on a record \
+that opens sparse it usually is — leave it, it is doing its job. If it was not deliberate, the \
+sub is coming in late rather than being pulled back, and the fix is on the 808's automation \
+lane rather than on the master."
+
+Both halves, in that order, every time. The prescription for an open question is written for the \
+"if not" branch and must say so in its first clause, so a producer who meant it can skip the \
+whole thing in one line rather than reading a fix for a decision they already made.
+
 # Defects and deviations
 
 The findings arrive in two separated groups, and they are not the same kind of statement. Never \
@@ -603,6 +687,30 @@ is given up, in the same breath. "Pull 2 dB out of the sub and the kick gets its
 the limiter stops working so hard; what you give up is the 808 being the biggest thing in the \
 room, so do it with a reference up and stop while the low end still lands on a phone." Every real \
 engineering decision is a trade, and a recommendation that pretends otherwise is advertising.
+
+# The two scores, and what they are allowed to say
+
+The brief opens with two numbers and they answer two different questions. Do not average them, \
+do not swap one for the other, and do not let the second one set the tone of the write-up.
+
+**Technical** is defects only, and it is the one with a grade on it. It is genre-independent, \
+intent-independent and taste-independent: it answers "is there anything measurably wrong with \
+this render". A high technical score on a record full of deviations means what it says — nothing \
+is broken.
+
+**Reference match** is how close this record sits to where that genre usually sits. It has no \
+grade, on purpose, because there is no score to be had for sounding like everything else. A low \
+reference match is a *description*: this record is doing its own thing. It is frequently the \
+most interesting fact in the brief and it is never, on its own, bad news.
+
+So: **a track is never failing, weak, poor, rough or in trouble on the strength of deviations \
+alone.** If the defect count is zero, the first thing the producer reads says so, in those \
+words, before anything about the reference gets mentioned. "Nothing here is broken; where it \
+sits away from the trap reference is mostly deliberate and the two places it isn't are cheap to \
+change" is a correct verdict on a record with a low reference match. "This mix has significant \
+problems" about the same record is a lie the numbers do not support, and it is the specific \
+failure this section exists to prevent. Never call a mix's overall standard into question using \
+a figure that only measures distance from a genre.
 
 # Rank by what a listener would notice
 
@@ -820,7 +928,10 @@ in the opening lines is a legitimate and often the most useful verdict there is.
 brief supports, including deviations from the genre reference that you have decided are correct \
 for this record, with one clause on why. "The sub sits well above the trap window and on a beat \
 built around that 808 it is the hook, not an error" is a strength. If a deviation reads as \
-deliberate, it goes here and it does *not* get a prescription.
+deliberate, it goes here and it does *not* get a prescription. Anything the producer has \
+**confirmed** as deliberate belongs here too, written as their decision rather than as your \
+verdict on it — "you kept the intro thin and that is what makes the drop land" — and never with \
+a caveat attached.
 
 Keep everything else tight. `diagnosis` is 2-4 sentences. `root_cause`, `alternative`, `do_not` \
 and `done_when` are one sentence each. `action` is one line. Length is not thoroughness — a \
@@ -836,6 +947,11 @@ manufacture problems to fill the report.
 
 # What counts as failure
 
+- **Recommending a change to anything listed under *Choices confirmed as deliberate*.** They \
+already told you. Nothing else in this list costs as much trust as this one.
+- Answering an *Open question* on the producer's behalf instead of writing both branches of it.
+- Describing the track as failing, weak or in trouble on the strength of deviations, or of the \
+reference-match figure, alone.
 - Prescribing a fix for the brief: telling a beat to bring its vocal up, telling an instrumental \
 to add a topline, telling somebody's reference track to re-render, telling a rough to master.
 - Treating a deviation as damage — "too much", "too little", "wrong", "should be", "fault", \
@@ -1041,6 +1157,151 @@ _INTENT_BRIEF: Dict[str, str] = {
 }
 
 
+def _score_block(ctx: EngineerContext) -> str:
+    """The two scores, at the very top, with what each one is allowed to mean.
+
+    This is the first thing in the brief because it is the frame everything
+    after it is read through. A single composite put "57.7 (D-)" above a file
+    with zero defects that was ready to master, purely because it sat a long
+    way from its genre profile — and a write-up that reads a D- before it reads
+    anything else spends the rest of the brief looking for the disaster that
+    justifies it. Two numbers, one graded and one deliberately not, is what
+    stops that search.
+
+    Returns "" when the caller predates `ScoreCard`, in which case the header's
+    own legacy line is all there is and it is labelled as such.
+    """
+    sc = ctx.scores
+    if sc is None:
+        return ""
+
+    outstanding = max(0, int(sc.deviations) - int(sc.acknowledged))
+    ack_clause = (
+        f", {int(sc.acknowledged)} of which the producer has confirmed as deliberate"
+        if sc.acknowledged else ""
+    )
+    return (
+        "## The verdict, before anything else\n\n"
+        f"**{_clip_text(sc.headline, 200)}**\n\n"
+        f"- **Technical: {_fin(sc.technical):.0f}/100 (grade {sc.technical_grade}).** Defects "
+        "only — things that are wrong in any genre, for any artist, at any intent. This is the "
+        "only one of the two numbers with a grade on it, and it is the one that answers \"is "
+        "anything actually broken\".\n"
+        f"- **Reference match: {_fin(sc.reference_match):.0f}/100.** "
+        f"{_clip_text(sc.reference_label, 160)}. **This is a description, not a grade.** It "
+        "measures distance from where records of this genre usually sit, and a record can be "
+        "excellent and sit a long way from that. Never treat a low figure here as a fault, and "
+        "never use it to say the mix is weak.\n"
+        f"- **Counts:** {int(sc.defects)} defect{'' if sc.defects == 1 else 's'}, "
+        f"{int(sc.deviations)} deviation{'' if sc.deviations == 1 else 's'}{ack_clause}"
+        f"{f' — {outstanding} still open' if sc.acknowledged else ''}.\n\n"
+        + (
+            "There are no defects on this file. Whatever else you write, the producer reads "
+            "that nothing is broken before they read anything about the reference.\n\n"
+            if int(sc.defects) == 0 else
+            f"{int(sc.defects)} defect{'' if sc.defects == 1 else 's'} to fix. Those are "
+            "instructions; everything else in the brief is information.\n\n"
+        )
+    )
+
+
+def _confirmed_section(ctx: EngineerContext) -> str:
+    """Choices the producer has already told us were deliberate.
+
+    Its own heading, above the findings, because a flag on a table row does not
+    survive into the prose. The producer was asked a direct question about each
+    of these and answered yes; the report's remaining job on them is to
+    understand the record better for knowing, not to reopen the decision.
+    """
+    confirmed = ctx.acknowledged
+    if not confirmed:
+        return ""
+
+    rows: List[Tuple[str, ...]] = []
+    for f in confirmed:
+        answered = ""
+        clar = getattr(f, "clarification", None)
+        if clar is not None:
+            answered = _clip_text(clar.question, 200)
+        rows.append((
+            f"`{f.id}`",
+            f.dimension,
+            _clip_text(f.title, 120),
+            answered or "—",
+            _clip_text(f.detail, 320),
+        ))
+
+    body = [
+        "## Choices confirmed as deliberate — do not recommend changing these\n\n"
+        "Each of these was measured, put to the producer as a direct question — *was this on "
+        "purpose?* — and answered **yes**. They are decisions, not findings.\n\n",
+        _table(
+            ("finding_id", "dimension", "The choice", "What they were asked", "What was measured"),
+            rows,
+        ),
+        "\n\n**The rule, and it is absolute:**\n\n"
+        "- **No prescription may name any `finding_id` above.** Not a soft one, not a "
+        "conditional one, not a smaller version of the same move folded into a different "
+        "prescription.\n"
+        "- **No hedged reopening.** \"You could still tighten this a little\", \"worth "
+        "revisiting on the next pass\" and \"if you ever change your mind\" are all the same "
+        "failure as prescribing it outright.\n"
+        "- **Do not describe them as costs, risks or compromises.** They are how the record "
+        "was written.\n"
+        "- **Do use them.** A confirmed choice usually explains other numbers in this brief, "
+        "and saying so is the most useful thing you can do with it — it shows the producer you "
+        "read their answer rather than filed it. They belong in `strengths` and they can carry "
+        "the `verdict`.\n"
+        "- The measurements are unchanged and still true. What changed is that nobody is "
+        "asking about them any more.",
+    ]
+    return "".join(body)
+
+
+def _open_questions_section(ctx: EngineerContext) -> str:
+    """Findings where the measurement cannot tell a decision from a mistake.
+
+    The analyser wrote a question for each and nobody has answered yet, so the
+    write-up is in the same position the analyser was: it does not know. The
+    honest form of that is a fork with both branches written out, not a guess
+    delivered with confidence.
+    """
+    pending = ctx.open_questions
+    if not pending:
+        return ""
+
+    out = [
+        "## Open questions — asked, not yet answered\n\n"
+        "For each of these the measurement genuinely cannot tell a deliberate choice from a "
+        "mistake. A quiet intro, a submerged lead, a narrow image: the number is identical "
+        "whether it was written that way or happened by accident. The producer has been asked "
+        "and has not answered, so **you do not know either — write both branches.**\n\n"
+        "> If the pulled-back intro is deliberate this is fine and there is nothing to do. If "
+        "it is not, here is what is happening and here is the move.\n\n"
+        "That shape, in that order, every time. Lead with the deliberate branch, because on "
+        "most records it is the true one. Any prescription you write for one of these opens on "
+        "the *if it was not deliberate* condition, so a producer who meant it can skip it in a "
+        "line. Never answer one of these on their behalf, and never rank one above a defect.\n\n"
+    ]
+
+    rows: List[Tuple[str, ...]] = []
+    for f in pending:
+        clar = f.clarification
+        if clar is None:                      # narrowed by `open_questions`
+            continue
+        rows.append((
+            f"`{f.id}`",
+            _clip_text(clar.question, 220),
+            _clip_text(clar.if_intended, 400),
+            _clip_text(clar.if_not, 400),
+        ))
+    out.append(_table(
+        ("finding_id", "The question", "If it was deliberate", "If it was not"),
+        rows,
+    ))
+    return "".join(out)
+
+
 def _header(ctx: EngineerContext) -> str:
     """Intent first, in plain language, before a single measurement.
 
@@ -1063,14 +1324,21 @@ def _header(ctx: EngineerContext) -> str:
         + (f", {int(m.bit_depth)}-bit" if m.bit_depth else ""),
         f"**Analysed at:** {int(m.sample_rate)} Hz",
     ]
-    if ctx.health_score is not None:
-        grade = f" (grade {ctx.grade})" if ctx.grade else ""
-        bits.append(f"**Health score:** {_fin(ctx.health_score):.0f}/100{grade}")
     if ctx.mastering_ready is not None:
         bits.append(f"**Mastering-ready:** {_yn(ctx.mastering_ready)}")
+    if ctx.scores is None and ctx.health_score is not None:
+        # Only reached by a caller that predates the ScoreCard. One line, and it
+        # is still labelled as the composite so nothing reads it as a verdict.
+        grade = f" (grade {ctx.grade})" if ctx.grade else ""
+        bits.append(
+            f"**Legacy composite score:** {_fin(ctx.health_score):.0f}/100{grade} — a single "
+            "number mixing defects and genre distance together. Do not quote it and do not "
+            "let it set the tone."
+        )
 
     head = (
         f"# MIX BRIEF — {ctx.filename or 'untitled mixdown'}\n\n"
+        f"{_score_block(ctx)}"
         f"## What this file is\n\n{intent_text}\n\n"
         f"## What it is being compared against\n\n"
         f"**Reference genre:** {profile.label} (profile `{profile.key}`).\n\n"
@@ -1481,20 +1749,37 @@ def _clarity_section(ctx: EngineerContext) -> str:
 
 _FINDING_HEADERS = ("finding_id", "dimension", "severity", "confidence", "impact", "band", "detail")
 
+#: With an `open?` column spliced in before the detail. Only used when at least
+#: one finding actually carries an unanswered question — a column of dashes on
+#: a payload from a client that predates clarifications is a column of noise.
+_FINDING_HEADERS_Q = (
+    "finding_id", "dimension", "severity", "confidence", "impact", "band", "open?", "detail",
+)
 
-def _finding_rows(findings: Sequence[Finding]) -> List[Tuple[str, ...]]:
+
+def _finding_rows(findings: Sequence[Finding], questions: bool = False) -> List[Tuple[str, ...]]:
     rows: List[Tuple[str, ...]] = []
     for f in findings:
         band = f"{_fin(f.band_hz[0]):.0f}-{_fin(f.band_hz[1]):.0f} Hz" if f.band_hz else "—"
-        rows.append((
+        cells = [
             f"`{f.id}`",
             f.dimension,
             f.severity,
             f"{_fin(f.confidence):.2f}",
             f"{_fin(f.impact):.1f}",
             band,
-            _clip_text(f.detail, 260),
-        ))
+        ]
+        if questions:
+            # An unanswered question is the difference between "state this" and
+            # "write both branches of this", so it travels with the row rather
+            # than only in the open-questions table further down.
+            unanswered = (
+                getattr(f, "clarification", None) is not None
+                and not bool(getattr(f, "acknowledged", False))
+            )
+            cells.append("**question**" if unanswered else "—")
+        cells.append(_clip_text(f.detail, 260))
+        rows.append(tuple(cells))
     return rows
 
 
@@ -1536,23 +1821,50 @@ def _findings_section(ctx: EngineerContext) -> str:
     list of problems with a taxonomy attached, and the write-up treats it as one
     list of problems. Two headings, two tables, and a paragraph of framing above
     each is what makes the distinction survive into the prose.
+
+    Findings the producer has confirmed as deliberate are not here at all. They
+    have their own section above, and leaving them out of these tables is what
+    makes "never prescribe for a confirmed choice" structural rather than a rule
+    the write-up has to remember: the id is not in the list it is allowed to
+    draw from.
     """
-    if not ctx.findings:
+    live = ctx.live_findings
+    confirmed_n = len(ctx.acknowledged)
+    confirmed_note = (
+        f"\n\n_{confirmed_n} further finding{'' if confirmed_n == 1 else 's'} "
+        f"{'was' if confirmed_n == 1 else 'were'} confirmed by the producer as deliberate and "
+        "moved to *Choices confirmed as deliberate* above. Those ids are not available to "
+        "prescribe against._"
+        if confirmed_n else ""
+    )
+
+    if not live:
         return (
-            "## Findings\n\n_No findings were raised by the detectors — nothing is broken and "
-            "nothing sits far enough from the reference to be worth naming. Do not invent "
-            "`finding_id` values. Return an empty `prescriptions` list and say so in the "
-            "verdict._"
+            "## Findings\n\n_No open findings — nothing is broken and nothing unresolved sits "
+            "far enough from the reference to be worth naming. Do not invent `finding_id` "
+            "values. Return an empty `prescriptions` list and say so in the verdict._"
+            + confirmed_note
         )
 
     label = targets.get_profile(ctx.genre).label
-    defects = [f for f in ctx.findings if str(getattr(f, "kind", "deviation")) == "defect"]
-    deviations = [f for f in ctx.findings if str(getattr(f, "kind", "deviation")) != "defect"]
+    defects = [f for f in live if str(getattr(f, "kind", "deviation")) == "defect"]
+    deviations = [f for f in live if str(getattr(f, "kind", "deviation")) != "defect"]
 
+    asking = bool(ctx.open_questions)
+    headers = _FINDING_HEADERS_Q if asking else _FINDING_HEADERS
     out = [
-        "## Findings\n\nThese are the detectors' conclusions, in two groups that mean "
+        "## Findings\n\nThese are the detectors' open conclusions, in two groups that mean "
         "different things. `finding_id` values in your prescriptions must be copied exactly "
-        "from these tables.\n\n"
+        "from these tables — and only from these tables."
+        + confirmed_note
+        + (
+            "\n\nA row marked **question** in the `open?` column carries an unanswered "
+            "clarification: the measurement cannot tell a decision from a mistake there. "
+            "Those are written as forks, not as statements — see *Open questions* below for "
+            "the wording of each one."
+            if asking else ""
+        )
+        + "\n\n"
     ]
 
     # -- defects -------------------------------------------------------------
@@ -1564,7 +1876,7 @@ def _findings_section(ctx: EngineerContext) -> str:
         "are broken, prescribe the fix for every one of them, and never soften them.\n\n"
     )
     if defects:
-        out.append(_table(_FINDING_HEADERS, _finding_rows(defects)))
+        out.append(_table(headers, _finding_rows(defects, asking)))
     else:
         out.append(
             "_No defects. Nothing on this file is broken — no clipping, no inter-sample overs, "
@@ -1591,11 +1903,16 @@ def _findings_section(ctx: EngineerContext) -> str:
         f"sits — it is not how much it matters. Rank these by what a listener would notice.\n\n"
     )
     if deviations:
-        out.append(_table(_FINDING_HEADERS, _finding_rows(deviations)))
+        out.append(_table(headers, _finding_rows(deviations, asking)))
+    elif confirmed_n:
+        out.append(
+            f"_Every difference from the {label} reference on this record has been confirmed "
+            "as deliberate. There is nothing here to decide._"
+        )
     else:
         out.append(f"_This record sits inside the {label} reference on everything measured._")
 
-    ev_lines = _evidence_lines(ctx.findings)
+    ev_lines = _evidence_lines(live)
     if ev_lines:
         out.append("\n\nEvidence behind the findings:\n\n" + "\n".join(ev_lines))
     return "".join(out)
@@ -2077,10 +2394,43 @@ def _closing_section(ctx: EngineerContext) -> str:
         "demo": "**This is a rough.** Loudness and limiting are premature; arrangement is not.",
     }.get(str(ctx.intent), "**This is a finished mix with a lead.** Judge it as a whole record.")
 
+    confirmed = ctx.acknowledged
+    confirmed_line = ""
+    if confirmed:
+        ids = ", ".join(f"`{f.id}`" for f in confirmed[:8])
+        more = f" (+{len(confirmed) - 8} more)" if len(confirmed) > 8 else ""
+        confirmed_line = (
+            f"- **The producer has already confirmed these were deliberate: {ids}{more}.** Do "
+            "not prescribe against any of them, do not hedge a reopening of any of them, and "
+            "do not fold a smaller version of the same move into another prescription. Use "
+            "them to explain the record; put them in `strengths`.\n"
+        )
+
+    pending = ctx.open_questions
+    pending_line = ""
+    if pending:
+        pending_line = (
+            f"- **{len(pending)} finding{'' if len(pending) == 1 else 's'} carr"
+            f"{'ies' if len(pending) == 1 else 'y'} an unanswered question.** Write both "
+            "branches: if it was deliberate, this is fine and there is nothing to do; if it "
+            "was not, here is the move. Never pick for them.\n"
+        )
+
+    score_line = ""
+    if ctx.scores is not None and int(ctx.scores.defects) == 0:
+        score_line = (
+            "- **There are no defects on this file — nothing is broken.** Say that before you "
+            "say anything about the reference. A low reference-match figure is a description "
+            "of a record doing its own thing, never grounds for calling the mix weak.\n"
+        )
+
     return (
         "## Your job\n\nWrite the report.\n\n"
         f"- {intent_line}\n"
-        "- **Fix every defect and say plainly that it is broken.** No hedging, no genre excuse.\n"
+        + confirmed_line
+        + pending_line
+        + score_line
+        + "- **Fix every defect and say plainly that it is broken.** No hedging, no genre excuse.\n"
         f"- **Treat every deviation as a difference from the {label} reference, not as damage.** "
         "Decide for each one whether it reads as deliberate. Say so and leave the deliberate "
         "ones alone — that judgement is the most valuable thing in this report. Prescribe a "
@@ -2098,8 +2448,13 @@ def build_user_brief(ctx: EngineerContext) -> str:
     """Serialise the evidence as a readable brief. No raw time-series arrays."""
     sections = [
         _header(ctx),
+        # Before the findings and before the numbers: what the producer has
+        # already settled, and what nobody has settled yet. Both change how
+        # every table after them is allowed to be read.
+        _confirmed_section(ctx),
         _provenance_section(ctx),
         _findings_section(ctx),
+        _open_questions_section(ctx),
         _dimensions_section(ctx),
         _clipping_section(ctx),
         _stereo_phase_section(ctx),
@@ -2260,6 +2615,12 @@ def _to_report(draft: _ReportDraft, ctx: EngineerContext) -> EngineerReport:
     Dropping is deliberate. A prescription pinned to an id the UI has never
     heard of renders as an orphan card, and an id the model invented is by
     definition not backed by a measurement.
+
+    The same knife takes out any prescription for a finding the producer
+    confirmed was deliberate. The brief says not to write one, and the
+    confirmed ids are not in the findings tables it draws from, but "the
+    producer told you and you told them to change it anyway" is the one failure
+    in this file worth enforcing in code as well as in the prompt.
     """
     known: Dict[str, Finding] = {f.id: f for f in ctx.findings}
     prescriptions: List[Prescription] = []
@@ -2271,6 +2632,14 @@ def _to_report(draft: _ReportDraft, ctx: EngineerContext) -> EngineerReport:
         if finding is None:
             logger.warning(
                 "engineer: dropping prescription for unknown finding_id %r (headline=%r)",
+                fid,
+                _clip_text(item.headline, 80),
+            )
+            continue
+        if bool(getattr(finding, "acknowledged", False)):
+            logger.warning(
+                "engineer: dropping prescription for %r — the producer confirmed it was "
+                "deliberate (headline=%r)",
                 fid,
                 _clip_text(item.headline, 80),
             )

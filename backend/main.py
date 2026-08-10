@@ -41,7 +41,9 @@ from starlette.concurrency import run_in_threadpool
 import engineer
 import report as report_builder
 from analysis import capabilities, core, engine, knowledge, targets
-from analysis.types import EngineerReport, MixAnalysis, OwnedPlugin
+from analysis.types import (
+    ClarificationAnswer, EngineerReport, MixAnalysis, OwnedPlugin,
+)
 from auth import decode_token
 from database import get_db, init_db
 from models import AnalysisHistory, User, UserPlugin
@@ -689,12 +691,24 @@ async def engineer_consult(
         findings=analysis.findings,
         dimensions=analysis.dimensions,
         genre=analysis.genre,
+        # What the file is. Without it every brief posted here read as a full
+        # mix, so a beat got told to bring its hook up — the exact failure the
+        # intent paragraph exists to prevent. Older payloads omit the field and
+        # the model defaults it to `full_mix`, which is the behaviour they had.
+        intent=str(getattr(analysis, "intent", "full_mix") or "full_mix"),
         platform_targets=analysis.platform_targets,
         reference=analysis.reference,
         plugins=plugins,
         filename=analysis.filename,
         health_score=analysis.health_score,
         grade=analysis.grade,
+        # `scores` is Optional on `MixAnalysis`, so a client posting a payload
+        # from before the ScoreCard existed sends None and the brief falls back
+        # to the labelled legacy composite. Nothing to guard beyond the getattr:
+        # the findings carry `acknowledged`/`clarification` defaults of their
+        # own, so an old payload simply has no confirmed choices and no
+        # questions, and both new sections render as empty and drop out.
+        scores=getattr(analysis, "scores", None),
         mastering_ready=analysis.mastering_ready,
         mastering_blockers=analysis.mastering_blockers,
     )
@@ -709,6 +723,69 @@ async def engineer_consult(
             detail="The engineer could not be reached. Your measured findings are still complete.",
         )
     return report
+
+
+class ReassessRequest(BaseModel):
+    """The body for `POST /reassess`: a report, plus what the producer said about it."""
+
+    analysis: MixAnalysis
+    answers: List[ClarificationAnswer] = Field(
+        default_factory=list,
+        description=(
+            "One entry per question answered. `finding_id` must name a finding on the "
+            "posted analysis that carries a `clarification`; anything else is ignored. "
+            "`intended: false` clears a previous yes, so an answer can be changed."
+        ),
+    )
+
+
+@app.post("/reassess", response_model=MixAnalysis)
+async def reassess(
+    payload: ReassessRequest = Body(
+        ...,
+        description="{analysis: MixAnalysis, answers: ClarificationAnswer[]}",
+    ),
+) -> MixAnalysis:
+    """Re-score a report against the producer's answers about what was deliberate.
+
+    The analyser can measure that the low end steps back in the intro. It cannot
+    measure that you wrote it that way. This is where it stops guessing: each
+    ambiguous deviation carries a question, and a yes here marks that finding
+    `acknowledged`, drops it out of `scores.reference_match` and out of the
+    dimension roll-up, and leaves it in the report as an observation with its
+    numbers intact.
+
+    **No audio is uploaded and no DSP runs** — the measurements arrive on the
+    posted analysis and are carried through untouched, so this is a few
+    milliseconds rather than a few seconds. Nothing about the file changed; only
+    what the report makes of it did.
+
+    Stateless in exactly the way `/engineer` and `/report` are: the client posts
+    back the `MixAnalysis` it already holds, so there is no job table to outlive
+    a restart, no session to lose, and answers can be revised as often as the
+    producer likes. The same caveat applies — the measurements come from the
+    client and are taken at face value — and it costs nothing here, because a
+    caller who forges them gets a re-score of their own fiction and nothing is
+    persisted.
+
+    Two things a yes cannot do, both enforced in `engine.apply_answers`:
+    `scores.technical` does not move, and `mastering_ready` does not move. Only
+    deviations are answerable, a defect is never a deviation, and "I meant it"
+    is not a fix for a clipped render.
+    """
+    try:
+        return await run_in_threadpool(
+            engine.apply_answers, payload.analysis, payload.answers
+        )
+    except Exception:
+        logger.exception("reassessment failed for %s", payload.analysis.filename)
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "The report could not be re-scored. The analysis you have on screen "
+                "is unaffected."
+            ),
+        )
 
 
 @app.post("/report")

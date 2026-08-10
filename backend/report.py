@@ -240,7 +240,7 @@ class Table(Block):
 class Callout(Block):
     """A boxed aside. `tone` drives colour in HTML and a label in Markdown."""
 
-    tone: str  # defect | reference | good | note | ai
+    tone: str  # defect | reference | good | note | ai | verdict | question | choice
     title: str
     body: List[str] = field(default_factory=list)
 
@@ -414,6 +414,14 @@ _CALLOUT_LABEL: Dict[str, str] = {
     "good": "Working",
     "note": "Note",
     "ai": "From the engineer write-up",
+    # The score headline, an unanswered question, and a decision the producer
+    # has already made. Each needed its own label because the existing five all
+    # assert something: "Working — 1 defect to fix before mastering" and
+    # "Working — is the bottom octave meant to be this big?" are both wrong in
+    # the same way, which is that the label contradicts the sentence.
+    "verdict": "Verdict",
+    "question": "Open question",
+    "choice": "Your decision",
 }
 
 
@@ -516,6 +524,13 @@ a{color:var(--accent)}
 .c-ai .k{color:var(--ai)}
 .c-note{border-left-color:var(--ink-3)}
 .c-note .k{color:var(--ink-3)}
+.c-verdict{background:var(--panel);border-color:var(--line);border-left-color:var(--ink)}
+.c-verdict .k{color:var(--ink)}
+.c-verdict .t{font-size:1.1rem}
+.c-question{background:var(--ref-bg);border-color:var(--ref-line);border-left-color:var(--ref)}
+.c-question .k{color:var(--ref)}
+.c-choice{background:var(--good-bg);border-color:var(--good-line);border-left-color:var(--good)}
+.c-choice .k{color:var(--good)}
 
 /* steps + checklist */
 ol.steps{list-style:none;counter-reset:s;padding-left:0;margin:0 0 1.2rem}
@@ -1186,6 +1201,18 @@ _GRADE_WORD: Dict[str, str] = {
     "A": "release-ready", "B": "close", "C": "workable", "D": "needs a session", "F": "start again",
 }
 
+#: The technical grade is about defects and nothing else, so it needs its own
+#: words. "Release-ready" off a composite that was mostly genre distance is how
+#: a file with nothing wrong with it ended up graded D-; these say what the
+#: number actually measured.
+_TECHNICAL_WORD: Dict[str, str] = {
+    "A": "nothing measurably wrong",
+    "B": "small faults only",
+    "C": "real faults to fix",
+    "D": "significant faults",
+    "F": "something is badly wrong",
+}
+
 _SEV_WORD: Dict[str, str] = {
     "critical": "critical", "major": "significant", "minor": "small", "clean": "clean",
 }
@@ -1202,6 +1229,45 @@ def _rank(finding: Finding) -> Tuple[int, float, float]:
         -_fin(finding.impact),
         -_fin(finding.confidence),
     )
+
+
+def _confirmed(finding: Finding) -> bool:
+    """Did the producer tell us this one was on purpose?
+
+    `getattr` rather than attribute access throughout, because `/report` accepts
+    a `MixAnalysis` posted by a client that predates the field entirely.
+    """
+    return bool(getattr(finding, "acknowledged", False))
+
+
+def _open_question(finding: Finding):
+    """The unanswered `Clarification` on this finding, or None.
+
+    Answered means settled: the question stays on the finding so the document
+    can show what was asked next to what was said, but it stops being an open
+    question the moment it is acknowledged.
+    """
+    clar = getattr(finding, "clarification", None)
+    if clar is None or _confirmed(finding):
+        return None
+    return clar
+
+
+class _Numbering:
+    """Sequential eyebrow numbers for the top-level sections.
+
+    *Choices you confirmed* only exists on a report where the producer answered
+    something, and a hard-coded "02 ·" on it would print a document that jumps
+    from 01 to 03 on every report where they did not. The sections number
+    themselves in the order `build_document` emits them instead.
+    """
+
+    def __init__(self) -> None:
+        self._n = 0
+
+    def __call__(self, label: str) -> str:
+        self._n += 1
+        return f"{self._n:02d} · {label}"
 
 
 def _kind_of(finding: Finding) -> str:
@@ -1363,15 +1429,29 @@ def _weave_prescription(doc: Doc, presc: Optional[Prescription]) -> None:
 
 
 def _plain_verdict(analysis: MixAnalysis, defects: List[Finding],
-                   deviations: List[Finding], genre_label: str) -> str:
-    """One line, no jargon, that survives being the only thing anybody reads."""
-    n_def, n_dev = len(defects), len(deviations)
+                   deviations: List[Finding], genre_label: str,
+                   confirmed: Sequence[Finding] = ()) -> str:
+    """One line, no jargon, that survives being the only thing anybody reads.
+
+    `deviations` here is the open set — anything the producer has confirmed as
+    deliberate is counted separately and described as a decision, because
+    "there are ten places where this sits away from the reference" reads as ten
+    outstanding jobs when two of them are finished conversations.
+    """
+    n_def, n_dev, n_ack = len(defects), len(deviations), len(confirmed)
     intent_is_beat = analysis.intent in ("beat", "instrumental")
+    confirmed_tail = (
+        f" {n_ack} further difference{'' if n_ack == 1 else 's'} "
+        f"{'is' if n_ack == 1 else 'are'} on the record because you chose "
+        f"{'it' if n_ack == 1 else 'them'}, and {'it is' if n_ack == 1 else 'they are'} "
+        "not on any list here."
+        if n_ack else ""
+    )
 
     if n_def == 0 and n_dev == 0:
         return (
-            "Nothing here is broken and nothing sits outside the "
-            f"{genre_label} reference — this one is ready to go."
+            "Nothing here is broken and nothing unresolved sits outside the "
+            f"{genre_label} reference — this one is ready to go.{confirmed_tail}"
         )
     if n_def == 0:
         subject = "beat" if intent_is_beat else "mix"
@@ -1379,7 +1459,7 @@ def _plain_verdict(analysis: MixAnalysis, defects: List[Finding],
             f"Nothing is broken. There {'is' if n_dev == 1 else 'are'} {n_dev} "
             f"place{'' if n_dev == 1 else 's'} where this {subject} sits away from the "
             f"{genre_label} reference, and some of {'that' if n_dev == 1 else 'those'} "
-            "may well be on purpose."
+            f"may well be on purpose too.{confirmed_tail}"
         )
     # The title up to its colon: "Hard clipping: the waveform tops are squared
     # off" carries a full explanation the one-line verdict does not have room
@@ -1392,40 +1472,116 @@ def _plain_verdict(analysis: MixAnalysis, defects: List[Finding],
     )
     return (
         f"{n_def} thing{'' if n_def == 1 else 's'} here {'is' if n_def == 1 else 'are'} "
-        f"genuinely wrong, starting with {worst}{tail}."
+        f"genuinely wrong, starting with {worst}{tail}.{confirmed_tail}"
     )
 
 
+def _score_entries(analysis: MixAnalysis) -> List[Tuple[str, str]]:
+    """The cover's score lines, led by the ScoreCard where there is one.
+
+    The single composite this replaces put a D- on a file with zero defects
+    that was ready to master, and an A on one with two real defects, because it
+    was dominated by distance from a genre profile rather than by whether
+    anything was wrong. Two numbers fix that by refusing to answer two
+    questions with one figure: *technical* is defects only and carries the
+    grade, *reference match* is distance from the genre and deliberately
+    carries none.
+
+    Falls back to the composite for an analysis posted by a client from before
+    `scores` existed — labelled as the composite, so nobody reads it as the
+    verdict it could not support.
+    """
+    scores = getattr(analysis, "scores", None)
+    if scores is None:
+        grade = analysis.grade or "—"
+        word = _GRADE_WORD.get(grade[:1].upper(), "")
+        return [(
+            "Score (composite)",
+            f"{_num(analysis.health_score, 0)} / 100  ·  grade {grade}"
+            + (f"  ·  {word}" if word else ""),
+        )]
+
+    grade = scores.technical_grade or "—"
+    word = _TECHNICAL_WORD.get(grade[:1].upper(), "")
+    return [
+        ("Verdict", _clip(scores.headline, 160)),
+        (
+            "Technical",
+            f"{_num(scores.technical, 0)} / 100  ·  grade {grade}"
+            + (f"  ·  {word}" if word else "")
+            + "  —  defects only, and the only graded number here",
+        ),
+        (
+            "Reference match",
+            f"{_num(scores.reference_match, 0)} / 100  ·  {_clip(scores.reference_label, 120)}"
+            "  —  a description of distance from the genre, not a grade",
+        ),
+    ]
+
+
 def _cover(doc: Doc, analysis: MixAnalysis, defects: List[Finding],
-           deviations: List[Finding], genre_label: str, generated_at: datetime) -> None:
+           deviations: List[Finding], confirmed: List[Finding],
+           genre_label: str, generated_at: datetime) -> None:
     doc.h(1, "Mix report", "MixDoctor")
     doc.p(analysis.filename or "Untitled mix", lead=True)
 
-    grade = analysis.grade or "—"
-    word = _GRADE_WORD.get(grade[:1].upper(), "")
-    doc.add(Definitions([
-        ("Score", f"{_num(analysis.health_score, 0)} / 100  ·  grade {grade}"
-                  + (f"  ·  {word}" if word else "")),
+    found = (
+        f"{len(defects)} defect{'' if len(defects) == 1 else 's'}, "
+        f"{len(deviations)} open deviation{'' if len(deviations) == 1 else 's'}"
+    )
+    if confirmed:
+        found += (
+            f", {len(confirmed)} choice{'' if len(confirmed) == 1 else 's'} you confirmed"
+        )
+
+    # `ceiling_score` is the *composite's* ceiling, and next to "Technical
+    # 100 / 100" an unqualified "Reachable score 84 / 100" reads as the file
+    # getting worse for doing the work. It is only printed where the reader has
+    # a composite to attach it to; with the split score it is the reference
+    # match the fixes move, and that figure is not a target to hit.
+    tail = (
+        []
+        if getattr(analysis, "scores", None) is not None
+        else [("Reachable score",
+               f"{_num(analysis.ceiling_score, 0)} / 100 if you do everything here")]
+    )
+
+    doc.add(Definitions(_score_entries(analysis) + [
         ("Genre reference", genre_label),
         ("Track type", TRACK_INTENT_LABELS.get(analysis.intent, analysis.intent)),
         ("Generated", generated_at.strftime("%d %B %Y, %H:%M UTC")),
-        ("Findings", f"{len(defects)} defect{'' if len(defects) == 1 else 's'}, "
-                     f"{len(deviations)} deviation{'' if len(deviations) == 1 else 's'}"),
-        ("Reachable score", f"{_num(analysis.ceiling_score, 0)} / 100 if you do everything here"),
-    ]))
-    doc.p(_plain_verdict(analysis, defects, deviations, genre_label), lead=True)
+        ("Findings", found),
+    ] + tail))
+    doc.p(_plain_verdict(analysis, defects, deviations, genre_label, confirmed), lead=True)
 
     if analysis.engineer and analysis.engineer.verdict:
         doc.note("ai", "The engineer's read", [_clip(analysis.engineer.verdict, 1200)])
 
-    doc.note("note", "How to read this document", [
-        "**Sections 1 to 3 are what to do.** If you read nothing else, read *Start here*.",
-        "**Section 4 is where this track differs from the genre reference.** A reference is "
-        "not a rule. Everything in that section may be a decision you made on purpose, and "
-        "each one says what it costs and what it buys so you can decide.",
-        "**Sections 7 and 8 are reference material** — the concepts behind everything that "
-        "fired, then every number with its unit and its target.",
-    ])
+    how_to_read = [
+        "**Two numbers, not one.** *Technical* is the graded one and it counts defects — "
+        "things that are wrong in any genre, for anyone, on any record. *Reference match* is "
+        f"how close this sits to where {genre_label} releases usually sit, and it has no grade "
+        "on purpose: a record can be excellent and a long way from its genre. A low reference "
+        "match is a description of a track doing its own thing, never a mark against it.",
+        "**Read *Start here* if you read nothing else.** *What's genuinely wrong* is the only "
+        "section that is instructions; everything after it is information.",
+    ]
+    if confirmed:
+        how_to_read.append(
+            "**Choices you confirmed** collects the things you already told us were "
+            "deliberate. They are in the document because they are part of what this record "
+            "is, and they are explicitly not on any fix list."
+        )
+    how_to_read.append(
+        f"**Where this differs from the {genre_label} reference** is a set of decisions, not "
+        "faults. Each one says what it costs and what it buys, and any one the analysis "
+        "cannot call for itself is written as an open question for you to answer."
+    )
+    how_to_read.append(
+        "**The last two sections are reference material** — the concepts behind everything "
+        "that fired, then every number with its unit and its target."
+    )
+    doc.note("note", "How to read this document", how_to_read)
     doc.add(PageBreak())
 
 
@@ -1434,15 +1590,33 @@ def _cover(doc: Doc, analysis: MixAnalysis, defects: List[Finding],
 
 def _start_here(doc: Doc, analysis: MixAnalysis, ordered: List[Finding],
                 owned: Sequence[str], prescriptions: Dict[str, Prescription],
-                genre_label: str) -> None:
-    doc.h(2, "Start here", "01 · The three that matter")
+                genre_label: str, num: _Numbering) -> None:
+    doc.h(2, "Start here", num("The three that matter"))
+
+    scores = getattr(analysis, "scores", None)
+    if scores is not None:
+        # The headline before the list, because "nothing here is broken" changes
+        # what the three items underneath it mean. Without it a reader arrives
+        # at three headings and assumes all three are damage.
+        grade = scores.technical_grade or "—"
+        doc.note(
+            "verdict",
+            _clip(scores.headline, 160),
+            [
+                f"**Technical {_num(scores.technical, 0)} / 100, grade {grade}** — that is "
+                "defects only: things wrong in any genre, on any record, for anyone. "
+                f"**Reference match {_num(scores.reference_match, 0)} / 100** — "
+                f"{_clip(scores.reference_label, 120).rstrip('.')}, which is a description of "
+                "how far this sits from the genre and carries no grade at all.",
+            ],
+        )
 
     if not ordered:
         doc.p(
-            "Nothing fired. Every dimension measured either inside the "
-            f"{genre_label} reference or too close to it to be worth a note, so there is no "
-            "highest-leverage move to name — the useful sections for you are "
-            "*What's already working* and the appendix."
+            "Nothing is outstanding. Every dimension measured either inside the "
+            f"{genre_label} reference, too close to it to be worth a note, or as something you "
+            "have already confirmed was deliberate — so there is no highest-leverage move to "
+            "name. The useful sections for you are *What's already working* and the appendix."
         )
         return
 
@@ -1461,14 +1635,18 @@ def _start_here(doc: Doc, analysis: MixAnalysis, ordered: List[Finding],
         kind = _kind_of(finding)
         explainer = knowledge.explain(finding.id)
         kind_word = "Defect" if kind == "defect" else f"Differs from the {genre_label} reference"
+        question = _open_question(finding)
 
         doc.h(3, f"{i}. {finding.title}")
-        doc.add(Definitions([
+        rows = [
             ("Kind", kind_word),
             ("Area", _dim_label(finding.dimension)),
             ("Severity", _SEV_WORD.get(finding.severity, finding.severity)),
             ("Worth", f"about {_num(finding.impact, 0)} points"),
-        ], compact=True))
+        ]
+        if question is not None:
+            rows.append(("Open question", "Answer this before you touch it"))
+        doc.add(Definitions(rows, compact=True))
 
         what = _sentence(explainer.headline) if explainer else _clip(finding.detail, 320)
 
@@ -1482,16 +1660,93 @@ def _start_here(doc: Doc, analysis: MixAnalysis, ordered: List[Finding],
         else:
             do = "The full write-up for this one is below."
 
-        doc.p(f"{what} {do}")
+        if question is None:
+            doc.p(f"{what} {do}")
+        else:
+            # A first move stated flat here would be the analyser guessing
+            # again — the same guess that called a deliberately thin intro the
+            # dominant issue. The question comes first and the move is
+            # conditional on the answer.
+            doc.p(what)
+            doc.note("question", _sentence(question.question), [
+                f"**If yes, it was deliberate:** {_sentence(_clip(question.if_intended, 400))} "
+                "Nothing to do.",
+                f"**If no:** {_sentence(_clip(question.if_not, 400))} {do}",
+            ])
 
 
-# --- 3. defects ------------------------------------------------------------
+# --- 3. choices you confirmed ----------------------------------------------
+
+
+def _confirmed_section(doc: Doc, confirmed: List[Finding], num: _Numbering) -> None:
+    """What the producer already told us was deliberate.
+
+    Short on purpose. These are not findings any more and giving each one the
+    full defect treatment — causes, fix steps, a stop condition — would put a
+    fix list under a heading that says there is nothing to fix. What each entry
+    owes the reader is the decision, the number behind it, and the trade it
+    made, so that six weeks later the document still explains why the record
+    sounds the way it does.
+    """
+    if not confirmed:
+        return
+
+    doc.add(PageBreak())
+    doc.h(2, "Choices you confirmed", num("Decisions, not findings"))
+
+    doc.p(
+        "You were asked about each of these and said it was on purpose. That answer is the "
+        "end of it: none of them counts against the technical score, none of them is on the "
+        "session plan, and nothing later in this document asks you to change one. They are "
+        "here because they are part of what this record is — and because the numbers behind "
+        "them still explain a lot about how everything else measures.",
+        lead=True,
+    )
+
+    for finding in confirmed:
+        trade = _tradeoff(finding.id)
+        question = getattr(finding, "clarification", None)
+
+        doc.h(3, finding.title, _dim_label(finding.dimension))
+        doc.add(Definitions([
+            ("Status", "Confirmed deliberate — not something to fix"),
+            ("Area", _dim_label(finding.dimension)),
+            ("Finding id", finding.id),
+        ], compact=True))
+
+        if question is not None:
+            doc.note("choice", _sentence(question.question), [
+                f"**You said yes.** {_sentence(_clip(question.if_intended, 500))}",
+            ])
+
+        doc.p(_sentence(finding.detail))
+
+        doc.h(4, "What it buys you")
+        doc.p(trade.buys)
+
+        doc.h(4, "What it costs, so you know where to listen")
+        doc.p(
+            f"{trade.costs} None of that is a reason to undo it — you have already weighed it "
+            "— but it is where to check first if the track ever behaves oddly on a system you "
+            "have not tried."
+        )
+
+        _evidence_table(doc, finding, heading="The numbers behind it")
+
+    doc.note("note", "Changing your mind is allowed", [
+        "If one of these turns out not to have been deliberate after all, answer the question "
+        "the other way in the app and re-run this document. The finding comes back with its "
+        "full write-up, its fix steps and its score impact, exactly as it would have been.",
+    ])
+
+
+# --- 4. defects ------------------------------------------------------------
 
 
 def _defect_section(doc: Doc, defects: List[Finding], owned: Sequence[str],
-                    prescriptions: Dict[str, Prescription]) -> None:
+                    prescriptions: Dict[str, Prescription], num: _Numbering) -> None:
     doc.add(PageBreak())
-    doc.h(2, "What's genuinely wrong", "02 · Defects")
+    doc.h(2, "What's genuinely wrong", num("Defects"))
 
     if not defects:
         doc.note("good", "No defects found", [
@@ -1514,20 +1769,28 @@ def _defect_section(doc: Doc, defects: List[Finding], owned: Sequence[str],
         _finding_body(doc, finding, owned, prescriptions, is_defect=True)
 
 
-# --- 4. deviations ---------------------------------------------------------
+# --- 5. deviations ---------------------------------------------------------
 
 
 def _deviation_section(doc: Doc, deviations: List[Finding], owned: Sequence[str],
                        prescriptions: Dict[str, Prescription], analysis: MixAnalysis,
-                       genre_label: str) -> None:
+                       genre_label: str, num: _Numbering,
+                       confirmed: Sequence[Finding] = ()) -> None:
     doc.add(PageBreak())
-    doc.h(2, f"Where this differs from the {genre_label} reference", "03 · Deviations")
+    doc.h(2, f"Where this differs from the {genre_label} reference", num("Deviations"))
 
+    n_ack = len(confirmed)
     if not deviations:
         doc.p(
-            f"Nothing measured outside the {genre_label} reference windows. That is unusual "
-            "and worth noting: this track reads as its genre on every dimension the analysis "
-            "compares."
+            f"Nothing unresolved measured outside the {genre_label} reference windows."
+            + (
+                f" The {n_ack} difference{'' if n_ack == 1 else 's'} the analysis did find "
+                f"{'is' if n_ack == 1 else 'are'} in *Choices you confirmed*, where you told "
+                f"us {'it was' if n_ack == 1 else 'they were'} deliberate."
+                if n_ack else
+                " That is unusual and worth noting: this track reads as its genre on every "
+                "dimension the analysis compares."
+            )
         )
         return
 
@@ -1544,6 +1807,26 @@ def _deviation_section(doc: Doc, deviations: List[Finding], owned: Sequence[str]
         "faults. If a departure was deliberate and it still sounds right on a second system, "
         "the correct action is to leave it alone."
     )
+
+    if n_ack:
+        doc.p(
+            f"{n_ack} further difference{'' if n_ack == 1 else 's'} "
+            f"{'is' if n_ack == 1 else 'are'} not in this section at all: you have already "
+            f"confirmed {'it was' if n_ack == 1 else 'they were'} deliberate, so "
+            f"{'it lives' if n_ack == 1 else 'they live'} in *Choices you confirmed* instead."
+        )
+
+    if any(_open_question(f) is not None for f in deviations):
+        doc.note("note", "Some of these are questions, not conclusions", [
+            "Where the analysis could not tell a decision from a mistake, it says so and asks "
+            "rather than guessing. A quiet intro measures identically whether you wrote it "
+            "that way or the sub came in late, and calling that a problem on a track where it "
+            "was the arrangement is exactly the kind of thing that makes a report worth "
+            "ignoring.",
+            "Each of those entries carries a boxed question with both answers written out. "
+            "Answer it in the app and the report re-scores itself: a yes moves that entry into "
+            "*Choices you confirmed* and takes it off every list here.",
+        ])
 
     if analysis.intent in ("beat", "instrumental"):
         doc.note("note", "This was analysed as a beat", [
@@ -1566,14 +1849,19 @@ def _finding_body(doc: Doc, finding: Finding, owned: Sequence[str],
     explainer = knowledge.explain(finding.id)
     presc = prescriptions.get(finding.id)
 
+    question = _open_question(finding)
+
     doc.h(3, finding.title, _dim_label(finding.dimension))
     points = _num(finding.impact, 0)
-    doc.add(Definitions([
+    rows = [
         ("Severity", _SEV_WORD.get(finding.severity, finding.severity)),
         ("Confidence", _pct(finding.confidence)),
         ("Score impact", f"{points} {'pt' if points == '1' else 'pts'}"),
         ("Finding id", finding.id),
-    ], compact=True))
+    ]
+    if question is not None:
+        rows.insert(0, ("Status", "Open question — see the box below"))
+    doc.add(Definitions(rows, compact=True))
 
     if explainer:
         doc.note(
@@ -1585,6 +1873,23 @@ def _finding_body(doc: Doc, finding: Finding, owned: Sequence[str],
     moment = _moment_line(finding)
     if moment:
         doc.p(moment)
+
+    if question is not None:
+        # Worded so the document alone is enough to decide with. Somebody
+        # reading a printout on a train has no app in front of them, and "there
+        # is an unanswered question here" without the two answers written out is
+        # a dead end rather than a prompt.
+        doc.note("question", f"Decide this first: {_sentence(question.question)}", [
+            _sentence(_clip(question.context, 600)),
+            f"**If it was deliberate —** {_sentence(_clip(question.if_intended, 500))} "
+            "Everything below this box is then background rather than instruction: it is "
+            "worth knowing what the choice costs, and there is nothing here you need to do.",
+            f"**If it was not —** {_sentence(_clip(question.if_not, 500))} That is what the "
+            "steps below are for.",
+            "Answering this in the app re-scores the report and moves this entry into "
+            "*Choices you confirmed*. Nothing about the audio changes either way — only what "
+            "the report makes of it.",
+        ])
 
     if explainer:
         doc.h(4, "What this actually is")
@@ -1614,7 +1919,13 @@ def _finding_body(doc: Doc, finding: Finding, owned: Sequence[str],
 
     steps = _resolved_steps(finding.id, owned)
     if steps:
-        doc.h(4, "How to fix it" if is_defect else "How to change it, if you want to")
+        if is_defect:
+            heading = "How to fix it"
+        elif question is not None:
+            heading = "How to change it, if the answer above was no"
+        else:
+            heading = "How to change it, if you want to"
+        doc.h(4, heading)
         doc.steps(steps)
 
     _weave_prescription(doc, presc)
@@ -1635,9 +1946,10 @@ def _paragraphs(text: str) -> List[str]:
 # --- 5. what's working -----------------------------------------------------
 
 
-def _working_section(doc: Doc, analysis: MixAnalysis, genre_label: str) -> None:
+def _working_section(doc: Doc, analysis: MixAnalysis, genre_label: str,
+                     num: _Numbering) -> None:
     doc.add(PageBreak())
-    doc.h(2, "What's already working", "04 · Do not touch these")
+    doc.h(2, "What's already working", num("Do not touch these"))
 
     clean = [d for d in (analysis.dimensions or []) if d.severity == "clean"]
     doc.p(
@@ -1670,9 +1982,10 @@ def _working_section(doc: Doc, analysis: MixAnalysis, genre_label: str) -> None:
 
 
 def _session_plan(doc: Doc, ordered: List[Finding], owned: Sequence[str],
-                  prescriptions: Dict[str, Prescription], analysis: MixAnalysis) -> None:
+                  prescriptions: Dict[str, Prescription], analysis: MixAnalysis,
+                  num: _Numbering) -> None:
     doc.add(PageBreak())
-    doc.h(2, "Your session plan", "05 · In this order")
+    doc.h(2, "Your session plan", num("In this order"))
 
     if not ordered:
         doc.p("Nothing to schedule. Bounce it and move on.")
@@ -1697,7 +2010,12 @@ def _session_plan(doc: Doc, ordered: List[Finding], owned: Sequence[str],
         lead = _clip(steps[0][0], 180) if steps else _clip(finding.title, 120)
         kind = _kind_of(finding)
         prefix = "Fix" if kind == "defect" else "Decide"
-        tag = "" if kind == "defect" else " *(optional — confirm it was a choice first)*"
+        if kind == "defect":
+            tag = ""
+        elif _open_question(finding) is not None:
+            tag = " *(only if you answered no to the question on this one)*"
+        else:
+            tag = " *(optional — confirm it was a choice first)*"
         items.append((
             f"**{prefix}: {_dim_label(finding.dimension)}.** {_sentence(lead)}{tag}",
             _minutes(minutes),
@@ -1716,8 +2034,21 @@ def _session_plan(doc: Doc, ordered: List[Finding], owned: Sequence[str],
     total += 10
 
     doc.add(Checklist(items))
-    doc.p(f"**Estimated total: {_minutes(total)}.** Score now {_num(analysis.health_score, 0)}, "
-          f"reachable {_num(analysis.ceiling_score, 0)} with everything above applied.")
+    scores = getattr(analysis, "scores", None)
+    if scores is None:
+        doc.p(f"**Estimated total: {_minutes(total)}.** Composite score now "
+              f"{_num(analysis.health_score, 0)}, reachable {_num(analysis.ceiling_score, 0)} "
+              "with everything above applied.")
+    else:
+        doc.p(
+            f"**Estimated total: {_minutes(total)}.** Technical score now "
+            f"{_num(scores.technical, 0)} / 100, grade {scores.technical_grade} — and only the "
+            "defects on this list move it, because that is the only thing it counts. The "
+            "reference-match figure moves with the deviations, but moving it is not "
+            "automatically an improvement: it measures how much this sounds like the rest of "
+            f"the genre. (The older composite reads {_num(analysis.health_score, 0)} now and "
+            f"{_num(analysis.ceiling_score, 0)} with everything above applied.)"
+        )
 
     if analysis.engineer and analysis.engineer.session_plan:
         doc.note("ai", "The engineer's ordering",
@@ -1735,9 +2066,10 @@ def _session_plan(doc: Doc, ordered: List[Finding], owned: Sequence[str],
 # --- 7. the concepts -------------------------------------------------------
 
 
-def _concepts_section(doc: Doc, ordered: List[Finding], genre_label: str) -> None:
+def _concepts_section(doc: Doc, ordered: List[Finding], genre_label: str,
+                      num: _Numbering) -> None:
     doc.add(PageBreak())
-    doc.h(2, "The concepts behind this", "06 · A short course from your own track")
+    doc.h(2, "The concepts behind this", num("A short course from your own track"))
 
     entries: List[Tuple[str, str, str]] = []
     seen: set = set()
@@ -1937,16 +2269,16 @@ def _measurement_rows(m: Measurements, genre: str) -> List[Tuple[str, List[List[
     return groups
 
 
-def _appendix(doc: Doc, analysis: MixAnalysis, genre_label: str) -> None:
+def _appendix(doc: Doc, analysis: MixAnalysis, genre_label: str, num: _Numbering) -> None:
     doc.add(PageBreak())
-    doc.h(2, "Appendix: every measurement", "07 · The receipts")
+    doc.h(2, "Appendix: every measurement", num("The receipts"))
 
     m = analysis.measurements
     doc.p(
         "Nothing on the previous pages is a judgement call about how something sounds — every "
         "one of them comes from a number in this appendix. The reference column is where "
         f"{genre_label} releases sit, not a pass mark: a value outside it is a difference, and "
-        "sections 3 and 4 are where that difference is interpreted.",
+        "the defect and deviation sections are where that difference is interpreted.",
         lead=True,
     )
 
@@ -2117,6 +2449,14 @@ def _sanitise(analysis: MixAnalysis) -> None:
         for ev in finding.evidence:
             ev.label = _clip(ev.label, 120)
             ev.detail = _clip(ev.detail, 300)
+        # The question is rendered into the document, so it is client-supplied
+        # prose like everything else here and gets the same size bound.
+        clar = getattr(finding, "clarification", None)
+        if clar is not None:
+            clar.question = _clip(clar.question, 400)
+            clar.context = _clip(clar.context, 1200)
+            clar.if_intended = _clip(clar.if_intended, 1200)
+            clar.if_not = _clip(clar.if_not, 1200)
     for dim in analysis.dimensions or []:
         dim.headline = _clip(dim.headline, 600)
 
@@ -2135,8 +2475,16 @@ def build_document(
     prescriptions = _prescriptions(analysis)
 
     findings = list(analysis.findings or [])
-    defects = sorted([f for f in findings if _kind_of(f) == "defect"], key=_rank)
-    deviations = sorted([f for f in findings if _kind_of(f) != "defect"], key=_rank)
+    # Anything the producer confirmed as deliberate leaves the fix pipeline
+    # entirely — it is not in *Start here*, not in the deviations, not on the
+    # session plan, and not in the concepts. It gets its own short section as a
+    # decision. A document that lists something under "what to change" after
+    # the producer has said they meant it is the exact failure the question was
+    # added to prevent.
+    confirmed = sorted([f for f in findings if _confirmed(f)], key=_rank)
+    live = [f for f in findings if not _confirmed(f)]
+    defects = sorted([f for f in live if _kind_of(f) == "defect"], key=_rank)
+    deviations = sorted([f for f in live if _kind_of(f) != "defect"], key=_rank)
     ordered = defects + deviations
 
     doc = Doc()
@@ -2145,14 +2493,17 @@ def build_document(
     for word in ("true peak", "dBTP", "LUFS", "inter-sample peak"):
         doc.seen(word)
 
-    _cover(doc, analysis, defects, deviations, genre_label, when)
-    _start_here(doc, analysis, ordered, owned, prescriptions, genre_label)
-    _defect_section(doc, defects, owned, prescriptions)
-    _deviation_section(doc, deviations, owned, prescriptions, analysis, genre_label)
-    _working_section(doc, analysis, genre_label)
-    _session_plan(doc, ordered, owned, prescriptions, analysis)
-    _concepts_section(doc, ordered, genre_label)
-    _appendix(doc, analysis, genre_label)
+    num = _Numbering()
+    _cover(doc, analysis, defects, deviations, confirmed, genre_label, when)
+    _start_here(doc, analysis, ordered, owned, prescriptions, genre_label, num)
+    _confirmed_section(doc, confirmed, num)
+    _defect_section(doc, defects, owned, prescriptions, num)
+    _deviation_section(doc, deviations, owned, prescriptions, analysis, genre_label,
+                       num, confirmed)
+    _working_section(doc, analysis, genre_label, num)
+    _session_plan(doc, ordered, owned, prescriptions, analysis, num)
+    _concepts_section(doc, ordered, genre_label, num)
+    _appendix(doc, analysis, genre_label, num)
 
     doc.add(Rule())
     doc.p(

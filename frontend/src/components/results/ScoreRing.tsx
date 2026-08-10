@@ -44,19 +44,37 @@ function polar(radius: number, value: number): { x: number; y: number } {
 
 export interface ScoreRingProps {
   score: number;
-  ceiling: number;
+  /**
+   * Optional. The headroom arc is a claim — "these fixes are worth this many
+   * points" — and it belongs only to a score that has one. The technical score
+   * does not: its ceiling is 100 the moment the defects are gone, and drawing
+   * a reachable-score arc for it would be inventing a number.
+   */
+  ceiling?: number;
   grade: string;
+  /** The word over the grade. What this ring is measuring, in one token. */
+  label?: string;
+  /** Replaces the ceiling line at the foot. Used when there is no ceiling. */
+  caption?: string;
   /** Rendered edge length in px. Shrinks to fit narrower containers. */
   size?: number;
 }
 
-export default function ScoreRing({ score, ceiling, grade, size = 260 }: ScoreRingProps) {
+export default function ScoreRing({
+  score,
+  ceiling,
+  grade,
+  label: ringLabel = 'HEALTH',
+  caption,
+  size = 260,
+}: ScoreRingProps) {
   const reduce = useReducedMotion() ?? false;
   const uid = useId().replace(/:/g, '');
   const glowId = `ring-glow-${uid}`;
 
   const target = clamp100(score);
-  const cap = Math.max(target, clamp100(ceiling));
+  const hasCeiling = typeof ceiling === 'number' && Number.isFinite(ceiling);
+  const cap = hasCeiling ? Math.max(target, clamp100(ceiling)) : target;
   const headroom = Math.round(cap - target);
   const sev = severityFromScore(target);
   const sevColor = SEVERITY_VAR[sev];
@@ -114,10 +132,12 @@ export default function ScoreRing({ score, ceiling, grade, size = 260 }: ScoreRi
   const capOut = polar(R + W / 2 + 2.6, cap);
 
   const label =
-    `Health score ${Math.round(target)} out of 100, grade ${gradeText}, ${SEV_WORD[sev]}.` +
-    (headroom > 0
-      ? ` Ceiling ${Math.round(cap)} — ${headroom} points available from the prescribed fixes.`
-      : ' Already at its ceiling.');
+    `${ringLabel.toLowerCase()} score ${Math.round(target)} out of 100, grade ${gradeText}, ${SEV_WORD[sev]}.` +
+    (caption
+      ? ` ${caption}.`
+      : headroom > 0
+        ? ` Ceiling ${Math.round(cap)} — ${headroom} points available from the prescribed fixes.`
+        : ' Already at its ceiling.');
 
   return (
     <div
@@ -238,7 +258,7 @@ export default function ScoreRing({ score, ceiling, grade, size = 260 }: ScoreRi
           letterSpacing={1.05}
           fill="#5C5C6A"
         >
-          HEALTH
+          {ringLabel}
         </text>
 
         <text
@@ -277,12 +297,12 @@ export default function ScoreRing({ score, ceiling, grade, size = 260 }: ScoreRi
           className="font-mono"
           fontSize={3.4}
           letterSpacing={0.6}
-          fill={headroom > 0 ? 'var(--sev-clean)' : '#4A4A57'}
+          fill={!caption && headroom > 0 ? 'var(--sev-clean)' : '#4A4A57'}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: reduce ? 0 : 0.6, ease: EASE, delay: reduce ? 0 : 2.2 }}
         >
-          {headroom > 0 ? `CEILING ${Math.round(cap)} · +${headroom}` : 'AT CEILING'}
+          {caption ?? (headroom > 0 ? `CEILING ${Math.round(cap)} · +${headroom}` : 'AT CEILING')}
         </motion.text>
       </svg>
     </div>

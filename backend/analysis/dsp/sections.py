@@ -926,13 +926,20 @@ def _build_notes(
     if low_swing >= 3.0 and core_idx.size >= 2:
         weakest = int(core_idx[int(np.argmin(low_rel[core_idx]))])
         strongest = int(core_idx[int(np.argmax(low_rel[core_idx]))])
+        # The label matters to how this reads. A thin intro or outro is what
+        # arrangements do, and a note that does not say so invites whoever
+        # reads it next to call an ordinary arrangement a fault.
+        bookend = sections[weakest].label in ("intro", "outro")
         notes.append(
             f"Low end swings {_num(low_swing)} dB across the sections carrying this record: "
             f"sub and low bass are strongest in {sections[strongest].label} at "
             f"{_clock(sections[strongest].t_start)} and weakest in {sections[weakest].label} "
             f"at {_clock(sections[weakest].t_start)}, measured against each section's own "
-            f"level. If that was not deliberate, the bottom is falling out of one part of "
-            f"the arrangement."
+            f"level."
+            + (f" An {sections[weakest].label} carrying less underneath it is ordinary "
+               f"arrangement rather than a fault." if bookend else
+               " If that was not deliberate, the bottom is falling out of one part of "
+               "the arrangement.")
         )
     elif n >= 3 and core_idx.size >= 2 and low_swing < 1.0:
         notes.append(

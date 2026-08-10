@@ -12,6 +12,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import useKnowledge from '../../hooks/useKnowledge';
 import Explainer, { Chevron } from './Explainer';
 import KindChip from './KindChip';
+import AcknowledgedChip from './AcknowledgedChip';
 import {
   DIMENSIONS,
   DIMENSION_LABELS,
@@ -116,7 +117,12 @@ export default function DimensionGrid({
     return m;
   }, [dimensions]);
 
-  /** Worst first, so the panel opens on the thing most worth reading about. */
+  /**
+   * Worst first, so the panel opens on the thing most worth reading about —
+   * and everything the producer has confirmed as deliberate after everything
+   * that is still open, however severe it was measured to be. A confirmed
+   * choice is not the headline of a dimension.
+   */
   const byDimFindings = useMemo(() => {
     const m = new Map<Dimension, Finding[]>();
     for (const f of findings ?? []) {
@@ -126,6 +132,8 @@ export default function DimensionGrid({
     }
     for (const list of m.values()) {
       list.sort((a, b) => {
+        const ack = Number(Boolean(a.acknowledged)) - Number(Boolean(b.acknowledged));
+        if (ack !== 0) return ack;
         const s = SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity];
         return s !== 0 ? s : (b.impact ?? 0) - (a.impact ?? 0);
       });
@@ -133,10 +141,15 @@ export default function DimensionGrid({
     return m;
   }, [findings]);
 
-  const findingCounts = useMemo(() => {
-    const m = new Map<Dimension, number>();
-    for (const [dimension, list] of byDimFindings) m.set(dimension, list.length);
-    return m;
+  /** Two counts per dimension: what is still open, and what has been answered. */
+  const { findingCounts, acknowledgedCounts } = useMemo(() => {
+    const live = new Map<Dimension, number>();
+    const ack = new Map<Dimension, number>();
+    for (const [dimension, list] of byDimFindings) {
+      live.set(dimension, list.filter((f) => !f.acknowledged).length);
+      ack.set(dimension, list.filter((f) => f.acknowledged).length);
+    }
+    return { findingCounts: live, acknowledgedCounts: ack };
   }, [byDimFindings]);
 
   /**
@@ -145,13 +158,20 @@ export default function DimensionGrid({
    * next to it — and a dimension holding nothing but deviations says so, so a
    * low score there reads as "different from the reference" rather than damage.
    *
+   * Read off what is still open, since that is what the score on the card is
+   * now made of; a dimension whose findings have all been confirmed falls back
+   * to the full set rather than losing its chip.
+   *
    * Dimensions whose findings carry no `kind` at all (an older payload) are
    * left out of the map entirely, and `KindChip` renders nothing for them.
    */
   const kindByDim = useMemo(() => {
     const m = new Map<Dimension, FindingKind>();
     for (const [dimension, list] of byDimFindings) {
-      const known = list.filter((f) => f.kind === 'defect' || f.kind === 'deviation');
+      const live = list.filter((f) => !f.acknowledged);
+      const known = (live.length ? live : list).filter(
+        (f) => f.kind === 'defect' || f.kind === 'deviation',
+      );
       if (!known.length) continue;
       m.set(dimension, known.some((f) => f.kind === 'defect') ? 'defect' : 'deviation');
     }
@@ -222,6 +242,7 @@ export default function DimensionGrid({
           const isSelected = selected === d.dimension;
           const isClean = sev === 'clean' && !isSelected;
           const count = findingCounts.get(d.dimension) ?? 0;
+          const ackCount = acknowledgedCounts.get(d.dimension) ?? 0;
           const chrome = cardChrome(sev, isSelected);
           const color = SEVERITY_VAR[sev];
 
@@ -242,9 +263,13 @@ export default function DimensionGrid({
                 aria-pressed={isSelected}
                 aria-label={`${DIMENSION_LABELS[d.dimension]}: ${Math.round(score)} out of 100, ${SEV_WORD[sev]}${
                   count > 0
-                    ? `, ${count} finding${count === 1 ? '' : 's'} — opens the explanation`
+                    ? `, ${count} finding${count === 1 ? '' : 's'}`
                     : ''
-                }`}
+                }${
+                  ackCount > 0
+                    ? `, ${ackCount} confirmed as deliberate and no longer counted`
+                    : ''
+                }${count + ackCount > 0 ? ' — opens the explanation' : ''}`}
                 className={`group relative flex h-full w-full flex-col rounded-xl2 border bg-void-panel p-4 text-left
                             transition-all duration-300 ease-cine hover:-translate-y-0.5 hover:bg-void-raised
                             ${isClean ? 'opacity-[0.55] hover:opacity-100' : ''}`}
@@ -315,8 +340,13 @@ export default function DimensionGrid({
                       {SEV_WORD[sev]}
                     </span>
                     <KindChip kind={kindByDim.get(d.dimension)} />
+                    {/* Set aside, and said so on the card: a dimension that
+                        scores well because the producer confirmed the thing
+                        dragging it down should never look like it scored well
+                        on its own. */}
+                    {ackCount > 0 ? <AcknowledgedChip count={ackCount} /> : null}
                   </span>
-                  {count > 0 ? (
+                  {count + ackCount > 0 ? (
                     // The chevron is the promise that something opens. Without
                     // it a count reads as a statistic and the card as a dead end.
                     <span className="flex items-center gap-1.5">
@@ -324,7 +354,9 @@ export default function DimensionGrid({
                         {/* Says where it went, now that selecting actually travels. */}
                         {isSelected && active
                           ? 'showing the fix'
-                          : `${count} finding${count === 1 ? '' : 's'} · explain`}
+                          : count > 0
+                            ? `${count} finding${count === 1 ? '' : 's'} · explain`
+                            : 'explain'}
                       </span>
                       <Chevron
                         open={Boolean(isSelected && active)}
@@ -353,10 +385,14 @@ export default function DimensionGrid({
             className="panel mt-4 overflow-hidden"
           >
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-void-line/70 px-4 py-3.5 sm:px-5">
-              <span className={`sev-chip ${SEV_CLASS[active.severity]}`}>
-                <span aria-hidden="true">{SEV_GLYPH[active.severity]}</span>
-                {SEV_WORD[active.severity]}
-              </span>
+              {active.acknowledged ? (
+                <AcknowledgedChip />
+              ) : (
+                <span className={`sev-chip ${SEV_CLASS[active.severity]}`}>
+                  <span aria-hidden="true">{SEV_GLYPH[active.severity]}</span>
+                  {SEV_WORD[active.severity]}
+                </span>
+              )}
               {/* The open finding's own kind, not the card's roll-up: a
                   dimension can hold a defect and a deviation at once, and the
                   panel is teaching exactly one of them. */}
@@ -387,12 +423,23 @@ export default function DimensionGrid({
                       type="button"
                       aria-pressed={on}
                       onClick={() => setActiveId(f.id)}
-                      className={`rounded-full border px-3 py-1.5 text-left text-[12px] leading-snug transition-colors duration-300 ease-cine ${
+                      className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-left text-[12px] leading-snug transition-colors duration-300 ease-cine ${
                         on
                           ? 'border-signal-dim/60 bg-signal/10 text-ink'
                           : 'border-void-line text-ink-muted hover:border-ink-faint hover:text-ink-dim'
-                      }`}
+                      } ${f.acknowledged && !on ? 'opacity-70' : ''}`}
                     >
+                      {/* A tick rather than a hidden tab: the confirmed ones
+                          stay reachable, they just stop looking like work. */}
+                      {f.acknowledged ? (
+                        <span
+                          aria-hidden="true"
+                          className="text-[10px] text-sev-clean"
+                          title="You confirmed this was intentional"
+                        >
+                          ✓
+                        </span>
+                      ) : null}
                       {f.title}
                     </button>
                   );

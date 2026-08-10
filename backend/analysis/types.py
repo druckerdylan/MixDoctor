@@ -139,6 +139,31 @@ class Evidence(BaseModel):
     detail: str = ""
 
 
+class Clarification(BaseModel):
+    """A question to ask when the measurement cannot tell intent from mistake.
+
+    A quieter low end in an intro, a submerged vocal, a deliberately narrow
+    image: the analyser can measure all three and cannot tell any of them from
+    an error. Guessing is what produces "the dominant issue is low end steps
+    back in intro" on an arrangement that is working exactly as written.
+
+    So it asks. One question, answerable without opening the session, and the
+    answer changes the report rather than being filed away.
+    """
+
+    question: str = Field(description="Answerable yes/no without opening the DAW")
+    context: str = Field(description="What was measured, and why it is ambiguous")
+    if_intended: str = Field(description="What the report does with a yes")
+    if_not: str = Field(description="What a no means, and what to do about it")
+
+
+class ClarificationAnswer(BaseModel):
+    """One answer coming back from the user."""
+
+    finding_id: str
+    intended: bool
+
+
 class Finding(BaseModel):
     """A detected, measured problem. Produced by rules, explained later by AI.
 
@@ -167,6 +192,20 @@ class Finding(BaseModel):
     impact: float = Field(
         default=0.0, ge=0.0, le=100.0, description="Estimated health-score points recoverable"
     )
+    clarification: Optional[Clarification] = Field(
+        default=None,
+        description=(
+            "Present when the measurement cannot distinguish a deliberate choice "
+            "from a mistake. Never set on a defect — clipping is not a choice."
+        ),
+    )
+    acknowledged: bool = Field(
+        default=False,
+        description=(
+            "The user confirmed this was intentional. It stays in the report as "
+            "an observation and stops counting against the score."
+        ),
+    )
     miss_ratio: float = Field(
         default=0.0, ge=0.0,
         description=(
@@ -178,6 +217,45 @@ class Finding(BaseModel):
         ),
     )
 
+
+
+class ScoreCard(BaseModel):
+    """What the numbers actually mean, separated so each one can mean something.
+
+    A single composite conflated two unrelated questions — "is this broken?"
+    and "does this sound like the genre?" — and the second dominated. The
+    result was a file with zero defects that was ready to master scoring D-,
+    while one with two real defects scored A. That is not a score.
+
+    So there are two. `technical` answers the first question and is the one
+    that deserves a grade: defects only, objective, genre-independent.
+    `reference_match` answers the second and deliberately has no grade, because
+    sitting away from a reference is a description, not a failure.
+    """
+
+    technical: float = Field(
+        ge=0.0, le=100.0,
+        description="Defects only. 100 means nothing measurably wrong with the render.",
+    )
+    technical_grade: str = Field(description="A+ .. F, and only ever about defects")
+
+    reference_match: float = Field(
+        ge=0.0, le=100.0,
+        description="Closeness to the genre reference. NOT a quality judgement.",
+    )
+    reference_label: str = Field(
+        description="Plain wording, e.g. 'Distinctly different from the Trap reference'"
+    )
+
+    headline: str = Field(
+        description="The one line worth reading: 'Ready to master' / '2 defects to fix first'"
+    )
+
+    defects: int = 0
+    deviations: int = 0
+    acknowledged: int = Field(
+        default=0, description="Deviations the user confirmed were deliberate"
+    )
 
 class DimensionScore(BaseModel):
     """Per-dimension roll-up. This is what the radar / mix map renders."""
@@ -586,8 +664,14 @@ class MixAnalysis(BaseModel):
         description="What the file is. Decides which findings are even asked for.",
     )
 
-    health_score: float = Field(ge=0.0, le=100.0)
-    grade: str = Field(description="A+ .. F")
+    health_score: float = Field(
+        ge=0.0, le=100.0,
+        description="Legacy composite. Prefer `scores` — see ScoreCard for why.",
+    )
+    grade: str = Field(description="A+ .. F, from the legacy composite")
+    scores: Optional[ScoreCard] = Field(
+        default=None, description="The split score. This is what the UI should lead with."
+    )
     ceiling_score: float = Field(
         ge=0.0, le=100.0, description="Score reachable by applying every prescription"
     )

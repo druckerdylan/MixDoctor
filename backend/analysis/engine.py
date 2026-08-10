@@ -37,9 +37,10 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
-from . import core, detectors, targets
+from . import clarify, core, detectors, targets
 from .core import AudioBuffer
 from .types import (
+    ClarificationAnswer,
     ClarityMeasurement,
     ClippingMeasurement,
     DimensionScore,
@@ -53,6 +54,7 @@ from .types import (
     PhaseMeasurement,
     PlatformTarget,
     ReferenceDelta,
+    ScoreCard,
     SectionAnalysis,
     SpectralMeasurement,
     StemAnalysis,
@@ -66,8 +68,12 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "analyze_mix",
     "analyze_mix_detailed",
+    "apply_answers",
+    "build_score_card",
     "grade_for",
     "measure_stems_stage",
+    "reference_match",
+    "technical_score",
     "WAVEFORM_BUCKETS",
 ]
 
@@ -83,6 +89,10 @@ WAVEFORM_BUCKETS = 1400
 # Delivery ceiling for mastering readiness. Same number the clipping detector
 # uses — codec arithmetic, not taste.
 TRUE_PEAK_CEILING_DBTP = detectors.TRUE_PEAK_CEILING_DBTP
+# Readiness has to use the same slack the detector does, or a file passes the
+# clipping check and is still blocked from mastering by the same hundredth of
+# a decibel.
+TRUE_PEAK_TOLERANCE_DB = detectors.TRUE_PEAK_TOLERANCE_DB
 
 # The eight independent measurements run on a thread pool. numpy, scipy's
 # filters and the FFTs all drop the GIL for arrays this size, so this is real
@@ -761,14 +771,33 @@ def measure_reference(
 
 
 # ---------------------------------------------------------------------------
-# Health score / grade / ceiling
+# Health score / grade / ceiling — the legacy composite
 # ---------------------------------------------------------------------------
+#
+# **This is no longer what the UI leads with. `build_score_card` is.**
+#
+# `health_score` and `grade` conflate two unrelated questions — "is anything
+# actually wrong with this render?" and "does this sound like the genre?" — and
+# the second one dominates, because thirteen of the fourteen dimensions are
+# stylistic and only one is damage. That produced the pair that made the number
+# indefensible: `mix_clean` (zero defects, ready to master) at 57.7/D-, and
+# `reference_trap` (two real defects, not ready) at 90.5/A.
+#
+# They are kept, and kept *bit-identical*, for one reason: they are the wire
+# contract for every stored `AnalysisHistory` row and every client already in a
+# browser, and `tools/check_regressions.py` pins them against the fixtures so a
+# retune of the penalty curves cannot drift them silently. Fix the score by
+# reading `MixAnalysis.scores`, not by re-tuning what is below.
 
 
 def compute_health(
     dimensions: Sequence[DimensionScore], findings: Sequence[Finding]
 ) -> float:
     """Weighted roll-up of the dimension scores into one 0-100 figure.
+
+    Legacy. See the section comment above and `ScoreCard`: this answers "how far
+    is this from a finished record of this kind", which is not the same question
+    as "is anything broken", and the report now asks both separately.
 
     Three terms, in order:
 
@@ -916,7 +945,7 @@ def mastering_readiness(
                "file — re-export with the master fader down.")
         )
 
-    if true_peak > TRUE_PEAK_CEILING_DBTP:
+    if true_peak > TRUE_PEAK_CEILING_DBTP + TRUE_PEAK_TOLERANCE_DB:
         overs = int(_fin(clip.inter_sample_overs, 0))
         blockers.append(
             f"True peak is {_num(true_peak, 2)} dBTP, "
@@ -950,6 +979,365 @@ def mastering_readiness(
         unique.append(blocker)
 
     return (not unique), unique
+
+
+# ---------------------------------------------------------------------------
+# The score card — two numbers, each answering one question
+# ---------------------------------------------------------------------------
+#
+# See `types.ScoreCard`. The split exists because the composite above could not
+# be read: zero defects and ready to master scored D-, two defects and not ready
+# scored A. `technical` answers "is anything wrong with this render", reads
+# nothing but defects, and is the only figure here that carries a letter.
+# `reference_match` answers "how close is this to the genre", reads nothing but
+# deviations, and never carries one — sitting away from a reference is a
+# description of a record, not a fault in it.
+
+# What each additional defect costs, as a share of its own weight. The worst one
+# is charged in full; a second and a third compound but not linearly, on the same
+# reasoning as `_REPEAT_PENALTY` in the dimension roll-up — two defects in one
+# render are usually one bad export, not two independent disasters.
+_DEFECT_EXTRA_SHARE = 0.5
+
+# A defect with no distance recorded anywhere is still a defect. Charge it as
+# one tolerance unit out, which is what the shared curve calls a "minor". Only
+# reachable from an older payload, since a defect on the ruler always carries a
+# measured miss.
+_DEFECT_UNMEASURED_RATIO = 1.0
+
+# The profile defect magnitudes are measured against, so that changing the genre
+# dropdown cannot move the technical score.
+#
+# This is not a stylistic choice dressed up as a neutral one: "other" is the
+# profile `targets.normalise_genre` already falls back to when nobody has said
+# what kind of record this is, which is exactly the frame a defect score wants.
+#
+# It is needed because one defect's window is genre-relative in the detector:
+# `limiter.over_driven` reads the PSR window and a distortion ceiling derived
+# from it. On the same unmodified file that moved two things — the magnitude
+# (0.24 tolerance units against trap, 2.85 against ambient, worth 30 points of
+# technical) and, on `beat_tucked_hook`, whether the defect exists at all (no at
+# trap, yes at folk). Both are the genre talking, and neither belongs in the one
+# score that must not move with it. See `_counted_defects`.
+_TECHNICAL_YARDSTICK = "other"
+
+# Where the match crosses 50: the weighted distance at which a record is as much
+# its own thing as it is the genre's. The mapping is `100 / (1 + (D/D50)^2)`.
+#
+# Shape matters more than the constant. Near zero it is flat, so a mix a hair
+# outside one window does not stop being pop; through the middle it falls fast,
+# which is where the wording actually changes; and it has a long tail, so two
+# records 8 and 14 units out still order correctly instead of both reading zero.
+# A straight line fails the first and third of those, and the third is the
+# flattening this codebase has been bitten by twice.
+#
+# Fitted against the one thing that is not a matter of opinion: the same trap
+# master measured against five genres, D = 0.50 / 1.30 / 1.95 / 3.29 / 3.93 for
+# trap / pop / rock / folk / ambient. At 3.6 that reads 98 / 88 / 77 / 55 / 46 —
+# close to its own reference, distinctly different from ambient, and no two
+# adjacent genres indistinguishable.
+_REFERENCE_HALF_MATCH_DISTANCE = 3.6
+
+# Neutral, descriptive, and deliberately not a verdict. "Distinctly different"
+# is a true thing to say about a record; "F" is not.
+_REFERENCE_BANDS: Tuple[Tuple[float, str], ...] = (
+    (90.0, "Sits close to the {genre} reference"),
+    (70.0, "Recognisably {genre}, with its own character"),
+    (50.0, "Departs from the {genre} reference in several places"),
+)
+_REFERENCE_BAND_FLOOR = "Distinctly different from the {genre} reference"
+
+# Below this the reference label is worth putting in the headline of an
+# otherwise clean mix — not as a problem, as the one other thing worth knowing.
+_HEADLINE_REFERENCE_AT = 70.0
+
+
+def _measured_out(finding: Finding) -> bool:
+    """Did the measurement put this finding outside where it should be?
+
+    True when it carries a verdict *or* a measured miss. See
+    `_counts_against_the_score`, which is this plus the user's answer, for why
+    it takes both.
+    """
+    return (
+        str(finding.severity) != "clean"
+        or _fin(getattr(finding, "miss_ratio", 0.0), 0.0) > 0.0
+    )
+
+
+def _counts_against_the_score(finding: Finding) -> bool:
+    """Does this finding still put distance between the file and where it should be?
+
+    Acknowledged is the one thing that removes it outright: the user was asked
+    and said the choice was deliberate, so it stays in the report with all its
+    numbers and stops being a distance to close.
+
+    Otherwise it counts if it either carries a verdict or carries a measured
+    miss, and both halves earn their place:
+
+    * *A verdict without a miss* is an older payload — `miss_ratio` post-dates
+      the first schema — and dropping those would silently score a clipped
+      render from last month as flawless.
+    * *A miss without a verdict* is `intent="reference"`, which strips every
+      finding to an observation because nothing on somebody else's record is a
+      work item. The distance is still real and still worth reporting: it is
+      what the person measuring a record they admire came for. Keying purely on
+      severity would hand them 100/100 and tell them nothing.
+
+    Nothing else falls in that gap. Exactly one detector emits a genuinely
+    positive observation — `vocal_balance.topline_headroom`, a beat's open
+    centre — and it reports a miss of zero, so it is excluded by both halves.
+    """
+    return _measured_out(finding) and not bool(finding.acknowledged)
+
+
+def _yardstick_distances(m: Measurements) -> Optional[Dict[str, float]]:
+    """Defect id -> how far out it measures on the fixed ruler, or None if the pass failed.
+
+    A second detector pass against `_TECHNICAL_YARDSTICK`, at `full_mix`, so
+    neither the genre nor what the file is can change what counts as a defect or
+    how far out it is. It costs ~1.4 ms and runs no DSP — the measurements are
+    already in hand.
+
+    None rather than an empty dict on failure, because those two mean opposite
+    things: an empty ruler says the render is clean, and a scorer that cannot
+    tell that from a crashed detector pass will happily print 100 over a clipped
+    master.
+    """
+    try:
+        neutral = detectors.detect_all(m, _TECHNICAL_YARDSTICK, "full_mix")
+    except Exception:
+        logger.exception("engine: the technical yardstick pass failed")
+        return None
+    return {
+        str(f.id): _fin(getattr(f, "miss_ratio", 0.0), 0.0)
+        for f in neutral
+        if str(getattr(f, "kind", "deviation")) == "defect" and str(f.severity) != "clean"
+    }
+
+
+def _counted_defects(
+    findings: Sequence[Finding], distances: Optional[Dict[str, float]]
+) -> List[Finding]:
+    """The defects `technical` charges for — and the number the headline states.
+
+    Two tests, and the second one is the definition from `types.FindingKind`
+    read literally: a defect is wrong *no matter the genre*, so if the
+    genre-neutral ruler does not call it one, it never was one — that was the
+    genre talking. `limiter.over_driven` is the case that makes this matter: its
+    window comes from the genre's PSR range, so the same beat picks up a
+    second "defect" at folk and ambient that it does not have at trap. Counting
+    that would put the genre dropdown back inside the one score that must not
+    move with it.
+
+    The intersection only ever removes; nothing can be counted here that the
+    report is not also showing, so the headline can never name a defect the user
+    cannot find. With no ruler at all (the pass failed) it falls back to what the
+    report says — degraded and genre-shaped, but not silent.
+
+    **The asymmetry is a known hole, not a claim.** Because this is an
+    intersection, it removes a defect the genre invented and it also removes one
+    the genre *suppressed*: `reference_pop.wav` raises `limiter.over_driven` at
+    pop and does not raise it at trap, so the ruler calls it a defect both times
+    and this counts it only once — 93.7 and "2 defects" at pop, 95.0 and "1
+    defect" at trap, on an unmodified file. Closing it properly means the
+    detector emitting the defect arm genre-neutrally so the report can show what
+    the ruler sees; until then, `technical` is genre-independent for every
+    defect except `limiter.over_driven`, whose window is the only genre-relative
+    one in the defect set.
+    """
+    shown = [
+        f for f in findings or []
+        if str(getattr(f, "kind", "deviation")) == "defect" and _counts_against_the_score(f)
+    ]
+    if distances is None:
+        return shown
+    return [f for f in shown if str(f.id) in distances]
+
+
+def _defect_cost(finding: Finding, distances: Optional[Dict[str, float]]) -> float:
+    """Points off `technical` for one defect, before the compounding discount.
+
+    Continuous in the measured distance, via the same distance-to-points curve
+    the dimension scorer uses — 1.0 unit out is 15 points, 1.6 is 34, 3.75 and
+    beyond is 58 — then scaled by how much that kind of damage actually ruins a
+    record. The weights are the ones `_HEALTH_WEIGHTS` already carries, so a
+    polarity inversion (1.00) costs two and a half times a channel imbalance
+    (0.40) at the same distance, which is the right ratio: one makes the mix
+    disappear on a phone speaker, the other makes it lean right.
+
+    Continuity is the point. `reference_trap` clips 309 samples and `mix_problem`
+    clips 1,232 in runs four times as long; a severity table calls both of those
+    "clipping" and charges them the same, and a technical score that cannot tell
+    a hairline over from a squared-off master is not worth printing.
+    """
+    source = distances if distances is not None else {}
+    ratio = _fin(
+        source.get(str(finding.id), _fin(getattr(finding, "miss_ratio", 0.0), 0.0)), 0.0
+    )
+    if ratio <= 0.0:
+        ratio = _DEFECT_UNMEASURED_RATIO
+    weight = _HEALTH_WEIGHTS.get(str(finding.dimension), 0.6)
+    return detectors.deviation_penalty(ratio) * weight
+
+
+def _technical(findings: Sequence[Finding], distances: Optional[Dict[str, float]]) -> float:
+    costs = sorted(
+        (_defect_cost(f, distances) for f in _counted_defects(findings, distances)),
+        reverse=True,
+    )
+    if not costs:
+        return 100.0
+    total = costs[0] + _DEFECT_EXTRA_SHARE * sum(costs[1:])
+    return round(_clamp(100.0 - total, 0.0, 100.0), 1)
+
+
+def technical_score(findings: Sequence[Finding], m: Measurements) -> float:
+    """0-100 on defects alone. 100 means nothing measurably wrong with the render.
+
+    The only findings it can see are the ones `detectors.finding_kind` calls
+    defects — clipping, inter-sample overs, polarity inversion, mono
+    cancellation, limiter over-drive, channel imbalance — and every one of those
+    is wrong in every genre, on every record, in every year. Nothing about the
+    spectrum reaches this number, and no file scores below 100 for sounding
+    unlike something else. That is the whole fix: `mix_clean` has nothing wrong
+    with it and was being told it was a D-.
+
+    How far out each defect is comes from `_yardstick_distances` rather than
+    from the report's own findings, because one defect's window is
+    genre-relative. Across the whole fixture set at 24 genres x 6 intents, this
+    figure does not move with the genre dropdown on any file — with one
+    exception, `limiter.over_driven` on `reference_pop.wav`, which moves it 1.3
+    points. `_counted_defects` documents why and what closing it would take.
+    """
+    return _technical(findings, _yardstick_distances(m))
+
+
+def reference_match(findings: Sequence[Finding]) -> float:
+    """0-100 on deviations alone. How close the track sits to its genre reference.
+
+    **Not a quality judgement, and it never gets a grade.** A record can be a
+    long way from the reference and be exactly what it was meant to be — that is
+    most of what "having a sound" means.
+
+    Distance is the L2 norm of the per-deviation misses, each in tolerance units
+    and each weighted by how much that dimension defines the genre's identity.
+    L2 rather than a sum because deviations are not independent charges to be
+    added up: a record 5 units off in one place is further from the reference
+    than one 1 unit off in five, and a plain sum says the opposite.
+
+    Acknowledged deviations are gone from this entirely. Once the user has said
+    a choice was deliberate, it is not a distance left to close — it is the
+    record. That is what makes answering the questions change the number.
+    """
+    squared = 0.0
+    for finding in findings or []:
+        if str(getattr(finding, "kind", "deviation")) != "deviation":
+            continue
+        if not _counts_against_the_score(finding):
+            continue
+        weight = _HEALTH_WEIGHTS.get(str(finding.dimension), 0.6)
+        squared += (weight * _fin(getattr(finding, "miss_ratio", 0.0), 0.0)) ** 2
+
+    distance = math.sqrt(squared) / max(_REFERENCE_HALF_MATCH_DISTANCE, 1e-9)
+    return round(_clamp(100.0 / (1.0 + distance * distance), 0.0, 100.0), 1)
+
+
+def reference_label(match: float, genre: str) -> str:
+    """The plain sentence for a match figure. Never a grade, never a verdict."""
+    name = targets.get_profile(genre).label
+    for threshold, template in _REFERENCE_BANDS:
+        if match >= threshold:
+            return template.format(genre=name)
+    return _REFERENCE_BAND_FLOOR.format(genre=name)
+
+
+def _blocker_clause(blocker: str) -> str:
+    """One mastering blocker, cut down to something that fits in a headline."""
+    text = str(blocker or "").strip()
+    if text.startswith("Critical — "):
+        text = text[len("Critical — "):]
+    sentence = text.split(". ")[0].strip().rstrip(".").rstrip(":")
+    sentence = " ".join(sentence.split())[:110]
+    return sentence[:1].lower() + sentence[1:] if sentence else "one blocker outstanding"
+
+
+def score_headline(
+    defects: int,
+    match: float,
+    *,
+    mastering_ready: bool,
+    blockers: Sequence[str],
+    genre: str,
+    intent: str = "full_mix",
+) -> str:
+    """The one line worth reading, in priority order.
+
+    Never a letter, never an "F". A grade is an answer to a question nobody
+    asked; what a producer opening this needs is the next thing to do, and there
+    are only three of those: fix the defects, clear the blocker, or go and
+    master it.
+    """
+    if str(intent) == "reference":
+        # Somebody else's finished record. There is no next thing to do.
+        return "Measured as a reference — nothing here is a work item"
+
+    if defects > 0:
+        noun = "defect" if defects == 1 else "defects"
+        return f"{defects} {noun} to fix before mastering"
+
+    if not mastering_ready:
+        return f"Not ready to master — {_blocker_clause(blockers[0] if blockers else '')}"
+
+    if match < _HEADLINE_REFERENCE_AT:
+        label = reference_label(match, genre)
+        return f"Ready to master — {label[:1].lower()}{label[1:]}"
+    return "Ready to master"
+
+
+def build_score_card(
+    findings: Sequence[Finding],
+    m: Measurements,
+    genre: str,
+    *,
+    mastering_ready: bool,
+    blockers: Sequence[str] = (),
+    intent: str = "full_mix",
+) -> ScoreCard:
+    """Compose the two scores, their wording, and the counts behind them."""
+    distances = _yardstick_distances(m)
+    defects = _counted_defects(findings, distances)
+
+    # `deviations` counts every measured deviation on the report, including the
+    # ones already acknowledged; `acknowledged` says how many of those the user
+    # has confirmed. The outstanding count is the subtraction, and the total does
+    # not shrink as questions get answered — the record still does that thing,
+    # it is just no longer a thing to close.
+    all_deviations = [
+        f for f in findings or []
+        if str(getattr(f, "kind", "deviation")) == "deviation" and _measured_out(f)
+    ]
+    acknowledged = [f for f in all_deviations if bool(f.acknowledged)]
+
+    technical = _technical(findings, distances)
+    match = reference_match(findings)
+
+    return ScoreCard(
+        technical=technical,
+        technical_grade=grade_for(technical),
+        reference_match=match,
+        reference_label=reference_label(match, genre),
+        headline=score_headline(
+            len(defects), match,
+            mastering_ready=mastering_ready,
+            blockers=blockers,
+            genre=genre,
+            intent=intent,
+        ),
+        defects=len(defects),
+        deviations=len(all_deviations),
+        acknowledged=len(acknowledged),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1243,6 +1631,9 @@ def _consult(
         filename=analysis.filename,
         health_score=analysis.health_score,
         grade=analysis.grade,
+        # The split score is what the brief leads with; the composite above is
+        # only still passed for a caller that has not been updated.
+        scores=analysis.scores,
         mastering_ready=analysis.mastering_ready,
         mastering_blockers=list(analysis.mastering_blockers),
     )
@@ -1315,11 +1706,16 @@ def analyze_mix_detailed(
     _mark_unassessed(dimensions, timings, warnings)
     timings["detect"] = round((time.perf_counter() - t0) * 1000.0, 1)
 
-    # 4. Roll up.
+    # 4. Roll up. `health`/`grade` are the legacy composite and are kept as they
+    #    were; `scores` is the split the report actually leads with.
     t0 = time.perf_counter()
     health = compute_health(dimensions, findings)
     ceiling = compute_ceiling(health, findings)
     ready, blockers = mastering_readiness(measurements, findings, intent_key)
+    scores = build_score_card(
+        findings, measurements, genre_key,
+        mastering_ready=ready, blockers=blockers, intent=intent_key,
+    )
     platforms = platform_targets(measurements)
     timings["score"] = round((time.perf_counter() - t0) * 1000.0, 1)
 
@@ -1353,6 +1749,7 @@ def analyze_mix_detailed(
         intent=intent_key,
         health_score=health,
         grade=grade_for(health),
+        scores=scores,
         ceiling_score=ceiling,
         mastering_ready=ready,
         mastering_blockers=blockers,
@@ -1400,10 +1797,13 @@ def analyze_mix_detailed(
 
     # 8. Last line of defence before the wire.
     clean = MixAnalysis.model_validate(_sanitize(analysis.model_dump()))
+    card = clean.scores
     logger.info(
-        "engine: %s (%s) -> %.1f (%s) in %d ms | %s",
-        clean.filename, clean.genre, clean.health_score, clean.grade,
-        clean.analysis_ms,
+        "engine: %s (%s) -> tech %.0f (%s) / ref %.0f, legacy %.1f (%s) in %d ms | %s",
+        clean.filename, clean.genre,
+        card.technical if card else -1.0, card.technical_grade if card else "?",
+        card.reference_match if card else -1.0,
+        clean.health_score, clean.grade, clean.analysis_ms,
         " ".join(f"{k}={v:.0f}ms" for k, v in timings.items()),
     )
     return clean, timings
@@ -1470,3 +1870,84 @@ def analyze_mix(
         separation_timeout_s=separation_timeout_s,
     )
     return analysis
+
+
+# ---------------------------------------------------------------------------
+# Reassessment
+# ---------------------------------------------------------------------------
+
+
+def _answerable_ids(findings: Sequence[Finding]) -> set:
+    """The findings a user is allowed to answer for.
+
+    A deviation that was actually asked about — it carries a `Clarification` —
+    and nothing else. This is a guard, not a formality: the reassess endpoint is
+    stateless, so the analysis and the answers both arrive from the client, and
+    without this a posted `{"finding_id": "clipping.hard_clipping", "intended":
+    true}` would acknowledge a defect straight out of the technical score.
+    Clipping is not a decision anybody made, so there is no yes to give.
+    """
+    return {
+        str(f.id) for f in findings or []
+        if f.clarification is not None
+        and str(getattr(f, "kind", "deviation")) == "deviation"
+    }
+
+
+def apply_answers(
+    analysis: MixAnalysis, answers: Sequence[ClarificationAnswer]
+) -> MixAnalysis:
+    """Fold the user's answers into an existing report and re-score it.
+
+    **No DSP runs.** Nothing about the audio changed — the mix is 5.2 dB thin at
+    2 kHz whether or not that was the plan — so every measurement is carried
+    through untouched and only the judgement on top of them moves. That is what
+    keeps this a few milliseconds instead of a few seconds, and it is also why
+    it is honest: an answer cannot alter a number, only what the report makes of
+    one.
+
+    What moves: the acknowledged findings stop pulling on their dimension, so
+    `dimensions`, the legacy composite and `scores.reference_match` all update,
+    and the headline can change with them. What does not move: `technical`,
+    unless a defect somehow got acknowledged — which `_answerable_ids` makes
+    impossible — and `mastering_ready`, because only defects and criticals can
+    block a master and neither is answerable. Saying "yes, the intro is meant to
+    be thin" is not allowed to make a clipped file ready to master.
+
+    The input is left alone; the updated report is a copy.
+    """
+    updated = analysis.model_copy(deep=True)
+
+    allowed = _answerable_ids(updated.findings)
+    accepted = [a for a in answers or [] if str(a.finding_id) in allowed]
+    rejected = [a for a in answers or [] if str(a.finding_id) not in allowed]
+    if rejected:
+        logger.info(
+            "engine: ignoring %d answer(s) for findings that were never asked about: %s",
+            len(rejected), ", ".join(sorted({str(a.finding_id) for a in rejected}))[:200],
+        )
+    clarify.apply_answers(updated.findings, accepted)
+
+    # Acknowledged findings keep their place in the report — with their numbers,
+    # their question and now an answer — and come out of the scoring input. The
+    # alternative, leaving them in with the penalty zeroed, means two places that
+    # have to agree about what a yes is worth.
+    live = [f for f in updated.findings if not f.acknowledged]
+
+    dimensions = detectors.score_dimensions(
+        live, updated.measurements, updated.genre, str(updated.intent)
+    )
+    _mark_unassessed(dimensions, {}, list(updated.warnings))
+    updated.dimensions = dimensions
+
+    health = compute_health(dimensions, live)
+    updated.health_score = health
+    updated.grade = grade_for(health)
+    updated.ceiling_score = compute_ceiling(health, live)
+    updated.scores = build_score_card(
+        updated.findings, updated.measurements, updated.genre,
+        mastering_ready=updated.mastering_ready,
+        blockers=updated.mastering_blockers,
+        intent=str(updated.intent),
+    )
+    return updated

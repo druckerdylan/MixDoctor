@@ -35,6 +35,7 @@ import type { EngineerStatus } from '../../hooks/useAnalysis';
 import useKnowledge from '../../hooks/useKnowledge';
 import Explainer, { Chevron, Disclosure } from './Explainer';
 import KindChip from './KindChip';
+import AcknowledgedChip from './AcknowledgedChip';
 import {
   DIMENSION_LABELS,
   SEVERITY_RANK,
@@ -259,7 +260,16 @@ function measurementCount(finding: Finding | null): string | undefined {
  * a severity chip and a headline read as a summary rather than as a door. So a
  * collapsed card now says what is inside it, in words, and lights up on hover.
  */
-function OpenRow({ onOpen, hasTeaching }: { onOpen: () => void; hasTeaching: boolean }) {
+function OpenRow({
+  onOpen,
+  hasTeaching,
+  acknowledged = false,
+}: {
+  onOpen: () => void;
+  hasTeaching: boolean;
+  /** Nothing is being fixed here, so the door must not promise a fix. */
+  acknowledged?: boolean;
+}) {
   return (
     <button
       type="button"
@@ -271,7 +281,11 @@ function OpenRow({ onOpen, hasTeaching }: { onOpen: () => void; hasTeaching: boo
       className="group/open mt-5 flex w-full items-center gap-3 text-left"
     >
       <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-ink-muted transition-colors duration-300 ease-cine group-hover/open:text-signal">
-        {hasTeaching ? 'What this means & how to fix it' : 'Open the detail'}
+        {acknowledged
+          ? 'What was measured here'
+          : hasTeaching
+            ? 'What this means & how to fix it'
+            : 'Open the detail'}
       </span>
       <span className="hairline flex-1" aria-hidden="true" />
       <Chevron
@@ -370,6 +384,7 @@ function ProgressHead({
   pointsLeft,
   minutesLeft,
   reduce,
+  split = false,
 }: {
   base: number;
   ceiling: number;
@@ -379,6 +394,15 @@ function ProgressHead({
   pointsLeft: number;
   minutesLeft: number;
   reduce: boolean;
+  /**
+   * Whether the report carries a `ScoreCard`. Every figure in this panel comes
+   * off the legacy composite, and where the top of the page is showing
+   * `Technical 100 · A+`, an unlabelled "Projected score 54 / 84" underneath it
+   * reads as a contradiction rather than as a second measure. It is not one —
+   * the composite mixes defects and genre distance, which is exactly why the
+   * split exists — so when the split is present this says which number it is.
+   */
+  split?: boolean;
 }) {
   const mv = useMotionValue(base);
 
@@ -411,7 +435,9 @@ function ProgressHead({
 
       <div className="relative flex flex-wrap items-end justify-between gap-x-8 gap-y-6">
         <div className="min-w-0">
-          <p className="eyebrow">Projected score</p>
+          <p className="eyebrow">
+            {split ? 'Projected composite score' : 'Projected score'}
+          </p>
           <div className="mt-3 flex items-baseline gap-3">
             <motion.span
               className="stat text-[clamp(2.6rem,7vw,4.2rem)] font-semibold leading-[0.85]"
@@ -437,6 +463,9 @@ function ProgressHead({
           <p className="mt-3 text-[12.5px] leading-snug text-ink-muted">
             Starting at <span className="stat text-ink-dim">{Math.round(base)}</span>. The ceiling is
             what this mix can reach with the moves below — not what a different arrangement could.
+            {split
+              ? ' This is the older combined score, which mixes defects and distance from the genre together — it is not the technical grade above, and it is here because it is the one that moves as you work.'
+              : ''}
           </p>
         </div>
 
@@ -471,7 +500,9 @@ function ProgressHead({
         <div
           className="relative h-[10px] w-full overflow-hidden rounded-full border border-void-line bg-void"
           role="img"
-          aria-label={`Health score ${Math.round(base)} of 100. With the ticked fixes applied, ${Math.round(
+          aria-label={`${
+            split ? 'Composite score' : 'Health score'
+          } ${Math.round(base)} of 100. With the ticked fixes applied, ${Math.round(
             projected,
           )}. Ceiling ${Math.round(ceiling)}.`}
         >
@@ -527,6 +558,34 @@ function ProgressHead({
   );
 }
 
+/**
+ * The heading over the confirmed choices.
+ *
+ * Set aside, not swept away. The difference matters: a producer who told the
+ * report their intro was written thin should be able to see that the report
+ * heard them, and still see the numbers underneath it. A finding that vanished
+ * would just look like the analyser had changed its mind.
+ */
+function SetAsideHeader({ count }: { count: number }) {
+  const one = count === 1;
+  return (
+    <div className="mb-5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <p className="eyebrow text-signal-dim">Set aside — your call</p>
+        <span className="hairline hidden flex-1 sm:block" aria-hidden="true" />
+        <p className="eyebrow">
+          {count} confirmed as deliberate
+        </p>
+      </div>
+      <p className="mt-3 max-w-2xl text-[12.5px] leading-relaxed text-ink-muted">
+        You said {one ? 'this was' : 'these were'} intentional, so {one ? 'it is' : 'they are'} out
+        of the running order and out of the score. Nothing was deleted — the measurements are still
+        here, and changing your answer at the top of the report puts {one ? 'it' : 'them'} back.
+      </p>
+    </div>
+  );
+}
+
 /* ---------------------------------------------------------------- a card */
 
 function PrescriptionCard({
@@ -536,6 +595,7 @@ function PrescriptionCard({
   done,
   expanded,
   first,
+  acknowledged = false,
   onToggleDone,
   onToggleExpand,
   onFocus,
@@ -548,6 +608,13 @@ function PrescriptionCard({
   expanded: boolean;
   /** The first card carries the one-time note that these things open. */
   first: boolean;
+  /**
+   * The producer confirmed this was deliberate. The card keeps everything it
+   * had — the reading, the moves, the numbers — and stops being a task: no tick
+   * box, no points, no place in the running order. It is here to be looked at,
+   * not to be closed.
+   */
+  acknowledged?: boolean;
   onToggleDone: () => void;
   onToggleExpand: () => void;
   onFocus: () => void;
@@ -591,15 +658,15 @@ function PrescriptionCard({
       transition={{ duration: reduce ? 0.25 : 0.6, ease: EASE }}
       className="panel group/card relative scroll-mt-28 overflow-hidden transition-all duration-500 ease-cine hover:border-void-line/90 hover:bg-void-raised/40"
       style={{
-        opacity: done ? 0.62 : 1,
-        borderColor: done ? 'rgba(82,242,196,0.28)' : undefined,
+        opacity: done || acknowledged ? 0.62 : 1,
+        borderColor: done || acknowledged ? 'rgba(82,242,196,0.28)' : undefined,
       }}
     >
       {/* Severity rail — colour plus position, never colour alone. */}
       <span
         aria-hidden="true"
         className="absolute inset-y-0 left-0 w-[3px]"
-        style={{ background: done ? SEVERITY_VAR.clean : SEVERITY_VAR[sev] }}
+        style={{ background: done || acknowledged ? SEVERITY_VAR.clean : SEVERITY_VAR[sev] }}
       />
 
       <div className="p-5 pl-6 sm:p-7 sm:pl-8">
@@ -609,15 +676,19 @@ function PrescriptionCard({
             className="stat mt-[2px] shrink-0 text-[clamp(1.5rem,3.4vw,2.1rem)] font-semibold leading-none tracking-[-0.04em] transition-colors duration-500"
             style={{ color: done ? SEVERITY_VAR.clean : '#4A4A57' }}
           >
-            {pad2(index + 1)}
+            {acknowledged ? '·' : pad2(index + 1)}
           </span>
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-              <span className={`sev-chip ${SEV_CLASS[sev]}`}>
-                <span aria-hidden="true">{SEV_GLYPH[sev]}</span>
-                {SEV_WORD[sev]}
-              </span>
+              {acknowledged ? (
+                <AcknowledgedChip />
+              ) : (
+                <span className={`sev-chip ${SEV_CLASS[sev]}`}>
+                  <span aria-hidden="true">{SEV_GLYPH[sev]}</span>
+                  {SEV_WORD[sev]}
+                </span>
+              )}
               {/* Severity says how far; this says whether "far" is even the
                   right frame. A prescription against a deviation is an option,
                   not a repair, and the chip is what makes that visible. */}
@@ -643,9 +714,14 @@ function PrescriptionCard({
             </h4>
 
             <div className="mt-4 flex flex-wrap items-center gap-x-2.5 gap-y-2">
-              <span className="sev-chip sev-clean">
-                <span aria-hidden="true">↑</span>+{gain} pts
-              </span>
+              {/* No points on an acknowledged card. There is nothing to buy
+                  back — the finding stopped counting the moment it was
+                  confirmed, and offering a score for it would be a lie. */}
+              {acknowledged ? null : (
+                <span className="sev-chip sev-clean">
+                  <span aria-hidden="true">↑</span>+{gain} pts
+                </span>
+              )}
               <span className="sev-chip text-ink-muted">
                 <span aria-hidden="true">◷</span>
                 {mins} min
@@ -663,18 +739,22 @@ function PrescriptionCard({
           </div>
 
           <div className="flex shrink-0 flex-col items-center gap-2">
-            <span
-              aria-hidden="true"
-              className="font-mono text-[9px] uppercase tracking-[0.16em] transition-colors duration-300"
-              style={{ color: done ? '#52F2C4' : '#4A4A57' }}
-            >
-              {done ? 'done' : 'do'}
-            </span>
-            <CheckBox
-              checked={done}
-              onToggle={onToggleDone}
-              label={`Mark "${p.headline || 'this fix'}" as done — worth ${gain} points`}
-            />
+            {acknowledged ? null : (
+              <>
+                <span
+                  aria-hidden="true"
+                  className="font-mono text-[9px] uppercase tracking-[0.16em] transition-colors duration-300"
+                  style={{ color: done ? '#52F2C4' : '#4A4A57' }}
+                >
+                  {done ? 'done' : 'do'}
+                </span>
+                <CheckBox
+                  checked={done}
+                  onToggle={onToggleDone}
+                  label={`Mark "${p.headline || 'this fix'}" as done — worth ${gain} points`}
+                />
+              </>
+            )}
             <button
               type="button"
               aria-expanded={expanded}
@@ -828,22 +908,29 @@ function PrescriptionCard({
                 Hear it in the timeline
                 <span aria-hidden="true">↗</span>
               </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleDone();
-                }}
-                className={done ? 'btn-ghost px-4 py-2 text-[11px]' : 'btn-primary px-4 py-2 text-[11px]'}
-              >
-                <span className="font-mono uppercase tracking-[0.13em]">
-                  {done ? 'Reopen' : `Mark done · +${gain}`}
+              {acknowledged ? (
+                <span className="text-[12px] leading-snug text-ink-muted">
+                  Kept because you said it was deliberate. Change that answer at the top of the
+                  report and it comes back into the plan.
                 </span>
-              </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleDone();
+                  }}
+                  className={done ? 'btn-ghost px-4 py-2 text-[11px]' : 'btn-primary px-4 py-2 text-[11px]'}
+                >
+                  <span className="font-mono uppercase tracking-[0.13em]">
+                    {done ? 'Reopen' : `Mark done · +${gain}`}
+                  </span>
+                </button>
+              )}
             </div>
           </motion.div>
         ) : (
-          <OpenRow onOpen={onToggleExpand} hasTeaching={teaches} />
+          <OpenRow onOpen={onToggleExpand} hasTeaching={teaches} acknowledged={acknowledged} />
         )}
       </div>
     </motion.article>
@@ -874,6 +961,7 @@ function FindingCard({
   const teaches = has(f.id);
   const hasNumbers = Boolean(f.detail || f.evidence?.length);
   const bodyId = `finding-body-${f.id}`;
+  const acknowledged = Boolean(f.acknowledged);
 
   return (
     <motion.article
@@ -884,11 +972,15 @@ function FindingCard({
       viewport={{ once: true, amount: 0.1 }}
       transition={{ duration: reduce ? 0.25 : 0.55, ease: EASE }}
       className="panel group/card relative scroll-mt-28 overflow-hidden transition-all duration-500 ease-cine hover:border-void-line/90 hover:bg-void-raised/40"
+      style={{
+        opacity: acknowledged ? 0.62 : 1,
+        borderColor: acknowledged ? 'rgba(82,242,196,0.28)' : undefined,
+      }}
     >
       <span
         aria-hidden="true"
         className="absolute inset-y-0 left-0 w-[3px]"
-        style={{ background: SEVERITY_VAR[sev] }}
+        style={{ background: acknowledged ? SEVERITY_VAR.clean : SEVERITY_VAR[sev] }}
       />
       <div className="p-5 pl-6 sm:p-7 sm:pl-8">
         <div className="flex items-start gap-4 sm:gap-5">
@@ -896,7 +988,7 @@ function FindingCard({
             aria-hidden="true"
             className="stat mt-[2px] shrink-0 text-[clamp(1.4rem,3vw,1.9rem)] font-semibold leading-none tracking-[-0.04em] text-ink-faint"
           >
-            {pad2(index + 1)}
+            {acknowledged ? '·' : pad2(index + 1)}
           </span>
           <div className="min-w-0 flex-1">
             {/* Only the header toggles: a click on the prose below must not
@@ -910,10 +1002,14 @@ function FindingCard({
               }}
             >
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                <span className={`sev-chip ${SEV_CLASS[sev]}`}>
-                  <span aria-hidden="true">{SEV_GLYPH[sev]}</span>
-                  {SEV_WORD[sev]}
-                </span>
+                {acknowledged ? (
+                  <AcknowledgedChip />
+                ) : (
+                  <span className={`sev-chip ${SEV_CLASS[sev]}`}>
+                    <span aria-hidden="true">{SEV_GLYPH[sev]}</span>
+                    {SEV_WORD[sev]}
+                  </span>
+                )}
                 <KindChip kind={f.kind} />
                 <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-faint">
                   {DIMENSION_LABELS[f.dimension] ?? humanKey(f.dimension)}
@@ -982,7 +1078,7 @@ function FindingCard({
                 ) : null}
               </motion.div>
             ) : (
-              <OpenRow onOpen={onToggleExpand} hasTeaching={teaches} />
+              <OpenRow onOpen={onToggleExpand} hasTeaching={teaches} acknowledged={acknowledged} />
             )}
           </div>
 
@@ -1110,6 +1206,22 @@ export default function FixStack({
     });
   }, [analysis.engineer, findingById]);
 
+  /**
+   * A prescription against a finding the producer has confirmed is not a fix,
+   * because there is nothing wrong. It comes out of the running order, out of
+   * the projected score and out of the time estimate — and is kept below, with
+   * everything it said, because a decision is still worth being able to read.
+   */
+  const { livePrescriptions, setAside } = useMemo(() => {
+    const live: Prescription[] = [];
+    const kept: Prescription[] = [];
+    for (const p of prescriptions) {
+      if (findingById.get(p.finding_id)?.acknowledged) kept.push(p);
+      else live.push(p);
+    }
+    return { livePrescriptions: live, setAside: kept };
+  }, [prescriptions, findingById]);
+
   const hasPlan = prescriptions.length > 0;
 
   const [done, setDone] = useState<Record<string, boolean>>({});
@@ -1135,7 +1247,7 @@ export default function FixStack({
     let left = 0;
     let mins = 0;
     let count = 0;
-    prescriptions.forEach((p, i) => {
+    livePrescriptions.forEach((p, i) => {
       const key = `${p.finding_id}-${i}`;
       const val = Math.max(0, finite(p.expected_gain));
       if (done[key]) {
@@ -1147,26 +1259,31 @@ export default function FixStack({
       }
     });
     return { gainDone: g, pointsLeft: left, minutesLeft: mins, doneCount: count };
-  }, [prescriptions, done]);
+  }, [livePrescriptions, done]);
 
   const projected = Math.min(ceiling, base + gainDone);
 
-  const fallbackFindings = useMemo<Finding[]>(() => {
-    if (hasPlan) return [];
-    return [...(analysis.findings ?? [])]
+  /** Same split as the plan, for the no-write-up path. */
+  const { fallbackFindings, fallbackSetAside } = useMemo(() => {
+    if (hasPlan) return { fallbackFindings: [] as Finding[], fallbackSetAside: [] as Finding[] };
+    const ranked = [...(analysis.findings ?? [])]
       .filter((f) => f.severity !== 'clean')
       .sort((a, b) => {
         const s = SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity];
         if (s !== 0) return s;
         return finite(b.impact) - finite(a.impact);
       });
+    return {
+      fallbackFindings: ranked.filter((f) => !f.acknowledged),
+      fallbackSetAside: ranked.filter((f) => f.acknowledged),
+    };
   }, [hasPlan, analysis.findings]);
 
   const sessionPlan = analysis.engineer?.session_plan ?? [];
 
   const totalMinutes = useMemo(
-    () => prescriptions.reduce((acc, p) => acc + Math.max(0, finite(p.minutes)), 0),
-    [prescriptions],
+    () => livePrescriptions.reduce((acc, p) => acc + Math.max(0, finite(p.minutes)), 0),
+    [livePrescriptions],
   );
 
   const rise = (delay: number) => ({
@@ -1179,7 +1296,7 @@ export default function FixStack({
   /* ------------------------------------------------------------ fallback */
 
   if (!hasPlan) {
-    if (!fallbackFindings.length) {
+    if (!fallbackFindings.length && !fallbackSetAside.length) {
       return (
         <div className="panel flex min-h-[160px] flex-col items-center justify-center gap-3 p-8 text-center">
           <span className="text-[15px] text-sev-clean" aria-hidden="true">
@@ -1203,25 +1320,60 @@ export default function FixStack({
           />
         </motion.div>
 
-        <div className="space-y-4">
-          {fallbackFindings.map((f, i) => {
-            const key = `finding-${f.id}`;
-            // The first one is open so the shape of a card is visible without
-            // anyone having to guess there is more inside it.
-            return (
-              <FindingCard
-                key={f.id}
-                f={f}
-                index={i}
-                expanded={expandOverride[key] ?? i === 0}
-                first={i === 0}
-                onToggleExpand={() => toggleExpand(key, i === 0)}
-                reduce={reduce}
-                onFocus={() => onFocusFinding(f.id)}
-              />
-            );
-          })}
-        </div>
+        {fallbackFindings.length ? (
+          <div className="space-y-4">
+            {fallbackFindings.map((f, i) => {
+              const key = `finding-${f.id}`;
+              // The first one is open so the shape of a card is visible without
+              // anyone having to guess there is more inside it.
+              return (
+                <FindingCard
+                  key={f.id}
+                  f={f}
+                  index={i}
+                  expanded={expandOverride[key] ?? i === 0}
+                  first={i === 0}
+                  onToggleExpand={() => toggleExpand(key, i === 0)}
+                  reduce={reduce}
+                  onFocus={() => onFocusFinding(f.id)}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <div className="panel flex min-h-[140px] flex-col items-center justify-center gap-3 p-8 text-center">
+            <span className="text-[15px] text-sev-clean" aria-hidden="true">
+              ✓
+            </span>
+            <p className="display text-[16px] tracking-[-0.02em] text-ink">Nothing left to fix.</p>
+            <p className="max-w-sm text-[13px] leading-relaxed text-ink-muted">
+              Everything measured on this mix was something you confirmed you meant.
+            </p>
+          </div>
+        )}
+
+        {fallbackSetAside.length ? (
+          <div className="mt-10">
+            <SetAsideHeader count={fallbackSetAside.length} />
+            <div className="space-y-4">
+              {fallbackSetAside.map((f, i) => {
+                const key = `finding-ack-${f.id}`;
+                return (
+                  <FindingCard
+                    key={f.id}
+                    f={f}
+                    index={i}
+                    expanded={expandOverride[key] ?? false}
+                    first={false}
+                    onToggleExpand={() => toggleExpand(key, false)}
+                    reduce={reduce}
+                    onFocus={() => onFocusFinding(f.id)}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -1230,25 +1382,39 @@ export default function FixStack({
 
   return (
     <div>
-      <motion.div {...rise(0)}>
-        <ProgressHead
-          base={base}
-          ceiling={ceiling}
-          projected={projected}
-          doneCount={doneCount}
-          total={prescriptions.length}
-          pointsLeft={pointsLeft}
-          minutesLeft={minutesLeft}
-          reduce={reduce}
-        />
-      </motion.div>
+      {livePrescriptions.length ? (
+        <motion.div {...rise(0)}>
+          <ProgressHead
+            base={base}
+            ceiling={ceiling}
+            projected={projected}
+            doneCount={doneCount}
+            total={livePrescriptions.length}
+            pointsLeft={pointsLeft}
+            minutesLeft={minutesLeft}
+            reduce={reduce}
+            split={Boolean(analysis.scores)}
+          />
+        </motion.div>
+      ) : (
+        <motion.div {...rise(0)} className="panel flex flex-col items-center gap-3 p-8 text-center">
+          <span className="text-[15px] text-sev-clean" aria-hidden="true">
+            ✓
+          </span>
+          <p className="display text-[16px] tracking-[-0.02em] text-ink">Nothing left to do.</p>
+          <p className="max-w-sm text-[13px] leading-relaxed text-ink-muted">
+            Every prescription on this report is against something you confirmed you meant.
+          </p>
+        </motion.div>
+      )}
 
-      {sessionPlan.length ? (
+      {sessionPlan.length && livePrescriptions.length ? (
         <motion.div {...rise(0.08)} className="panel mt-4 p-5 sm:p-6">
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
             <p className="eyebrow">Running order</p>
             <p className="eyebrow">
-              {prescriptions.length} fixes · {minutesLabel(totalMinutes)} of work
+              {livePrescriptions.length} fix{livePrescriptions.length === 1 ? '' : 'es'} ·{' '}
+              {minutesLabel(totalMinutes)} of work
             </p>
           </div>
           <ol className="mt-4 grid gap-x-8 gap-y-2.5 sm:grid-cols-2">
@@ -1265,7 +1431,7 @@ export default function FixStack({
       ) : null}
 
       <div className="mt-6 space-y-4">
-        {prescriptions.map((p, i) => {
+        {livePrescriptions.map((p, i) => {
           const key = `${p.finding_id}-${i}`;
           const isDone = Boolean(done[key]);
           // The top fix is open — it is the one to start on, and it shows what
@@ -1298,7 +1464,34 @@ export default function FixStack({
         })}
       </div>
 
-      {doneCount === prescriptions.length && prescriptions.length > 0 ? (
+      {setAside.length ? (
+        <div className="mt-10">
+          <SetAsideHeader count={setAside.length} />
+          <div className="space-y-4">
+            {setAside.map((p, i) => {
+              const key = `ack-${p.finding_id}-${i}`;
+              return (
+                <PrescriptionCard
+                  key={key}
+                  p={p}
+                  index={i}
+                  finding={findingById.get(p.finding_id) ?? null}
+                  done={false}
+                  expanded={expandOverride[key] ?? false}
+                  first={false}
+                  acknowledged
+                  reduce={reduce}
+                  onToggleDone={() => undefined}
+                  onToggleExpand={() => toggleExpand(key, false)}
+                  onFocus={() => onFocusFinding(p.finding_id)}
+                />
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      {doneCount === livePrescriptions.length && livePrescriptions.length > 0 ? (
         <motion.div
           initial={reduce ? { opacity: 0 } : { opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}

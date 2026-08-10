@@ -1539,16 +1539,27 @@ _add(
 _add(
     "low_end.section_collapse",
     Explainer(
-        headline="One section of the track loses its bottom end, so the arrangement drops out from underneath at the point people are listening hardest.",
+        # Not "at the point people are listening hardest" any more. This same
+        # explainer now sits under "Intro runs emptier than most intros", where
+        # that clause asserts the opposite of what the finding says — and the
+        # headline is what `report._start_here` prints as the one-line summary,
+        # so the contradiction lands on the first page.
+        headline="One section carries far less bottom end than the rest of the record, and which section it is decides whether that is an arrangement or a fault.",
         what_it_is=(
             "The analysis splits the track into sections and measures each one's low-end "
             "energy as a share of that section's own level, then compares the sections that "
-            "are carrying the record — the ones that are nearly as loud as the loudest, so "
-            "intros and breakdowns are left out of it. Because it is "
+            "are carrying the record — the ones nearly as loud as the loudest. Because it is "
             "a share rather than an absolute, a quiet intro cannot trigger it: quiet parts "
             "being quiet is not a fault. What it catches is a section that is as loud as its "
             "neighbours and has far less bottom under it. Something that was holding up the "
-            "low end stopped doing so there."
+            "low end stopped doing so there.\n\n"
+            "Which section it is decides how loudly this is said. An intro or an outro with "
+            "the bottom pulled back is how arrangements work, so one has to swing about twice "
+            "as far as the rest of the record — and last long enough for anybody to sit in it "
+            "— before it is mentioned at all, and then only as a note. A chorus or a drop is "
+            "the section the record is built to arrive at, so it is held to the genre's own "
+            "figure. Everything in between is reported and asked about, because the "
+            "measurement genuinely cannot tell a written arrangement from a mistake."
         ),
         what_you_hear=(
             "The track suddenly feels smaller and higher, as if the speakers changed size "

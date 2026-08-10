@@ -113,6 +113,36 @@ export interface Evidence {
 }
 
 /**
+ * A question to ask when the measurement cannot tell intent from mistake.
+ *
+ * A quieter low end in an intro, a submerged vocal, a deliberately narrow
+ * image: the analyser can measure all three and cannot tell any of them from
+ * an error. Guessing is what produced "the dominant issue is low end steps back
+ * in intro" on an arrangement that was working exactly as written.
+ *
+ * So it asks. `if_intended` and `if_not` are the two futures of the answer, and
+ * the UI shows the one that applies once the question has been answered — the
+ * promise has to be visible for the answer to be worth giving.
+ */
+export interface Clarification {
+  /** Answerable from memory of the session, without opening the DAW. */
+  question: string;
+  /** What was measured, and why it is ambiguous. */
+  context: string;
+  /** What a yes does to the report. */
+  if_intended: string;
+  /** What a no means, and what to do about it. */
+  if_not: string;
+}
+
+/** One answer on its way back to `POST /reassess`. */
+export interface ClarificationAnswer {
+  finding_id: string;
+  /** `false` clears a previous yes, so an answer can always be changed. */
+  intended: boolean;
+}
+
+/**
  * Is this objectively wrong, or is it just different from the genre reference?
  *
  * A `defect` is wrong regardless of genre, intent or taste: clipping, an
@@ -163,6 +193,22 @@ export interface Finding {
   moments: Moment[];
   impact: number;
   /**
+   * Present when the measurement cannot separate a deliberate choice from a
+   * mistake. Never set on a defect — clipping is not a decision — so a card
+   * carrying one of these is always negotiable, and one without one never is.
+   */
+  clarification?: Clarification | null;
+  /**
+   * The user confirmed this was intentional. It stays in the report as an
+   * observation, with its numbers, and stops counting against the score.
+   *
+   * Set it and the server does the rest: `POST /reassess` re-derives the
+   * dimensions and `scores` around it. Nothing in the UI should zero out a
+   * penalty locally, or there are two places that have to agree what a yes
+   * is worth.
+   */
+  acknowledged: boolean;
+  /**
    * How far outside its window the measurement sits, in tolerance units.
    * 0 = inside, 1.5 = a defect's `major`, 3.0 = a defect's `critical`.
    *
@@ -171,6 +217,36 @@ export interface Finding {
    * distance — sort or emphasise by this, not by `severity` alone.
    */
   miss_ratio: number;
+}
+
+/**
+ * What the numbers actually mean, separated so each one can mean something.
+ *
+ * A single composite conflated two unrelated questions — "is this broken?" and
+ * "does this sound like the genre?" — and the second dominated: a file with no
+ * defects that was ready to master scored D-, while one with two real defects
+ * scored A.
+ *
+ * So there are two. `technical` answers the first question and is the only one
+ * that carries a grade. `reference_match` answers the second and deliberately
+ * has none, because sitting away from a reference is a description and not a
+ * failure. Render it accordingly: no letter, no red.
+ */
+export interface ScoreCard {
+  /** Defects only. 100 means nothing measurably wrong with the render. */
+  technical: number;
+  /** A+ .. F, and only ever about defects. */
+  technical_grade: string;
+  /** Closeness to the genre reference. NOT a quality judgement. */
+  reference_match: number;
+  /** Plain wording, e.g. "Distinctly different from the Trap reference". */
+  reference_label: string;
+  /** The one line worth reading: "Ready to master" / "2 defects to fix first". */
+  headline: string;
+  defects: number;
+  deviations: number;
+  /** Deviations the user confirmed were deliberate. */
+  acknowledged: number;
 }
 
 export interface DimensionScore {
@@ -504,8 +580,16 @@ export interface MixAnalysis {
   filename: string;
   genre: string;
   intent: TrackIntent;
+  /** Legacy composite. Prefer `scores` — see ScoreCard for why. */
   health_score: number;
+  /** A+ .. F, from the legacy composite. */
   grade: string;
+  /**
+   * The split score, and what the report should lead with. Absent on a payload
+   * from a server older than the split, which is the only case where the
+   * legacy composite above is still the best thing on offer.
+   */
+  scores?: ScoreCard | null;
   ceiling_score: number;
   mastering_ready: boolean;
   mastering_blockers: string[];

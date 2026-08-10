@@ -44,6 +44,8 @@ export interface UseAnalysisReturn {
   /** Object URL for the user's own file, so the timeline can play it locally. */
   audioUrl: string | null;
   analyze: (request: AnalyzeRequest) => Promise<void>;
+  /** Swap in a re-scored copy of the report already on screen. */
+  applyAnalysis: (next: MixAnalysis) => void;
   reset: () => void;
 }
 
@@ -250,6 +252,22 @@ export function useAnalysis(): UseAnalysisReturn {
     [abortInflight, clearTimers, consult, releaseAudioUrl],
   );
 
+  /**
+   * Swap in a re-scored report — what `POST /reassess` returns once the
+   * producer has said which findings were deliberate.
+   *
+   * No audio is re-uploaded and nothing is re-measured: the response carries
+   * the same measurements back, with the judgement on top of them updated. The
+   * one thing worth guarding is the write-up, which arrives on its own slower
+   * request and may have landed after the copy that was posted was taken.
+   */
+  const applyAnalysis = useCallback((next: MixAnalysis) => {
+    setAnalysis((current) => {
+      if (!current) return current;
+      return next.engineer ? next : { ...next, engineer: current.engineer };
+    });
+  }, []);
+
   const retryEngineer = useCallback(() => {
     if (!analysis) return;
     void consult(analysis, runRef.current);
@@ -277,6 +295,7 @@ export function useAnalysis(): UseAnalysisReturn {
     retryEngineer,
     audioUrl,
     analyze,
+    applyAnalysis,
     reset,
   };
 }
