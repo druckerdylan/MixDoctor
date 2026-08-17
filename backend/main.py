@@ -76,6 +76,13 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        # The new home. Both apex and www — Vercel serves whichever you set as
+        # primary and redirects the other, but the browser sends Origin from
+        # whatever the user typed, so a missing one is a 403 on your own site.
+        "https://mixdiagnostic.com",
+        "https://www.mixdiagnostic.com",
+        # The Vercel hostnames stay: they keep working after a custom domain is
+        # attached, and preview deployments are served from them.
         "https://mix-doctor.vercel.app",
         "https://mixdoctor.vercel.app",
     ],
