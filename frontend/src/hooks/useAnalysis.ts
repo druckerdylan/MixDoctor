@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { API_BASE } from '../config';
+import { track } from '../lib/analytics';
 import type { AnalysisStatus, EngineerReport, MixAnalysis, TrackIntent } from '../types/analysis';
 
 /** Everything the intake form collects, in one typed payload. */
@@ -197,6 +198,7 @@ export function useAnalysis(): UseAnalysisReturn {
       setEngineerError(null);
       setEngineerStatus('idle');
       setStatus('uploading');
+      track('analysis_started', { genre: request.genre, intent: request.intent ?? 'full_mix' });
 
       const url = URL.createObjectURL(request.file);
       audioUrlRef.current = url;
@@ -231,6 +233,7 @@ export function useAnalysis(): UseAnalysisReturn {
         clearTimers();
         setAnalysis(data);
         setStatus('complete');
+        track('analysis_completed', { grade: data.scores?.technical_grade ?? data.grade ?? '' });
 
         // Results are on screen now; the write-up catches up behind them.
         void consult(data, run);
@@ -247,6 +250,7 @@ export function useAnalysis(): UseAnalysisReturn {
               : 'Something went wrong during analysis.';
         setError(message);
         setStatus('error');
+        track('analysis_failed');
       }
     },
     [abortInflight, clearTimers, consult, releaseAudioUrl],

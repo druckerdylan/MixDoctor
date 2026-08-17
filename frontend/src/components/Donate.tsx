@@ -14,6 +14,7 @@
 import { motion, useReducedMotion } from 'framer-motion';
 
 import { DONATE_IS_KOFI, DONATE_URL } from '../config';
+import { track } from '../lib/analytics';
 
 const EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
@@ -51,6 +52,7 @@ export function DonateLink({ className = '' }: { className?: string }) {
       href={DONATE_URL}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={() => track('donate_clicked')}
       className={`inline-flex items-center gap-1.5 font-mono text-micro uppercase tracking-[0.14em] text-ink-faint transition-colors duration-200 hover:text-signal ${className}`}
     >
       <CupGlyph />
@@ -82,7 +84,7 @@ export function DonatePanel() {
       <div className="max-w-[62ch]">
         <p className="eyebrow mb-2 text-ink-faint">Free to use</p>
         <p className="display text-[17px] leading-snug tracking-[-0.02em] text-ink">
-          MixDoctor doesn&rsquo;t charge for this report.
+          Mix Diagnostic doesn&rsquo;t charge for this report.
         </p>
         <p className="mt-2 text-[13px] leading-relaxed text-ink-muted">
           No account, no upload limit per day, no watermark on the findings. If it saved you an

@@ -59,7 +59,7 @@ async function errorFromResponse(response: Response): Promise<string> {
   return `The server returned ${response.status} while building the document.`;
 }
 
-/** `{track-name}-mixdoctor-report.md`, matching what the backend suggests. */
+/** `{track-name}-mix-diagnostic-report.md`, matching what the backend suggests. */
 export function reportFilename(analysis: MixAnalysis, extension = 'md'): string {
   const stem = (analysis.filename || 'mix').replace(/\.[^.]+$/, '');
   const slug =
@@ -68,7 +68,7 @@ export function reportFilename(analysis: MixAnalysis, extension = 'md'): string 
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '')
       .slice(0, 80) || 'mix';
-  return `${slug}-mixdoctor-report.${extension}`;
+  return `${slug}-mix-diagnostic-report.${extension}`;
 }
 
 /**

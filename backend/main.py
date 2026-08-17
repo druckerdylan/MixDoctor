@@ -65,7 +65,7 @@ if not os.environ.get("ANTHROPIC_API_KEY"):
     )
 
 app = FastAPI(
-    title="MixDoctor API",
+    title="Mix Diagnostic API",
     description="Deep audio mix analysis",
     version="2.0.0",
 )

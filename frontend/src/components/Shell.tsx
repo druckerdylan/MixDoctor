@@ -78,7 +78,7 @@ function Wordmark() {
       <LevelGlyph />
       <span className="display text-[0.95rem] leading-none tracking-[-0.045em] sm:text-base">
         <span className="text-ink">MIX</span>
-        <span className="text-ink-muted">DOCTOR</span>
+        <span className="text-ink-muted">DIAGNOSTIC</span>
       </span>
     </span>
   );
@@ -98,7 +98,7 @@ export default function Shell({ children, actions, onHome }: ShellProps) {
                 type="button"
                 onClick={onHome}
                 className="rounded-md transition-opacity duration-300 ease-cine hover:opacity-80"
-                aria-label="MixDoctor — back to start"
+                aria-label="Mix Diagnostic — back to start"
               >
                 <Wordmark />
               </button>
@@ -122,7 +122,7 @@ export default function Shell({ children, actions, onHome }: ShellProps) {
         <div className="hairline" />
         <div className="mx-auto flex max-w-[1800px] flex-col gap-2 px-4 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-10">
           <p className="font-mono text-micro uppercase tracking-[0.14em] text-ink-faint">
-            MIXDOCTOR — measurement first, opinions second
+            MIX DIAGNOSTIC — measurement first, opinions second
           </p>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
             <p className="font-mono text-micro uppercase tracking-[0.14em] text-ink-faint">
