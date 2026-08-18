@@ -90,7 +90,7 @@ def _num(value: object, nd: int = 2) -> str:
 
     Trailing zeros go, thousands get separators, and anything non-finite
     renders as an em dash rather than `nan` — a table cell reading `nan` looks
-    like a bug in the analyser even when the measurement was simply not taken.
+    like a bug in the analyzer even when the measurement was simply not taken.
     """
     try:
         v = float(value)  # type: ignore[arg-type]
@@ -1840,7 +1840,7 @@ def _start_here(doc: Doc, analysis: MixAnalysis, ordered: List[Finding],
         if question is None:
             doc.p(f"{what} {do}")
         else:
-            # A first move stated flat here would be the analyser guessing
+            # A first move stated flat here would be the analyzer guessing
             # again — the same guess that called a deliberately thin intro the
             # dominant issue. The question comes first and the move is
             # conditional on the answer.
@@ -2006,7 +2006,7 @@ def _deviation_section(doc: Doc, deviations: List[Finding], owned: Sequence[str]
         ])
 
     if analysis.intent in ("beat", "instrumental"):
-        doc.note("note", "This was analysed as a beat", [
+        doc.note("note", "This was analyzed as a beat", [
             "A beat is measured differently from a finished song. A lead tucked under the bed "
             "is a production decision rather than a balance problem, an open midrange is space "
             "somebody else is going to fill, and bursty high-frequency content is read as hats "
@@ -2206,7 +2206,7 @@ def _session_plan(doc: Doc, ordered: List[Finding], owned: Sequence[str],
         "5 min",
     ))
     items.append((
-        "**Re-analyse the bounce and compare.** A revision that measures better is the only "
+        "**Re-analyze the bounce and compare.** A revision that measures better is the only "
         "proof the moves landed.",
         "5 min",
     ))
@@ -2591,7 +2591,7 @@ def _appendix(doc: Doc, analysis: MixAnalysis, genre_label: str, num: _Numbering
     _reference_profile(doc, analysis.genre, genre_label)
 
     if analysis.warnings:
-        doc.h(3, "Analyser notes")
+        doc.h(3, "Analyzer notes")
         doc.ul([_clip(w, 400) for w in analysis.warnings[:10]])
 
 
@@ -2640,7 +2640,7 @@ def _sanitise(analysis: MixAnalysis) -> None:
     The document renders everything through `_inline`, which escapes before it
     marks up, so this is not an injection defence — it is a size defence. The
     payload arrives from the browser and an unbounded string there is an
-    unbounded document here. The limits are far above anything the analyser
+    unbounded document here. The limits are far above anything the analyzer
     itself produces, so real content is never touched.
     """
     analysis.filename = _clip(analysis.filename, 200)

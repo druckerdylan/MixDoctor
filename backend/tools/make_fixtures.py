@@ -25,7 +25,7 @@ window on its own. That is what makes these usable as ground truth: they are
 correct on spectrum, dynamics, loudness and peak at the same time. An earlier
 cut fitted spectrum only, rendered everything near -15 LUFS, and the trap
 reference scored D+ for being 6 LU too quiet — a fixture defect that looked
-exactly like an analyser defect.
+exactly like an analyzer defect.
 """
 
 from __future__ import annotations
@@ -307,7 +307,7 @@ def write_beat_fixture(sr: int = 48_000, dur: float = 30.0) -> None:
 
 # (label, start, end, section level in dB relative to the chorus). The intro
 # sits 6 dB down — thin and quiet, but well inside the 9 LU of the loudest
-# section that decides whether the analyser looks at its low end at all. A quiet
+# section that decides whether the analyzer looks at its low end at all. A quiet
 # intro is already excluded; this one is not quiet enough to be, which is
 # exactly the case that produced the bug.
 _SONG_FORM: Tuple[Tuple[str, float, float, float], ...] = (
@@ -323,7 +323,7 @@ _SONG_FORM: Tuple[Tuple[str, float, float, float], ...] = (
 # level: the intro and outro are sparse, the verses are the working body, the
 # choruses add the lead and the full kit. The intro deliberately carries plenty
 # of mid content — a real thin intro is *arranged* thin, not simply turned
-# down, and it has to stay inside 9 LU of the loudest section or the analyser
+# down, and it has to stay inside 9 LU of the loudest section or the analyzer
 # treats it as a quiet part and never looks at its low end at all.
 _SONG_MIX = {
     "intro":  {"sub": 1.0, "kick": 0.0, "snare": 0.0, "hats": 0.0,

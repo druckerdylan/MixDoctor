@@ -497,7 +497,7 @@ async def knowledge_base() -> Response:
 
 @app.post("/analyze", response_model=MixAnalysis)
 async def analyze(
-    file: UploadFile = File(..., description="Audio file to analyse"),
+    file: UploadFile = File(..., description="Audio file to analyze"),
     genre: str = Form(..., description="Music genre, e.g. 'trap', 'Rock', 'Hip Hop'"),
     intent: str = Form(
         "full_mix",
@@ -523,7 +523,7 @@ async def analyze(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     db: Session = Depends(get_db),
 ) -> MixAnalysis:
-    """Analyse one mix and return the full report.
+    """Analyze one mix and return the full report.
 
     Authentication is optional. When present, the user's plugin list is handed
     to the AI layer so the moves it prescribes name devices they actually own,
@@ -856,7 +856,7 @@ async def reassess(
 ) -> MixAnalysis:
     """Re-score a report against the producer's answers about what was deliberate.
 
-    The analyser can measure that the low end steps back in the intro. It cannot
+    The analyzer can measure that the low end steps back in the intro. It cannot
     measure that you wrote it that way. This is where it stops guessing: each
     ambiguous deviation carries a question, and a yes here marks that finding
     `acknowledged`, drops it out of `scores.reference_match` and out of the

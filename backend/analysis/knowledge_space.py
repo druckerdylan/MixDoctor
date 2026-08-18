@@ -117,7 +117,7 @@ _add(
                 ),
             ),
             FixStep(
-                action="Re-render and re-analyse before you send it anywhere.",
+                action="Re-render and re-analyze before you send it anywhere.",
                 detail=(
                     "A polarity flip can also live in the export path — a hardware insert "
                     "or a bounce through outboard. Only a measurement of the actual "
@@ -453,7 +453,7 @@ _add(
         ),
         how_to_verify=(
             "Fold each band to mono again: the offending band should lose no more than "
-            "about 3 dB, like the rest. Practically, put a spectrum analyser on the master "
+            "about 3 dB, like the rest. Practically, put a spectrum analyzer on the master "
             "and switch between stereo and mono — the shape of the curve should stay the "
             "same and just drop slightly, rather than developing a dent."
         ),
@@ -1151,7 +1151,7 @@ _add(
             ),
         ),
         how_to_verify=(
-            "Watch a spectrum analyser across 30-120 Hz over a bar: the level should pulse "
+            "Watch a spectrum analyzer across 30-120 Hz over a bar: the level should pulse "
             "with the pattern rather than lurching unpredictably between hits. The limiter's "
             "gain reduction should stop spiking on the moments where kick and bass "
             "coincide. And the plain test — play four bars and say out loud what the kick is "
@@ -1413,9 +1413,9 @@ _add(
             FixStep(
                 action="Look at it instead of listening to it.",
                 detail=(
-                    "Put a spectrum analyser on the master and watch the bottom octave "
+                    "Put a spectrum analyzer on the master and watch the bottom octave "
                     "against the rest. Your room is the least reliable thing in the chain "
-                    "down here; the analyser is not affected by where you are sitting."
+                    "down here; the analyzer is not affected by where you are sitting."
                 ),
                 needs="meter_spectrum",
             ),
@@ -1578,7 +1578,7 @@ _add(
             FixStep(
                 action="Find out whether the fundamental exists before boosting anything.",
                 detail=(
-                    "Solo the bass and the kick with a spectrum analyser and look at where "
+                    "Solo the bass and the kick with a spectrum analyzer and look at where "
                     "their energy actually stops. If there is nothing below 60 Hz, no EQ move "
                     "will produce any — you need to add a source, not lift one."
                 ),
@@ -1664,7 +1664,7 @@ _add(
             youtube_search(
                 "how to layer a sub bass under an 808 tutorial",
                 "Adding a fundamental when there is not one",
-                "For the case the analyser confirms — nothing below 60 Hz, so no EQ move can "
+                "For the case the analyzer confirms — nothing below 60 Hz, so no EQ move can "
                 "lift anything. These cover choosing the layer, tracking the notes and "
                 "enveloping it so it only sounds when the bass does.",
             ),
@@ -1740,7 +1740,7 @@ _add(
             FixStep(
                 action="Find the source anyway, rather than leaving the master filter to do the work.",
                 detail=(
-                    "Solo buses with your analyser's range set to show the very bottom. It is "
+                    "Solo buses with your analyzer's range set to show the very bottom. It is "
                     "almost always one track. Fixing it there turns the master filter into a "
                     "safety net instead of a repair, and stops the rumble from driving "
                     "compressors upstream that you will never see it in."
@@ -1953,7 +1953,7 @@ _add(
             ),
         ),
         how_to_verify=(
-            "Play the whole track watching the low band on an analyser and the loud sections "
+            "Play the whole track watching the low band on an analyzer and the loud sections "
             "should carry a similar share of bottom as each other. By ear, loop the boundary: "
             "crossing into the section should feel like the arrangement changed, not like the "
             "playback system changed."

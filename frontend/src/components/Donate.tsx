@@ -88,7 +88,7 @@ export function DonatePanel() {
         </p>
         <p className="mt-2 text-[13px] leading-relaxed text-ink-muted">
           No account, no upload limit per day, no watermark on the findings. If it saved you an
-          hour of squinting at an analyser, you can put something in the jar.
+          hour of squinting at an analyzer, you can put something in the jar.
         </p>
       </div>
 

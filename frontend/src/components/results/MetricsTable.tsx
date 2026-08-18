@@ -1,7 +1,7 @@
 /**
  * MetricsTable — show your work.
  *
- * Everything the analyser actually measured, grouped the way an engineer would
+ * Everything the analyzer actually measured, grouped the way an engineer would
  * look for it. No editorialising, no derived opinions: label, value, unit. Time
  * series are summarised (range and sample count) rather than dumped, because a
  * thousand raw floats is noise, not evidence.

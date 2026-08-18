@@ -61,7 +61,7 @@ export function pendingClarifications(
  * The questions to actually put in front of somebody. At most `limit`.
  *
  * One per dimension first, then fill: two questions about the low end in a set
- * of four reads as the analyser labouring a point, and spreading them means the
+ * of four reads as the analyzer labouring a point, and spreading them means the
  * four cover four different parts of the record.
  */
 export function selectClarifications(

@@ -104,7 +104,7 @@ CAPABILITIES: Dict[str, Tuple[str, str]] = {
     ),
     # --- Measurement --------------------------------------------------------
     "meter_loudness": ("Loudness meter", "LUFS, LRA and true peak readout."),
-    "meter_spectrum": ("Spectrum analyser", "See the balance while working."),
+    "meter_spectrum": ("Spectrum analyzer", "See the balance while working."),
     "meter_correlation": ("Correlation meter", "Watch phase and mono compatibility."),
     "reference_matching": ("Reference tool", "A/B against a commercial record, level-matched."),
     # --- Restoration / pitch -------------------------------------------------

@@ -12,7 +12,7 @@ import { AuthProvider } from './context/AuthContext';
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
-type Phase = 'intake' | 'analysing' | 'results';
+type Phase = 'intake' | 'analyzing' | 'results';
 
 function scrollToIntake() {
   const target = document.getElementById('intake');
@@ -35,14 +35,14 @@ function AppContent() {
   } = useAnalysis();
 
   /**
-   * The last thing the user submitted. Kept in App so the analysing sequence
+   * The last thing the user submitted. Kept in App so the analyzing sequence
    * can name the file and draw its waveform, and so a failed run can put the
    * form back exactly as it was rather than making them re-pick the file.
    */
   const [submission, setSubmission] = useState<IntakeSubmission | null>(null);
 
   const working = status === 'uploading' || status === 'measuring' || status === 'consulting';
-  const phase: Phase = analysis && status === 'complete' ? 'results' : working ? 'analysing' : 'intake';
+  const phase: Phase = analysis && status === 'complete' ? 'results' : working ? 'analyzing' : 'intake';
 
   // Each phase is a different page; land at the top of it.
   useEffect(() => {
@@ -81,7 +81,7 @@ function AppContent() {
       </button>
     ) : phase === 'intake' ? (
       <button type="button" onClick={scrollToIntake} className="btn-ghost whitespace-nowrap px-4 py-2 text-xs">
-        Analyse a mix
+        Analyze a mix
       </button>
     ) : null;
 
@@ -106,8 +106,8 @@ function AppContent() {
           </motion.div>
         )}
 
-        {phase === 'analysing' && (
-          <motion.div key="analysing" {...fade}>
+        {phase === 'analyzing' && (
+          <motion.div key="analyzing" {...fade}>
             <AnalyzingSequence
               status={status}
               filename={submission?.file.name ?? 'Your mix'}

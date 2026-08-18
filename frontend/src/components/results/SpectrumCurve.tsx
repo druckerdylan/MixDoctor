@@ -1,5 +1,5 @@
 /**
- * SpectrumCurve — 1/3-octave analyser with the genre target laid over it.
+ * SpectrumCurve — 1/3-octave analyzer with the genre target laid over it.
  *
  * The single most useful pixel here is the shaded delta between the measured
  * curve and the target: warm where the mix is hot, cool where it is shy. Every

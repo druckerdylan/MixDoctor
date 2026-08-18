@@ -100,7 +100,7 @@ function SpectrumField() {
         ctx.fillRect(i * slot + (slot - barW) / 2, h - bh, barW, bh);
       }
 
-      // Peak-hold trace above the bars — the bright analyser line.
+      // Peak-hold trace above the bars — the bright analyzer line.
       ctx.globalAlpha = 0.55;
       ctx.strokeStyle = gradient;
       ctx.lineWidth = 1.25;
@@ -289,7 +289,7 @@ export default function Landing({ onStart }: LandingProps) {
         <SpectrumField />
 
         {/*
-          Title-card scrim. The analyser runs behind the copy, and at the bottom
+          Title-card scrim. The analyzer runs behind the copy, and at the bottom
           of the hero the bars are dense enough to eat the small format line.
           A left-weighted wash keeps the text column readable while leaving the
           right side of the field fully visible — the same trick a title
@@ -346,7 +346,7 @@ export default function Landing({ onStart }: LandingProps) {
 
           <motion.div variants={item} className="mt-10 flex flex-wrap items-center gap-3">
             <button type="button" onClick={onStart} className="btn-primary">
-              Analyse a mix
+              Analyze a mix
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path
                   d="M5 12h13m0 0-5-5m5 5-5 5"

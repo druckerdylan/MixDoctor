@@ -20,7 +20,7 @@ interface GenreGroup {
 interface IntentOption {
   value: TrackIntent;
   title: string;
-  /** One line, plain. What the file is — not what the analyser will do with it. */
+  /** One line, plain. What the file is — not what the analyzer will do with it. */
   line: string;
 }
 
@@ -52,7 +52,7 @@ const INTENT_OPTIONS: IntentOption[] = [
 /**
  * The promise attached to each choice, shown the moment it is made.
  *
- * Every sentence here names something the analyser actually stops doing or
+ * Every sentence here names something the analyzer actually stops doing or
  * starts doing — these are the intent gates in `detectors.py`, in plain words.
  * If a gate changes there, change the sentence here: an unkept promise on this
  * screen is worse than no promise at all.
@@ -198,7 +198,7 @@ export default function Intake({
   const { count: pluginCount, capabilities: pluginCapabilities } = usePluginVault();
 
   const blocker = useMemo(() => {
-    if (!file) return 'Load a mix to analyse.';
+    if (!file) return 'Load a mix to analyze.';
     if (!genre) return 'Choose a genre — the targets depend on it.';
     return null;
   }, [file, genre]);
@@ -596,7 +596,7 @@ export default function Intake({
               disabled={busy}
               aria-disabled={!ready || busy}
             >
-              {busy ? 'Analysing…' : 'Run analysis'}
+              {busy ? 'Analyzing…' : 'Run analysis'}
               {!busy && (
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path

@@ -116,7 +116,7 @@ export interface Evidence {
  * A question to ask when the measurement cannot tell intent from mistake.
  *
  * A quieter low end in an intro, a submerged vocal, a deliberately narrow
- * image: the analyser can measure all three and cannot tell any of them from
+ * image: the analyzer can measure all three and cannot tell any of them from
  * an error. Guessing is what produced "the dominant issue is low end steps back
  * in intro" on an arrangement that was working exactly as written.
  *

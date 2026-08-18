@@ -48,7 +48,7 @@ interface MacroBand {
   corrFloor: number;
 }
 
-/** Core macro-band order, low to high. Mirrors MACRO_BANDS in the analyser. */
+/** Core macro-band order, low to high. Mirrors MACRO_BANDS in the analyzer. */
 const MACRO_BANDS: MacroBand[] = [
   { key: 'sub', label: 'Sub', lo: 20, hi: 60, widthLimit: 0.18, corrFloor: 0.85 },
   { key: 'low_bass', label: 'Low bass', lo: 60, hi: 120, widthLimit: 0.3, corrFloor: 0.7 },

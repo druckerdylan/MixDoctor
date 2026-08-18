@@ -25,7 +25,7 @@ What this module is careful about
 * **It never invents a source.** An instrumental has no vocal. Demucs still
   emits a `vocals` array for one — full of bleed and artefacts at -40 dB —
   and `present=False` is how we say so instead of reporting a level for it.
-* **It says what it actually analysed.** Over ~6 minutes we separate the
+* **It says what it actually analyzed.** Over ~6 minutes we separate the
   loudest contiguous 3 minutes rather than the whole file, and the warning
   names the span. Same when the time budget runs out mid-way: the excerpt is
   truncated to what genuinely completed and the warning says where.
@@ -490,8 +490,8 @@ def _apply_chunked(
 
     Returns (sources[4, 2, m] float32, samples_done, timed_out, device_used).
     `samples_done` is how much of the input genuinely completed — the caller
-    truncates the excerpt to that, so a blown deadline degrades to "we analysed
-    the first two minutes" instead of "we analysed nothing".
+    truncates the excerpt to that, so a blown deadline degrades to "we analyzed
+    the first two minutes" instead of "we analyzed nothing".
     """
     import torch
     from demucs.apply import apply_model
@@ -631,7 +631,7 @@ def _separate_impl(
     if model is None:
         warnings.append(
             "Stem separation unavailable: the Demucs model could not be loaded "
-            f"({error or 'unknown error'}). The mix was analysed without stems."
+            f"({error or 'unknown error'}). The mix was analyzed without stems."
         )
         return None, warnings
 
@@ -640,8 +640,8 @@ def _separate_impl(
     excerpt_note = ""
     if buf.duration > MAX_FULL_SEC:
         s0, s1 = _loudest_window(buf, EXCERPT_SEC)
-        # Held back until inference actually succeeds: "we analysed the loudest
-        # three minutes" is a lie when we analysed nothing.
+        # Held back until inference actually succeeds: "we analyzed the loudest
+        # three minutes" is a lie when we analyzed nothing.
         excerpt_note = (
             f"Track runs {_mmss(buf.duration)}; separated the loudest "
             f"{_mmss(EXCERPT_SEC)} only ({_mmss(s0 / buf.sr)}-{_mmss(s1 / buf.sr)}). "
@@ -681,7 +681,7 @@ def _separate_impl(
             )
         else:
             warnings.append(
-                "Stem separation produced no output; the mix was analysed without stems."
+                "Stem separation produced no output; the mix was analyzed without stems."
             )
         return None, warnings
 

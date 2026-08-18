@@ -444,7 +444,7 @@ export default function ResultsView({
             onClick={onReset}
             className="btn-ghost shrink-0 px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.13em]"
           >
-            <span className="hidden sm:inline">Analyse another</span>
+            <span className="hidden sm:inline">Analyze another</span>
             <span className="sm:hidden">New</span>
           </button>
         </div>
@@ -654,7 +654,7 @@ export default function ResultsView({
 
           {extraWarnings.length ? (
             <div className="mb-8 rounded-xl border border-void-line/70 p-5">
-              <p className="eyebrow">Analyser notes</p>
+              <p className="eyebrow">Analyzer notes</p>
               <ul className="mt-3 space-y-2">
                 {extraWarnings.map((w, i) => (
                   <li key={`${w}-${i}`} className="flex gap-3">
@@ -689,7 +689,7 @@ export default function ResultsView({
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <button type="button" onClick={onReset} className="btn-primary px-6 py-3 text-sm">
-                  Analyse another mix
+                  Analyze another mix
                 </button>
               </div>
             </div>
@@ -705,7 +705,7 @@ export default function ResultsView({
               </p>
             ) : null}
             <p className="font-mono text-micro uppercase tracking-[0.14em] text-ink-faint">
-              analysed in {Math.round(finite(analysis.analysis_ms))} ms
+              analyzed in {Math.round(finite(analysis.analysis_ms))} ms
             </p>
             <p className="font-mono text-micro uppercase tracking-[0.14em] text-ink-faint">
               schema v{analysis.schema_version}

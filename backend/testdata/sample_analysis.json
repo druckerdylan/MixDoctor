@@ -4350,7 +4350,7 @@
       "order": 1,
       "target": "master and bus inserts",
       "action": "Walk the chain and find the low-pass \u2014 check Decapitator's tone control and VintageVerb's high-cut/damping first.",
-      "tool": "Soundtoys Decapitator / Valhalla VintageVerb (stock: Any spectrum analyser on each bus solo, looking for a slope above 10 kHz)",
+      "tool": "Soundtoys Decapitator / Valhalla VintageVerb (stock: Any spectrum analyzer on each bus solo, looking for a slope above 10 kHz)",
       "settings": {
        "Decapitator Tone": "centre or brighter",
        "VintageVerb High Cut": "18 kHz or off",

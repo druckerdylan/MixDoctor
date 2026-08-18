@@ -59,7 +59,7 @@ const RAIL_MIN = -30;
 const RAIL_MAX = 0;
 const RAIL_TICKS = [-30, -24, -18, -12, -6, 0];
 
-/** Full scale for the masking overlap bar, matching the analyser's own cap. */
+/** Full scale for the masking overlap bar, matching the analyzer's own cap. */
 const OVERLAP_FULL_DB = 24;
 
 /* ------------------------------------------------------------- level zones */
@@ -854,7 +854,7 @@ export default function StemBalance({ stems, genre }: StemBalanceProps) {
                     </span>
                   </div>
 
-                  {/* Magnitude, drawn. Full scale is the analyser's own 24 dB cap. */}
+                  {/* Magnitude, drawn. Full scale is the analyzer's own 24 dB cap. */}
                   <div className="relative mt-3 h-[6px] overflow-hidden rounded-full bg-void-deep">
                     <motion.div
                       className="absolute inset-y-0 left-0 rounded-full"

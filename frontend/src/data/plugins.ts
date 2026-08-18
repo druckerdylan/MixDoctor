@@ -55,7 +55,7 @@ export const CAPABILITY_LABELS: Record<string, string> = {
   transient_shaper: 'Transient shaper',
   // Measurement
   meter_loudness: 'Loudness meter',
-  meter_spectrum: 'Spectrum analyser',
+  meter_spectrum: 'Spectrum analyzer',
   meter_correlation: 'Correlation meter',
   reference_matching: 'Reference tool',
   // Restoration / pitch

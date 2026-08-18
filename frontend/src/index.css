@@ -189,7 +189,7 @@
     background-image: theme('backgroundImage.grade-signal');
   }
 
-  /* Shimmer used by skeletons and the analysing sequence. */
+  /* Shimmer used by skeletons and the analyzing sequence. */
   .shimmer {
     position: relative;
     overflow: hidden;

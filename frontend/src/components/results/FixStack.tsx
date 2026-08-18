@@ -564,7 +564,7 @@ function ProgressHead({
  * Set aside, not swept away. The difference matters: a producer who told the
  * report their intro was written thin should be able to see that the report
  * heard them, and still see the numbers underneath it. A finding that vanished
- * would just look like the analyser had changed its mind.
+ * would just look like the analyzer had changed its mind.
  */
 function SetAsideHeader({ count }: { count: number }) {
   const one = count === 1;
@@ -1150,7 +1150,7 @@ function ConsultBanner({
               ? 'The written plan is switched off on this server.'
               : 'The written plan is unavailable for this run.'}
           </span>{' '}
-          These are the measured findings straight from the analyser — always computed locally,
+          These are the measured findings straight from the analyzer — always computed locally,
           worst first. Every number below came from your file.
         </p>
         {failed && error ? (

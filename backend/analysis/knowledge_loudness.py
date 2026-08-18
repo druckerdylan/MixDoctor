@@ -164,7 +164,7 @@ _add(
             ),
         ),
         how_to_verify=(
-            "Re-analyse: short-term peak-to-loudness should come back inside the genre range "
+            "Re-analyze: short-term peak-to-loudness should come back inside the genre range "
             "and the distortion index should drop. By ear, level-match the two versions — pull "
             "the louder one down until they sound equally loud — and A/B. The backed-off "
             "version should sound bigger on the drums. If it does, the drive was the problem."
@@ -332,13 +332,13 @@ _add(
                 ),
                 needs="meter_loudness",
                 without=(
-                    "Bounce and re-analyse after each round of changes. Slower, but a peak "
+                    "Bounce and re-analyze after each round of changes. Slower, but a peak "
                     "meter genuinely cannot tell you whether this is improving."
                 ),
             ),
         ),
         how_to_verify=(
-            "Re-analyse. Integrated loudness should now reach the genre window with true peak "
+            "Re-analyze. Integrated loudness should now reach the genre window with true peak "
             "still at or below -1.0 dBTP, and crest factor should still be inside the genre "
             "range. That last part matters: if crest has dropped below the range you did not "
             "solve it, you just squashed it, and you now have the opposite problem."
@@ -475,7 +475,7 @@ _add(
                 ),
                 needs="meter_loudness",
                 without=(
-                    "Bounce and re-analyse. A peak meter, a spectrum analyser and your ears "
+                    "Bounce and re-analyze. A peak meter, a spectrum analyzer and your ears "
                     "cannot give you integrated loudness."
                 ),
             ),
@@ -673,7 +673,7 @@ _add(
             ),
         ),
         how_to_verify=(
-            "Re-analyse: crest factor and loudness range back inside the genre range. By ear, "
+            "Re-analyze: crest factor and loudness range back inside the genre range. By ear, "
             "set the monitor level, play from the verse into the chorus and do not touch "
             "anything — the chorus should feel like it grew. And level-match against the old "
             "version before deciding, or the louder one will win regardless."
@@ -818,7 +818,7 @@ _add(
                 ),
                 needs="meter_loudness",
                 without=(
-                    "Bounce and re-analyse before you commit. It is much easier to notice "
+                    "Bounce and re-analyze before you commit. It is much easier to notice "
                     "overshoot in a measurement than by ear during a long session."
                 ),
             ),
@@ -979,7 +979,7 @@ _add(
             ),
         ),
         how_to_verify=(
-            "Re-analyse and the loudest section should sit a couple of LU above the median "
+            "Re-analyze and the loudest section should sit a couple of LU above the median "
             "section. By ear, the stop condition is a fixed monitor level: start playback "
             "thirty seconds before the chorus and do not touch the volume knob. If you do not "
             "feel a change of size when it lands, it is not there yet, no matter what the "
@@ -1152,7 +1152,7 @@ _add(
             ),
         ),
         how_to_verify=(
-            "Re-analyse: micro-dynamics back inside the genre range. By ear, the stop condition "
+            "Re-analyze: micro-dynamics back inside the genre range. By ear, the stop condition "
             "is the stick — at the same monitor level as before, you should be able to hear the "
             "front edge of each kick and snare clearly in the full mix, not just when soloed."
         ),

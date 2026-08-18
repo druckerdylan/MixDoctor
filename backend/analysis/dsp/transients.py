@@ -49,7 +49,7 @@ __all__ = ["measure_transients"]
 
 ONSET_HOP = 512  # librosa frame hop; ~10.7 ms at 48 kHz
 
-# Envelopes are analysed on a common 8 kHz grid: 0.125 ms resolution, far finer
+# Envelopes are analyzed on a common 8 kHz grid: 0.125 ms resolution, far finer
 # than any attack we care to report, and 6x cheaper than working at 48 kHz.
 ENV_SR = 8_000.0
 

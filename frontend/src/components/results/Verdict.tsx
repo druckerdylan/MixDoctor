@@ -341,7 +341,7 @@ export default function Verdict({ analysis, engineerStatus = 'idle' }: VerdictPr
             <span className="eyebrow">{analysis.genre}</span>
           </>
         ) : null}
-        {/* What the analyser assumed the file was. Next to the genre because
+        {/* What the analyzer assumed the file was. Next to the genre because
             the two together are the whole frame the report was written in —
             and because a reader who sees "judged as a full mix" over a beat
             now knows the fix is one radio button, not an argument. */}
@@ -368,7 +368,7 @@ export default function Verdict({ analysis, engineerStatus = 'idle' }: VerdictPr
           /
         </span>
         <span className="stat text-eyebrow uppercase text-ink-faint">
-          analysed in {Math.round(analysis.analysis_ms)}ms
+          analyzed in {Math.round(analysis.analysis_ms)}ms
         </span>
       </motion.div>
 
@@ -592,7 +592,7 @@ export default function Verdict({ analysis, engineerStatus = 'idle' }: VerdictPr
             ) : null}
         </motion.div>
 
-        {/* Analyser warnings — honest about the limits of the measurement. */}
+        {/* Analyzer warnings — honest about the limits of the measurement. */}
         {warnings.length ? (
           <motion.div
             {...rise(0.84)}

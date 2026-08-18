@@ -55,7 +55,7 @@ export function useCapabilities(): Capabilities {
         });
       } catch {
         // An older server has no /capabilities, and an unreachable one will
-        // surface on the analyse call with a better message than anything we
+        // surface on the analyze call with a better message than anything we
         // could show here. Either way: fall back, do not block the form.
         if (alive) setCaps({ ...FALLBACK, loading: false });
       }

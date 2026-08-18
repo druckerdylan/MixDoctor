@@ -897,7 +897,7 @@ export default function PluginVault({ open, onClose }: PluginVaultProps) {
                       <p className="text-sm text-ink">Nothing here yet — the report still works.</p>
                       <p className="mt-2 text-xs leading-relaxed text-ink-muted">
                         Every plan assumes the stock set: a static EQ, a compressor, a limiter, a
-                        gate, reverb, delay, saturation and an analyser. Adding what you own only
+                        gate, reverb, delay, saturation and an analyzer. Adding what you own only
                         changes which of the several right answers you get told about. Two clicks on
                         a bundle above is usually enough.
                       </p>

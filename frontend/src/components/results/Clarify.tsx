@@ -1,7 +1,7 @@
 /**
  * Clarify — the questions the report asks instead of guessing.
  *
- * "The dominant issue is low end steps back in intro" was the analyser reading
+ * "The dominant issue is low end steps back in intro" was the analyzer reading
  * an arrangement as a fault. The measurement was right and the conclusion was
  * invented: an intro written thin and a low end that went missing produce the
  * same number, and nothing in the file separates them.

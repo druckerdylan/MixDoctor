@@ -703,7 +703,7 @@ def measure_stems_stage(
         if not seen:
             warnings.append(
                 "Stem separation was requested but produced no usable sources; the mix "
-                "was analysed from the two-track."
+                "was analyzed from the two-track."
             )
     return stems
 
@@ -1738,7 +1738,7 @@ def analyze_mix_detailed(
         except Exception as exc:
             logger.exception("engine: reference analysis failed")
             warnings.append(
-                f"The reference track could not be analysed ({exc}); the rest of the "
+                f"The reference track could not be analyzed ({exc}); the rest of the "
                 f"report is unaffected."
             )
         timings["reference"] = round((time.perf_counter() - t0) * 1000.0, 1)
@@ -1822,10 +1822,10 @@ def analyze_mix(
     separate_stems: bool = False,
     separation_timeout_s: Optional[float] = None,
 ) -> MixAnalysis:
-    """Analyse one mix end to end.
+    """Analyze one mix end to end.
 
     Raises `core.AudioTooShortError`, `core.SilentAudioError` or `ValueError`
-    for a file that cannot be analysed at all — the API turns those into a 422
+    for a file that cannot be analyzed at all — the API turns those into a 422
     carrying the message. Everything else is caught and downgraded to a warning
     on the returned report.
 

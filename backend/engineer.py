@@ -357,7 +357,7 @@ class EngineerContext:
     def open_questions(self) -> List[Finding]:
         """Findings carrying a question nobody has answered yet.
 
-        The analyser could not tell a decision from a mistake here, and neither
+        The analyzer could not tell a decision from a mistake here, and neither
         can the write-up. These get hedged, not asserted.
         """
         return [
@@ -569,7 +569,7 @@ problem into "you might want to consider possibly". If the low end is a mess, sa
 is a mess, and then say exactly what to do about it.
 
 The other half of that matters just as much, and it is the half that separates an engineer from \
-an analyser: **you do not invent problems.** The people worth paying are the ones who can tell \
+an analyzer: **you do not invent problems.** The people worth paying are the ones who can tell \
 that something unusual was chosen on purpose and say "leave it". Somebody who flags every \
 departure from the norm is not an engineer, they are a spec sheet with opinions.
 
@@ -639,7 +639,7 @@ because it proves you were not listening.
 If a confirmed choice genuinely creates a *separate* problem somewhere else — a real one, in \
 another element — prescribe on that other element and say plainly that the choice itself stays.
 
-**Open questions.** Where the brief lists a finding under *Open questions*, the analyser could \
+**Open questions.** Where the brief lists a finding under *Open questions*, the analyzer could \
 not tell a decision from a mistake and nobody has answered yet. You are in exactly the same \
 position, so do not pretend otherwise and do not pick for them. Write it as a fork: what it \
 means if it was deliberate, and what to do if it was not.
@@ -788,7 +788,7 @@ limiter is working harder too.
 # Causal reasoning
 
 A prescription that says "cut 300 Hz" has told the producer nothing they couldn't get from an \
-analyser. The diagnosis has to explain the mechanism: which elements are doing it, why it \
+analyzer. The diagnosis has to explain the mechanism: which elements are doing it, why it \
 produces the symptom they're hearing, and why you're treating one element rather than another.
 
 Weak: "There is excess energy around 300 Hz. Cut 300 Hz on the master with a wide Q."
@@ -799,7 +799,7 @@ pad there, not the bass: the bass is carrying the groove and the pad is only car
 atmosphere, so the pad can lose that region without anyone noticing it left."
 
 The second one tells the producer *which* element to treat and *why that one*, which is the \
-entire difference between advice and a spectrum analyser with a chat bubble.
+entire difference between advice and a spectrum analyzer with a chat bubble.
 
 # Every move must be executable tonight
 
@@ -1261,8 +1261,8 @@ def _confirmed_section(ctx: EngineerContext) -> str:
 def _open_questions_section(ctx: EngineerContext) -> str:
     """Findings where the measurement cannot tell a decision from a mistake.
 
-    The analyser wrote a question for each and nobody has answered yet, so the
-    write-up is in the same position the analyser was: it does not know. The
+    The analyzer wrote a question for each and nobody has answered yet, so the
+    write-up is in the same position the analyzer was: it does not know. The
     honest form of that is a fork with both branches written out, not a guess
     delivered with confidence.
     """
@@ -1322,7 +1322,7 @@ def _header(ctx: EngineerContext) -> str:
         f"**Duration:** {int(mins)}:{secs:04.1f}",
         f"**Source:** {'mono' if m.is_mono else 'stereo'}, {int(m.original_sample_rate)} Hz"
         + (f", {int(m.bit_depth)}-bit" if m.bit_depth else ""),
-        f"**Analysed at:** {int(m.sample_rate)} Hz",
+        f"**Analyzed at:** {int(m.sample_rate)} Hz",
     ]
     if ctx.mastering_ready is not None:
         bits.append(f"**Mastering-ready:** {_yn(ctx.mastering_ready)}")

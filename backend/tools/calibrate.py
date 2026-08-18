@@ -195,7 +195,7 @@ def _grid_bias_db() -> Dict[float, float]:
     the rounding dominates. Above it there are dozens of bins per band and the
     error falls below a hundredth of a decibel.
 
-    The bias is identical for every file measured through this analyser, so it
+    The bias is identical for every file measured through this analyzer, so it
     never widens the corpus IQR — it offsets the fitted median of the affected
     bands by a fixed amount, which is why the report and the self-test hold those
     bands to a different standard instead of silently averaging the error in.
@@ -845,7 +845,7 @@ def render_report(fit: CorpusFit) -> str:
         grid_only = flagged_b and all(b.is_grid_limited for b in flagged_b)
         if grid_only:
             add("")
-            add("**Every flagged band is one this analyser cannot measure without a known "
+            add("**Every flagged band is one this analyzer cannot measure without a known "
                 "bias.** On this corpus the hand-set curve is not contradicted anywhere "
                 "the measurement can speak for itself.")
         if flagged_b:
@@ -1013,7 +1013,7 @@ def render_report(fit: CorpusFit) -> str:
         "so it offsets the fitted median of the starred bands by a fixed amount and "
         "leaves the spread untouched. **Do not move `targets.py` toward the fitted value "
         "in a starred band without subtracting the bias first.** The hand-set anchors "
-        "describe acoustic reality; the fitted ones describe what this analyser "
+        "describe acoustic reality; the fitted ones describe what this analyzer "
         "measures, and in those bands the two are not the same statement. Everywhere "
         "else they are directly comparable and the fitted value is the better number."
     ))

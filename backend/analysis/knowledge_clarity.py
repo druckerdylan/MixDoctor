@@ -203,7 +203,7 @@ _add(
             "until the two feel equally loud. The fix is working when the new version "
             "sounds quieter AND more detailed at the same time. Then play at conversation "
             "volume and try to follow one background part for a full bar without turning "
-            "anything up; if you can, you are done. Re-analyse and the masking index should "
+            "anything up; if you can, you are done. Re-analyze and the masking index should "
             "sit inside your genre's ceiling with worst-band congestion coming down with it."
         ),
         learn_more=(
@@ -275,7 +275,7 @@ _add(
             "of 'something in the low mids is buried', it can say which part is doing it to "
             "which. That is a direct measurement of the two sources, and it is why this reads "
             "as a named pair rather than a region.\n\n"
-            "Note what this means about your spectrum analyser: it will show nothing. This "
+            "Note what this means about your spectrum analyzer: it will show nothing. This "
             "finding typically fires precisely when the spectrum of the finished mix looks "
             "healthy. Your ear resolves pitch in bands rather than continuously, and two parts "
             "stacked inside one of those bands add up to a single, perfectly reasonable-looking "
@@ -598,7 +598,7 @@ _add(
             "Turn the monitors DOWN to conversation level. The kick and snare should still "
             "read as strikes and the groove should still pull; if the drums vanish into the "
             "track at low volume, the contrast is still not there. Solo the drum bus and listen "
-            "for audible drop-away between hits. Then re-analyse: punch should clear your "
+            "for audible drop-away between hits. Then re-analyze: punch should clear your "
             "genre's floor, the weakest band should come up with it, and attack time should "
             "not have gone the wrong way. Trim the two bounces to the same apparent loudness "
             "before you judge by ear — the punchier version will usually measure quieter, and "
@@ -812,7 +812,7 @@ _add(
         how_to_verify=(
             "Play it to conversation level on the worst speaker you own — a phone is ideal — "
             "and check you can follow every line. The stricter test: play it to someone who has "
-            "not heard the song and ask them to tell you the first verse back. Re-analyse and "
+            "not heard the song and ask them to tell you the first verse back. Re-analyze and "
             "the vocal-to-instrument ratio should sit inside your genre's window with the "
             "intelligibility index coming up alongside it. If you fixed it by cutting other "
             "parts rather than raising the vocal, your peak level should also have dropped "
@@ -984,7 +984,7 @@ _add(
             "At conversation volume the vocal should still be completely intelligible but "
             "should no longer be the only thing you notice — you should be able to follow the "
             "bass line without effort while the vocal is singing. Level-matched against a "
-            "genre reference, the vocal should sit at a similar distance. Re-analyse: the "
+            "genre reference, the vocal should sit at a similar distance. Re-analyze: the "
             "ratio inside the genre window, and master limiter gain reduction lower than "
             "before at the same output."
         ),
@@ -1165,7 +1165,7 @@ _add(
             "Listen through once at conversation volume with your hand off the mouse and note "
             "every point where you strain or wince. Fewer than two in a full song is finished. "
             "Then check it in the car or on a phone, which is where inconsistency is most "
-            "brutal. Re-analyse: the vocal's level spread should fall inside your genre's "
+            "brutal. Re-analyze: the vocal's level spread should fall inside your genre's "
             "allowance and the intelligibility index should clear its floor — and if only one "
             "of those two moved, you fixed the wrong half."
         ),

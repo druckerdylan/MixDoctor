@@ -1,4 +1,4 @@
-"""The questions the analyser asks instead of guessing.
+"""The questions the analyzer asks instead of guessing.
 
 A measurement can tell you that the bottom end steps back in the intro. It
 cannot tell you that the intro is *supposed* to have no bottom end. Those two
@@ -6,7 +6,7 @@ facts look identical from the file, and reporting the first as though it were
 evidence of the second is how "the dominant issue is low end steps back in
 intro" ends up at the top of a report about an arrangement that is working.
 
-So the analyser asks. Every **deviation** whose measurement cannot separate a
+So the analyzer asks. Every **deviation** whose measurement cannot separate a
 decision from a mistake carries a `Clarification`: one question, answerable
 without opening the session, plus what a yes does to the report and what a no
 means.
@@ -258,7 +258,7 @@ def _q_section_collapse(f: Finding, genre: str) -> Clarification:
     # Two evidence rows, "Low-end share in <weakest>" then "... in <strongest>",
     # in that order. The names matter more than the numbers here: a question
     # that says "against the chorus" is about the record, and one that says
-    # "against the strongest section" is about the analyser.
+    # "against the strongest section" is about the analyzer.
     shares = [
         row for row in (f.evidence or [])
         if str(row.label).lower().startswith("low-end share in ")
@@ -854,7 +854,7 @@ def _q_sibilance(f: Finding, genre: str) -> Clarification:
         context=(
             f"The 5-9 kHz band bursts"
             + (f" at {index}" if index else "")
-            + " on what the analyser reads as consonants rather than percussion. A "
+            + " on what the analyzer reads as consonants rather than percussion. A "
             "deliberately crisp, close vocal and one that needs de-essing sit at the "
             "same reading — the index cannot hear the difference between air you "
             "wanted and an 'ess' that spits."
@@ -1346,7 +1346,7 @@ def select(findings: Sequence[Finding], limit: int = ASK_LIMIT) -> List[Finding]
     answer is "yes, on purpose", those are the ones that change the report most.
 
     One per dimension first, then fill. Two questions about the low end in a set
-    of four reads as the analyser labouring a point; spreading them means the
+    of four reads as the analyzer labouring a point; spreading them means the
     four cover four different parts of the record.
 
     The API and the UI both call this, so the set of questions a user is shown

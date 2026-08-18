@@ -217,11 +217,11 @@ _add(
                 action="Check the signal path after the limiter.",
                 detail=(
                     "Anything adding gain downstream undoes the ceiling — a trim, an "
-                    "analyser with output gain, or normalisation in the bounce dialogue."
+                    "analyzer with output gain, or normalisation in the bounce dialogue."
                 ),
             ),
             FixStep(
-                action="Re-render and re-analyse rather than trusting the meter in the session.",
+                action="Re-render and re-analyze rather than trusting the meter in the session.",
                 detail=(
                     "The in-session meter is reading the same samples again. Only a fresh "
                     "measurement of the rendered file tells you what actually shipped."
@@ -229,7 +229,7 @@ _add(
             ),
         ),
         how_to_verify=(
-            "Re-analyse the bounced file: true peak should read -1.0 dBTP or below. If your "
+            "Re-analyze the bounced file: true peak should read -1.0 dBTP or below. If your "
             "limiter has a true-peak meter, it should never light an inter-sample over "
             "across a full playthrough."
         ),

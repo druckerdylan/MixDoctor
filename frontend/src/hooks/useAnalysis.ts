@@ -80,7 +80,7 @@ async function errorFromResponse(response: Response): Promise<string> {
     // Non-JSON body (a proxy 502 page, a gateway timeout) — fall through.
   }
   if (response.status === 413) return 'That file is too large for the server to accept.';
-  if (response.status === 504) return 'The server timed out while analysing. Try a shorter excerpt.';
+  if (response.status === 504) return 'The server timed out while analyzing. Try a shorter excerpt.';
   return `Analysis failed (HTTP ${response.status} ${response.statusText || 'error'}).`;
 }
 

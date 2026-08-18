@@ -229,7 +229,7 @@ _add(
         what_it_is=(
             "2 to 5 kHz is the region your ear is most sensitive to, and this measurement is "
             "deliberately not 'is that region loud'. It asks how far the region stands above the "
-            "line its own neighbours draw: the analyser looks at the span below it and the span "
+            "line its own neighbours draw: the analyzer looks at the span below it and the span "
             "above it, works out the slope your mix is on, and measures the departure. A mix "
             "with an ordinary smooth downward tilt scores near zero no matter how bright it is. "
             "A mix with a shelf or a spike sitting on top of that slope scores high even if it "
@@ -602,7 +602,7 @@ _add(
         ),
         what_it_is=(
             "This is the same measurement that finds sibilance, reported honestly about a "
-            "different source. The analyser looks at 5-9 kHz and asks how much louder the "
+            "different source. The analyzer looks at 5-9 kHz and asks how much louder the "
             "loudest frames are than the typical ones. A steady shimmer of cymbals and room "
             "scores near zero however bright the mix is; something that arrives in short, hard "
             "bursts scores high. An 's' does that — and so does a closed hi-hat, a shaker, a "
@@ -922,7 +922,7 @@ _add(
                 ),
             ),
             FixStep(
-                action="Check the result on an analyser rather than by ear.",
+                action="Check the result on an analyzer rather than by ear.",
                 detail=(
                     "Very few rooms and very few headphones tell the truth down here. Watch the "
                     "bottom of the spectrum while the track plays: what you are looking for is "
@@ -933,7 +933,7 @@ _add(
             ),
         ),
         how_to_verify=(
-            "Re-analyse and the sub band should sit inside the window for your genre — hip-hop, "
+            "Re-analyze and the sub band should sit inside the window for your genre — hip-hop, "
             "trap and EDM are allowed far more here than rock, acoustic or jazz, and the "
             "tolerance is wider too, because this is where those genres actually differ. The "
             "more convincing test is loudness: with the same limiter settings the whole mix "
@@ -1021,7 +1021,7 @@ _add(
             FixStep(
                 action="Establish whether it is missing or just inaudible to you.",
                 detail=(
-                    "Look at the bottom of a spectrum analyser while the track plays. If there "
+                    "Look at the bottom of a spectrum analyzer while the track plays. If there "
                     "is energy moving with the bass notes, your monitoring is the problem and "
                     "you should trust the meter. If the region is flat and empty, the content is "
                     "genuinely not there and the rest of these steps apply."
@@ -1068,7 +1068,7 @@ _add(
             ),
         ),
         how_to_verify=(
-            "Re-analyse: the sub band should land inside your genre's window, which is a very "
+            "Re-analyze: the sub band should land inside your genre's window, which is a very "
             "different number for trap than for folk. Then confirm it physically — play it in a "
             "car or on a system with a real woofer, and the kick should feel like an impact "
             "rather than a tap. One more check: put a high-pass at 80 Hz across the master and "
@@ -1222,7 +1222,7 @@ _add(
         ),
         how_to_verify=(
             "Play a section with a moving bassline and check that you can hum it. If every note "
-            "sounds like the same weight, the region is still uncontrolled. Re-analyse: the low "
+            "sounds like the same weight, the region is still uncontrolled. Re-analyze: the low "
             "bass band should sit inside your genre's tolerance, which is a touch wider for "
             "hip-hop and trap than for anything else. Watch your limiter as well — it should now "
             "be reacting to the whole mix rather than lurching on every kick."
@@ -1235,7 +1235,7 @@ _add(
             "the peaks and nulls are metres apart. This is why the low end is the region where "
             "monitoring failures cause the most damage: you are not making a mistake of taste, "
             "you are correcting for something that only exists in your chair. Nulls are the "
-            "dangerous ones, because they make you add. Headphones, a spectrum analyser and a "
+            "dangerous ones, because they make you add. Headphones, a spectrum analyzer and a "
             "reference track are all immune to the room, and using all three is cheaper than "
             "treating it."
         ),
@@ -1364,7 +1364,7 @@ _add(
             ),
         ),
         how_to_verify=(
-            "Re-analyse and the low-bass band should come back inside the window for your genre. "
+            "Re-analyze and the low-bass band should come back inside the window for your genre. "
             "By ear, the kick should read as a hit with a short decay rather than a click, and "
             "you should be able to feel the rhythm of the bassline as well as follow its pitch. "
             "If the mix now sounds boomy on your speakers but correct on headphones, your room "
@@ -1493,7 +1493,7 @@ _add(
         ),
         how_to_verify=(
             "Play the fullest section and count instruments. You should be able to point at each "
-            "one, and the bass should have distinguishable notes. Re-analyse: the upper-bass "
+            "one, and the bass should have distinguishable notes. Re-analyze: the upper-bass "
             "band should sit inside your genre's tolerance, which is tight here in every genre — "
             "this is not a region where much variation is allowed, because it is where "
             "everything overlaps. If the mix now sounds clear but small, you cut too much in one "
@@ -1633,7 +1633,7 @@ _add(
         how_to_verify=(
             "A/B against a released track in your genre at matched loudness and listen "
             "specifically to whether voices and guitars sound like the same physical size on "
-            "both. Re-analyse: the band should land inside the tolerance for your genre — metal "
+            "both. Re-analyze: the band should land inside the tolerance for your genre — metal "
             "and some EDM curves genuinely scoop here, so the target is not the same everywhere, "
             "and if this fired on one of those you are below even the scooped expectation. Watch "
             "for the opposite failure: if the mix gets warm but covered, you have gone past the "
@@ -1764,7 +1764,7 @@ _add(
         how_to_verify=(
             "Listen to the snare and the vocal in the full mix. The snare should sound like a "
             "drum with a head rather than a struck box, and the vocal should sound like it is in "
-            "the room with you rather than in front of a wall. Re-analyse: the low-mid band "
+            "the room with you rather than in front of a wall. Re-analyze: the low-mid band "
             "should come back inside your genre's tolerance — noting that lo-fi deliberately "
             "allows a great deal here, because in that style the box is the aesthetic. If the "
             "mix now sounds clean but weightless, you cut too wide."
@@ -1909,7 +1909,7 @@ _add(
         ),
         how_to_verify=(
             "Play the loudest section against a reference at matched loudness. Yours should not "
-            "sound noticeably smaller. Re-analyse: the band should sit inside your genre's "
+            "sound noticeably smaller. Re-analyze: the band should sit inside your genre's "
             "window, remembering that metal genuinely scoops here and lo-fi genuinely piles it "
             "on, so the target you are being held to is not a universal one. The failure "
             "direction to watch for is boxiness — if the mix stops being thin and starts "
@@ -2039,7 +2039,7 @@ _add(
             "Play the mix on a laptop or phone speaker, which reproduce almost nothing but this "
             "band. It should sound balanced rather than shouty. Then check on your monitors that "
             "the instruments still sound like themselves — if the guitars have become vague or "
-            "the vocal has lost character, the cut is too deep or too wide. Re-analyse: the mid "
+            "the vocal has lost character, the cut is too deep or too wide. Re-analyze: the mid "
             "band should be inside your genre's tolerance, which is one of the tightest in the "
             "set, because this is where the ear is least forgiving of error in either direction."
         ),
@@ -2176,7 +2176,7 @@ _add(
         how_to_verify=(
             "Play it on a phone speaker and on your monitors within a minute of each other. The "
             "phone version should sound like a complete, if small, record — not like a distant "
-            "one. Re-analyse: the mid band should sit inside your genre's tolerance, which is "
+            "one. Re-analyze: the mid band should sit inside your genre's tolerance, which is "
             "the tightest in the set because this is where errors are least forgivable. Then "
             "check for the opposite failure: if the mix has become honky or the instruments have "
             "started to blur together, you have overshot."
@@ -2302,7 +2302,7 @@ _add(
         how_to_verify=(
             "Play the loudest section at a volume slightly above comfortable. It should sound "
             "energetic rather than strained, and a sung line should still sound like a person "
-            "singing rather than a person shouting. Re-analyse: the upper-mid band should sit "
+            "singing rather than a person shouting. Re-analyze: the upper-mid band should sit "
             "inside your genre's tolerance, which is one of the tightest, and check the "
             "harshness reading at the same time — the two problems often travel together and "
             "fixing this one partially fixes that one."
@@ -2428,7 +2428,7 @@ _add(
         how_to_verify=(
             "Play the track at conversation level and see whether you can follow the lyric "
             "without effort. Then check on a phone: definition should survive the transition, "
-            "because this band is one of the few a phone reproduces. Re-analyse for the band "
+            "because this band is one of the few a phone reproduces. Re-analyze for the band "
             "inside your genre's tolerance — and watch the harshness index while you do it, "
             "because the failure mode of fixing this is pushing into the region above and "
             "trading distance for glare."
@@ -2564,7 +2564,7 @@ _add(
         ),
         how_to_verify=(
             "Listen to the full mix at a comfortable level for a couple of minutes without "
-            "touching the volume. If you find yourself lowering it, you are not done. Re-analyse "
+            "touching the volume. If you find yourself lowering it, you are not done. Re-analyze "
             "for the presence band inside the tolerance for your genre, and check the harshness "
             "index at the same time — if the level came down and harshness did not, there is a "
             "peak inside the band that a broad move will never reach."
@@ -2718,7 +2718,7 @@ _add(
         how_to_verify=(
             "Play the track at conversation level and follow the lyric without reading it. Then "
             "check that the lead's fader can come back down a decibel and still be perfectly "
-            "clear — that is the proof you fixed presence rather than level. Re-analyse for the "
+            "clear — that is the proof you fixed presence rather than level. Re-analyze for the "
             "band inside your genre's tolerance, and keep an eye on the harshness and sibilance "
             "readings while you do it, because the failure mode of this fix is adding edge and "
             "spit along with the clarity."
@@ -2866,7 +2866,7 @@ _add(
         ),
         how_to_verify=(
             "Play the busiest section and see whether your attention goes to the song or to the "
-            "cymbals. Then check on earbuds, where this band is most exposed. Re-analyse for the "
+            "cymbals. Then check on earbuds, where this band is most exposed. Re-analyze for the "
             "brilliance band inside your genre's tolerance — lo-fi allows enormously less here "
             "than EDM or pop, because a rolled-off top is that style rather than a fault — and "
             "check the sibilance reading at the same time, since the two usually move together."
@@ -2882,7 +2882,7 @@ _add(
             "between models. The practical consequence is that this is the region where you "
             "should trust a measurement and a reference track more than your ears alone — not "
             "because your ears are wrong, but because they are one sample from a distribution "
-            "with a very wide spread, and the analyser is at least the same instrument every "
+            "with a very wide spread, and the analyzer is at least the same instrument every "
             "time."
         ),
         minutes=20,
@@ -2950,7 +2950,7 @@ _add(
             FixStep(
                 action="Check whether the content exists before boosting.",
                 detail=(
-                    "Watch the analyser across the band while the busiest section plays. If "
+                    "Watch the analyzer across the band while the busiest section plays. If "
                     "there is content and it is simply low, a shelf will work. If the region is "
                     "close to empty, boosting only raises noise, and you need to generate "
                     "harmonics instead."
@@ -3000,7 +3000,7 @@ _add(
         ),
         how_to_verify=(
             "A/B against a released track in your genre at matched loudness and listen only to "
-            "the cymbals and the room. Yours should have shape rather than wash. Re-analyse for "
+            "the cymbals and the room. Yours should have shape rather than wash. Re-analyze for "
             "the brilliance band inside your genre's window — remembering that lo-fi is allowed "
             "a great deal of darkness here and does not need this fixing. Check sibilance at the "
             "same time: the most common way this repair goes wrong is trading dullness for spit."
@@ -3012,7 +3012,7 @@ _add(
             "louder noise. Distortion is a non-linear process, and non-linearity generates new "
             "frequencies that were not in the input — multiples of what went in. That is why a "
             "saturator or an exciter can bring apparent top end back to a dull source and an EQ "
-            "cannot, and why the two sound different even when the analyser shows a similar "
+            "cannot, and why the two sound different even when the analyzer shows a similar "
             "curve: the harmonics from distortion are locked to the source material, appearing "
             "and disappearing with it, whereas an EQ boost is a fixed lift applied to whatever "
             "happens to be there, including hiss between the notes. Program-dependent brightness "
@@ -3089,7 +3089,7 @@ _add(
             FixStep(
                 action="Establish whether it is music or noise.",
                 detail=(
-                    "Watch the top of the analyser during a gap or a fade. Real air moves with "
+                    "Watch the top of the analyzer during a gap or a fade. Real air moves with "
                     "the cymbals and the vocal; noise sits at a constant level regardless of "
                     "what is playing. If it is constant, no EQ curve is the right fix — you have "
                     "a noise problem, not a balance problem."
@@ -3143,7 +3143,7 @@ _add(
         ),
         how_to_verify=(
             "Listen to a quiet passage or a tail on headphones at a slightly higher level than "
-            "usual. There should be no constant hiss underneath it. Re-analyse for the air band "
+            "usual. There should be no constant hiss underneath it. Re-analyze for the air band "
             "inside your genre's window, which is generous for EDM and cinematic work and very "
             "tight for lo-fi. And listen once more to the cymbals: they should sound like metal "
             "rather than glass, which is the perceptual difference between harmonics and "
@@ -3244,7 +3244,7 @@ _add(
             FixStep(
                 action="Look for a cliff before you look for a curve.",
                 detail=(
-                    "On an analyser, real content fades away gradually toward 20 kHz. A vertical "
+                    "On an analyzer, real content fades away gradually toward 20 kHz. A vertical "
                     "wall at a fixed frequency is a codec or a filter, not a mix decision. Find "
                     "which channel has it by soloing candidates — it is usually one sample or "
                     "one stem, and no processing recovers what a codec threw away."
@@ -3304,7 +3304,7 @@ _add(
         ),
         how_to_verify=(
             "A/B against a released track at matched loudness and listen for space around the "
-            "sounds rather than for brightness. Re-analyse for the air band inside your genre's "
+            "sounds rather than for brightness. Re-analyze for the air band inside your genre's "
             "window — the tolerance up here is the widest of any band precisely because opinion "
             "varies, and lo-fi is allowed to have essentially none. Then check the sibilance "
             "index and a quiet passage: if the esses got sharper or a hiss appeared, you bought "
@@ -3328,7 +3328,7 @@ _add(
             "Lossy codecs discard what a psychoacoustic model predicts you will not hear, and "
             "one of their first economies is to low-pass the signal — MP3 at moderate bitrates "
             "typically throws away everything above about 16 kHz. That leaves a vertical cliff "
-            "on an analyser, and the cliff is a reliable fingerprint: no microphone, instrument "
+            "on an analyzer, and the cliff is a reliable fingerprint: no microphone, instrument "
             "or filter you would deliberately use produces a wall that steep at one frequency. "
             "A slope is taste; a wall is a codec. If you find a wall, the missing air is the "
             "least of it — the same encode left pre-echo on transients and quantisation noise "
