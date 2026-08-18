@@ -260,7 +260,16 @@ function MeasuredStrip() {
 /* Landing                                                             */
 /* ------------------------------------------------------------------ */
 
-const UNITS = ['LUFS', 'dBTP', 'LRA', 'PSR', 'CORRELATION', '1/3-OCTAVE', 'CREST'];
+/* Plain word first, unit second. The acronyms are the credibility signal for
+   engineers, but on cold traffic they arrived before the payoff did. */
+const UNITS: ReadonlyArray<readonly [string, string]> = [
+  ['Loudness', 'LUFS'],
+  ['True peak', 'dBTP'],
+  ['Dynamics', 'LRA · PSR'],
+  ['Phase', 'CORRELATION'],
+  ['Frequency balance', '1/3-OCTAVE'],
+  ['Transients', 'CREST'],
+];
 
 export interface LandingProps {
   /** Scrolls to / focuses the intake form. */
@@ -315,8 +324,8 @@ export default function Landing({ onStart }: LandingProps) {
             <p className="eyebrow text-ink-dim">Mix diagnostics · 14 dimensions</p>
           </motion.div>
 
-          <motion.h1 variants={item} className="display mt-7 max-w-[16ch] text-display-xl text-ink">
-            Every flaw,
+          <motion.h1 variants={item} className="display mt-7 max-w-[20ch] text-display-xl text-ink">
+            Every flaw in your mix,
             <br />
             <span className="text-gradient">timestamped.</span>
           </motion.h1>
@@ -325,28 +334,30 @@ export default function Landing({ onStart }: LandingProps) {
             variants={item}
             className="mt-8 max-w-[58ch] text-base leading-relaxed text-ink-dim sm:text-lg"
           >
-            Upload a bounce. Fourteen measurement passes — loudness, true peak, phase, masking,
-            kick-versus-808 collision, transient smear — scored against your genre&rsquo;s targets,
-            with the exact moves that fix them and the second of the track where it goes wrong.
+            Upload your mix. You get back what is wrong, where it happens and how to fix it —
+            fourteen measurement passes (loudness, true peak, phase, masking, kick-versus-808
+            collision, transient smear) scored against your genre&rsquo;s targets, each tied to the
+            second of the track where it goes worst.
           </motion.p>
 
           <motion.ul
             variants={item}
             className="no-scrollbar mask-fade-r mt-8 flex gap-2 overflow-x-auto pb-1"
           >
-            {UNITS.map((unit) => (
+            {UNITS.map(([name, unit]) => (
               <li
-                key={unit}
-                className="shrink-0 rounded-full border border-void-line bg-void-panel/60 px-3 py-1.5 font-mono text-micro uppercase text-ink-muted"
+                key={name}
+                className="shrink-0 rounded-full border border-void-line bg-void-panel/60 px-3 py-1.5 text-micro text-ink-muted"
               >
-                {unit}
+                {name}
+                <span className="ml-1.5 font-mono uppercase text-ink-faint">{unit}</span>
               </li>
             ))}
           </motion.ul>
 
           <motion.div variants={item} className="mt-10 flex flex-wrap items-center gap-3">
             <button type="button" onClick={onStart} className="btn-primary">
-              Analyze a mix
+              Get my mix report
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path
                   d="M5 12h13m0 0-5-5m5 5-5 5"
@@ -357,8 +368,11 @@ export default function Landing({ onStart }: LandingProps) {
                 />
               </svg>
             </button>
-            <a href="#measured" className="btn-ghost">
-              What gets measured
+            <a
+              href="#measured"
+              className="text-sm text-ink-dim underline underline-offset-4 transition-colors hover:text-ink"
+            >
+              See the 14 checks
             </a>
           </motion.div>
 

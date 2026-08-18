@@ -71,7 +71,7 @@ const INTENT_AS: Record<TrackIntent, string> = {
 
 const INTENT_PROMISE: Record<TrackIntent, string> = {
   full_mix:
-    'Everything is measured, the lead vocal’s level against the music among it. This is the strictest reading — a finished song is held to the whole checklist.',
+    'Everything is measured, the lead vocal’s level against the music around it. This is the strictest reading — a finished song is held to the whole checklist.',
   beat:
     'The lead is meant to be absent or tucked, so nothing here will call that a fault. Bursty top end is read as hi-hats, shakers and rim clicks rather than vocal sibilance. Mids sitting light is the pocket you left for the topline, not a hole in the mix. And nobody tells you it hasn’t been mastered — that headroom is the room the vocalist needs.',
   instrumental:
@@ -596,7 +596,7 @@ export default function Intake({
               disabled={busy}
               aria-disabled={!ready || busy}
             >
-              {busy ? 'Analyzing…' : 'Run analysis'}
+              {busy ? 'Analyzing…' : 'Analyze my mix'}
               {!busy && (
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path
