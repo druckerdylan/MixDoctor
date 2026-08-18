@@ -71,7 +71,7 @@ FLAT_RUN_MIN_SAMPLES = 4  # shorter than this, flatness can't be told from luck
 FLAT_RUN_REPORT_MIN = 3   # `flat_run_count` counts runs longer than this
 
 OVERSAMPLE = 4            # BS.1770-4 Annex 2
-HF_SPLIT_HZ = 10_000.0    # clipping products land above the programme material
+HF_SPLIT_HZ = 10_000.0    # clipping products land above the program material
 DISTORTION_FULL_SCALE_DB = 8.0  # HF excess mapping to distortion_index 1.0
 MAX_EVENTS = 12
 DB_FLOOR = -120.0

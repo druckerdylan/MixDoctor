@@ -5,7 +5,7 @@
  * browser, so the figure is a parametric Lissajous built from the measured
  * correlation and width: two cosines phase-offset by acos(correlation),
  * plotted as mid (vertical) against side (horizontal) exactly like a real
- * vectorscope. It is a faithful *picture of the numbers* and it is labelled as
+ * vectorscope. It is a faithful *picture of the numbers* and it is labeled as
  * such — it is never presented as live audio.
  */
 
@@ -29,7 +29,7 @@ const SEV_CLASS: Record<Severity, string> = {
   clean: 'sev-clean',
 };
 
-/** Shape as well as hue — severity is never carried by colour alone. */
+/** Shape as well as hue — severity is never carried by color alone. */
 const SEV_GLYPH: Record<Severity, string> = {
   critical: '▲',
   major: '●',
@@ -42,7 +42,7 @@ interface MacroBand {
   label: string;
   lo: number;
   hi: number;
-  /** Above this width the band is smearing energy that should be centred. */
+  /** Above this width the band is smearing energy that should be centered. */
   widthLimit: number | null;
   /** Below this correlation the band will lose level in mono. */
   corrFloor: number;
@@ -110,7 +110,7 @@ function correlationVerdict(corr: number, monoLossDb: number): { severity: Sever
   if (corr < 0) {
     return {
       severity: 'critical',
-      words: 'Out of phase. Material is cancelling — a mono sum will lose real level.',
+      words: 'Out of phase. Material is canceling — a mono sum will lose real level.',
     };
   }
   if (corr < 0.25) {
@@ -199,7 +199,7 @@ function CorrelationMeter({
         role="img"
         aria-label={`Phase correlation ${v.toFixed(2)} on a scale from minus one to plus one. Below zero is out of phase.`}
       >
-        {/* Rail. The negative half is a marked hazard zone, not just a colour. */}
+        {/* Rail. The negative half is a marked hazard zone, not just a color. */}
         <div className="absolute inset-x-0 top-1.5 h-3 overflow-hidden rounded-full border border-void-line bg-void-deep">
           <div
             className="absolute inset-y-0 left-0 w-1/2"
@@ -796,7 +796,7 @@ export default function StereoScope({ stereo, phase }: StereoScopeProps) {
                   tone={Math.abs(balance) >= 1 ? SEVERITY_VAR.major : undefined}
                   note={
                     Math.abs(balance) < 0.3
-                      ? 'Centred'
+                      ? 'Centered'
                       : `${Math.abs(balance).toFixed(1)} dB toward ${balance > 0 ? 'right' : 'left'}`
                   }
                 />

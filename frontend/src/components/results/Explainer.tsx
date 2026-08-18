@@ -59,7 +59,7 @@ export function Chevron({ open, className = '' }: { open: boolean; className?: s
 }
 
 /**
- * A labelled fold. Used for the theory here and for the measurements in the
+ * A labeled fold. Used for the theory here and for the measurements in the
  * fix stack — same control, so "there is more under this" reads the same way
  * wherever it appears.
  */

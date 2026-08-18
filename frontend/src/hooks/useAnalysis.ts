@@ -261,7 +261,7 @@ export function useAnalysis(): UseAnalysisReturn {
    * producer has said which findings were deliberate.
    *
    * No audio is re-uploaded and nothing is re-measured: the response carries
-   * the same measurements back, with the judgement on top of them updated. The
+   * the same measurements back, with the judgment on top of them updated. The
    * one thing worth guarding is the write-up, which arrives on its own slower
    * request and may have landed after the copy that was posted was taken.
    */

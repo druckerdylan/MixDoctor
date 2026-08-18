@@ -7,7 +7,7 @@
  * it would throw away a real measurement; leaving it looking like a fault would
  * be the same argument the question was asked to end.
  *
- * So it gets a chip. Signal green rather than a severity colour: this is a
+ * So it gets a chip. Signal green rather than a severity color: this is a
  * confirmed decision, and the severity scale has nothing to say about it.
  */
 

@@ -38,7 +38,7 @@ const TOKEN_KEY = 'mixdoctor_token';
 
 /**
  * Manufacturer + name, because two different boxes are called "Tape". Falls
- * back to the bare name so a custom entry and its catalogue twin still collide.
+ * back to the bare name so a custom entry and its catalog twin still collide.
  */
 export function pluginKey(plugin: OwnedPlugin): string {
   const maker = (plugin.manufacturer ?? '').trim().toLowerCase();

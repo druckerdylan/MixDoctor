@@ -2,7 +2,7 @@
 
 Everything the 2-track analysis says about vocal balance, kick-versus-808 and
 per-element compression is *inferred*. `vocal.py` is explicit about it — a
-centre estimate is not a vocal, and a centred synth, a snare and a mono bass
+center estimate is not a vocal, and a centered synth, a snare and a mono bass
 all live in the same place. `lowend.py` has to reconstruct the kick by
 subtracting a between-hits spectrum from an at-hits spectrum, because the two
 objects are summed into one waveform and cannot be looked at separately.
@@ -221,7 +221,7 @@ def _power_spectrogram(
     """Parseval-calibrated power spectrogram: (freqs, times, power).
 
     Scaled so that summing a frame's bins reproduces that frame's windowed
-    mean square. Sibling modules normalise by `sum(window)` instead, which is
+    mean square. Sibling modules normalize by `sum(window)` instead, which is
     right for peak-of-a-sinusoid work but leaves band levels off by a constant
     — and here `band_levels_db` is supposed to be a real dBFS figure that a
     producer can compare against a meter.
@@ -335,7 +335,7 @@ def _gated_integrated(block_ms: np.ndarray) -> float:
 def _integrated_lufs(left: np.ndarray, right: np.ndarray, sr: int) -> float:
     """Gated integrated loudness of one stem.
 
-    Gating is the right behaviour here and not an accident: a vocal that sings
+    Gating is the right behavior here and not an accident: a vocal that sings
     on a third of the track should report the level it sings *at*, not that
     level averaged with two thirds of silence. That is the number a producer
     means by "how loud is the vocal".
@@ -470,7 +470,7 @@ def _loudest_window(buf: AudioBuffer, span_sec: float) -> Tuple[int, int]:
 
 
 def _chunk_weight(length: int, fade: int, first: bool, last: bool) -> np.ndarray:
-    """Crossfade weight for one chunk. Overlaps are normalised by the sum, so
+    """Crossfade weight for one chunk. Overlaps are normalized by the sum, so
     the ramps only have to be complementary in shape, not exact."""
     w = np.ones(length, dtype=np.float32)
     fade = int(min(fade, length // 2))
@@ -501,8 +501,8 @@ def _apply_chunked(
     fade = int(CHUNK_FADE_SEC * DEMUCS_SR)
     stride = max(chunk - fade, chunk // 2, 1)
 
-    # Normalise once over the whole excerpt, not per chunk: demucs's own CLI
-    # normalises before calling apply_model, and doing it per chunk would make
+    # Normalize once over the whole excerpt, not per chunk: demucs's own CLI
+    # normalizes before calling apply_model, and doing it per chunk would make
     # a quiet chunk come back at the same level as a loud one.
     ref = mix.mean(axis=0)
     mean = float(ref.mean())
@@ -574,7 +574,7 @@ def _apply_chunked(
 
     out = out[:, :, :done]
     out /= np.maximum(wsum[:done], 1e-6)
-    # Denormalise. The DC term is deliberately not added back: adding the
+    # Denormalize. The DC term is deliberately not added back: adding the
     # mixture's mean to all four sources would quadruple any DC offset, and a
     # stem has no business carrying one.
     out *= std
@@ -1031,7 +1031,7 @@ def _masking_pairs(
     """Which source is burying which, in which band, and when.
 
     Simultaneous masking, measured within the critical band rather than
-    modelled with a spreading function: for an ordered pair we ask how far the
+    modeled with a spreading function: for an ordered pair we ask how far the
     maskee sits under the masker *in a band the maskee actually needs*, and for
     what share of the frames where both are sounding. Both conditions matter —
     a masker 15 dB up in a band the maskee barely occupies is not masking
@@ -1159,7 +1159,7 @@ def _kick_vs_bass(
     direct one.
 
     Everything here stays None unless a kick is genuinely there: enough hits,
-    on a recognisable grid, punching above the stem's own low-end floor.
+    on a recognizable grid, punching above the stem's own low-end floor.
     """
     kick_f: Optional[float] = None
     bass_f: Optional[float] = None
@@ -1373,7 +1373,7 @@ def _measure(
 
     kinds = [k for k in STEM_KINDS if k in result.stems]
     if not kinds:
-        warnings.append("The separator returned no recognisable sources.")
+        warnings.append("The separator returned no recognizable sources.")
         return _unavailable(warnings)
 
     # --- one spectrogram pass per stem, folded straight into macro bands ----

@@ -234,7 +234,7 @@ def _register(
 
 
 # Loudness windows are "where commercial releases in this genre actually sit",
-# not "where streaming normalisation would prefer they sat".
+# not "where streaming normalization would prefer they sat".
 _register(
     "pop", "Pop", "pop",
     lufs=(-11.0, -7.5), lra=(3.0, 8.0), crest=(8.0, 13.0), micro=(5.0, 11.0),
@@ -420,10 +420,10 @@ class Platform:
 
 
 PLATFORMS: Tuple[Platform, ...] = (
-    Platform("Spotify", -14.0, -1.0, "Normalises loud tracks down; quiet ones are left alone."),
+    Platform("Spotify", -14.0, -1.0, "Normalizes loud tracks down; quiet ones are left alone."),
     Platform("Apple Music", -16.0, -1.0, "Sound Check targets -16; masters above it lose punch."),
-    Platform("YouTube", -14.0, -1.0, "Turns down anything louder; no upward normalisation."),
-    Platform("Tidal", -14.0, -1.0, "Album-mode normalisation preserves relative track levels."),
+    Platform("YouTube", -14.0, -1.0, "Turns down anything louder; no upward normalization."),
+    Platform("Tidal", -14.0, -1.0, "Album-mode normalization preserves relative track levels."),
     Platform("Amazon Music", -14.0, -2.0, "Stricter peak ceiling than most."),
     Platform("SoundCloud", -14.0, -1.0, "Transcodes to lossy; leave true-peak headroom."),
     Platform("Club / DJ", -8.0, -0.3, "Played loud on a big system; sub control matters most."),

@@ -81,7 +81,7 @@ const INTENT_PROMISE: Record<TrackIntent, string> = {
   reference:
     'Measured, not marked. You get every figure and no prescription, because nobody needs to be told to fix a record that already came out.',
   demo:
-    'Nothing is judged as a master you haven’t attempted yet: “too quiet to compete”, “not mastered” and the limiter’s behaviour all stand down. Being louder than the genre is still reported — a rough that’s already slammed is still slammed. Anything genuinely broken still surfaces too: a rough with an inverted channel is still an inverted channel.',
+    'Nothing is judged as a master you haven’t attempted yet: “too quiet to compete”, “not mastered” and the limiter’s behavior all stand down. Being louder than the genre is still reported — a rough that’s already slammed is still slammed. Anything genuinely broken still surfaces too: a rough with an inverted channel is still an inverted channel.',
 };
 
 /**
@@ -301,7 +301,7 @@ export default function Intake({
                           : 'border-void-line hover:border-ink-faint hover:bg-void-raised',
                       ].join(' ')}
                     >
-                      {/* Shape, not just colour, marks the selection. */}
+                      {/* Shape, not just color, marks the selection. */}
                       <span
                         aria-hidden="true"
                         className={[
@@ -402,7 +402,7 @@ export default function Intake({
                                   : 'border-void-line text-ink-dim hover:border-ink-faint hover:bg-void-raised hover:text-ink',
                               ].join(' ')}
                             >
-                              {/* Shape, not just colour, marks the selection. */}
+                              {/* Shape, not just color, marks the selection. */}
                               <span
                                 aria-hidden="true"
                                 className={

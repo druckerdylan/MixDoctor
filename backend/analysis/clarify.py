@@ -178,7 +178,7 @@ def _worst_moment_span(finding: Finding) -> str:
 
 
 def _section(finding: Finding) -> str:
-    """The section a moment is labelled with: 'intro' from 'intro: no low end'."""
+    """The section a moment is labeled with: 'intro' from 'intro: no low end'."""
     for mo in finding.moments or []:
         label = str(mo.label or "")
         if ":" in label:
@@ -192,7 +192,7 @@ def _where(finding: Finding) -> str:
     """'the intro (0:00-0:14)' / 'the section at 1:12-1:38' / 'that section'.
 
     A section whose label is a bare index is not worth naming — 'section 3'
-    tells a producer nothing they can recognise, and the clock does.
+    tells a producer nothing they can recognize, and the clock does.
     """
     name = _section(finding)
     span = _worst_moment_span(finding)
@@ -460,7 +460,7 @@ def _q_micro_dynamics(f: Finding, genre: str) -> Clarification:
     gr = _n(_ev(f, "Estimated gain reduction"), 1)
     return Clarification(
         question=(
-            "Are the hits meant to be this levelled — every one arriving at the "
+            "Are the hits meant to be this leveled — every one arriving at the "
             "same size?"
         ),
         context=(
@@ -547,7 +547,7 @@ def _q_too_narrow(f: Finding, genre: str) -> Clarification:
     window = _window(f, "Stereo width", 2)
     return Clarification(
         question=(
-            "Is this meant to sit narrow and centred rather than spread across "
+            "Is this meant to sit narrow and centered rather than spread across "
             "the field?"
         ),
         context=(
@@ -641,7 +641,7 @@ def _q_vocal_too_loud(f: Finding, genre: str) -> Clarification:
             f"The lead measures {v2i or 'above'} dB against everything else"
             + (f", over the {window} window {genre} places a lead in" if window
                else f" for {genre}")
-            + ". Front-and-centre is a style, and it is also where a vocal ends up "
+            + ". Front-and-center is a style, and it is also where a vocal ends up "
             "after being ridden up to escape something covering it."
         ),
         if_intended=_kept(
@@ -773,7 +773,7 @@ def _q_kick_bass_collision(f: Finding, genre: str) -> Clarification:
         if_not=(
             "Then they are competing. Decide which one owns the fundamental and move "
             "the other: pitch the 808 away from the kick, or carve a narrow notch in "
-            "one at the other's centre. Sidechain ducking is the fastest version and "
+            "one at the other's center. Sidechain ducking is the fastest version and "
             "the one that costs the least of either part."
         ),
     )
@@ -882,7 +882,7 @@ def _q_upper_mid_edge(f: Finding, genre: str) -> Clarification:
             "makes a record cut on a phone?"
         ),
         context=(
-            f"2-5 kHz stands above the line its own neighbours draw"
+            f"2-5 kHz stands above the line its own neighbors draw"
             + (f", scoring {harsh}" if harsh else "")
             + (f", hardest{at}" if at else "")
             + ". That is a different thing from the mix being bright overall: "
@@ -946,22 +946,22 @@ def _q_too_loud(f: Finding, genre: str) -> Clarification:
             f"Integrated loudness is {lufs or 'above'} LUFS"
             + (f", over the {window} window {genre} masters sit in" if window
                else f", over where {genre} masters sit")
-            + (f". Streaming normalises to -14 LUFS, so {delta} LU of that is turned "
+            + (f". Streaming normalizes to -14 LUFS, so {delta} LU of that is turned "
                f"straight back down on playback while whatever was done to reach it "
                f"stays in the file" if delta else
-               ". Streaming normalises the level back down while whatever was done to "
+               ". Streaming normalizes the level back down while whatever was done to "
                "reach it stays in the file")
             + ". Pushing past the window deliberately and pushing past it by habit "
             "are the same number."
         ),
         if_intended=_kept(
             "the delivery level",
-            "Each platform's normalisation is still shown, because that is a fact "
-            "about what listeners will hear rather than a judgement on the master."
+            "Each platform's normalization is still shown, because that is a fact "
+            "about what listeners will hear rather than a judgment on the master."
         ),
         if_not=(
             "Then you are paying for level nobody will hear. Back the limiter off "
-            "until integrated lands in the window — normalisation gives that level "
+            "until integrated lands in the window — normalization gives that level "
             "back for free, and the dynamics you spend to get above it do not come "
             "back."
         ),
@@ -1258,7 +1258,7 @@ def _assert_no_defect_questions(findings: Sequence[Finding]) -> None:
     Checked over the whole set rather than only over what this module writes,
     because a detector can construct a `Finding(clarification=...)` directly and
     this is the one place that sees every finding on its way out. It fires
-    loudly on purpose: there is no correct behaviour to fall back to, only a
+    loudly on purpose: there is no correct behavior to fall back to, only a
     wrong question already written.
     """
     guilty = [
@@ -1346,7 +1346,7 @@ def select(findings: Sequence[Finding], limit: int = ASK_LIMIT) -> List[Finding]
     answer is "yes, on purpose", those are the ones that change the report most.
 
     One per dimension first, then fill. Two questions about the low end in a set
-    of four reads as the analyzer labouring a point; spreading them means the
+    of four reads as the analyzer laboring a point; spreading them means the
     four cover four different parts of the record.
 
     The API and the UI both call this, so the set of questions a user is shown

@@ -82,7 +82,7 @@ TEMPO_WINDOW_SEC = 90.0
 
 
 # ---------------------------------------------------------------------------
-# Sanitising helpers
+# Sanitizing helpers
 # ---------------------------------------------------------------------------
 
 
@@ -472,7 +472,7 @@ def _weak_moments(
 
 
 def measure_transients(buf: AudioBuffer) -> TransientMeasurement:
-    """Measure onset behaviour, attack, punch and smearing for `buf`."""
+    """Measure onset behavior, attack, punch and smearing for `buf`."""
     sr = int(buf.sr)
     duration = _f(buf.duration, 0.0, 0.0, 1e6)
     mono = _analysis_mono(buf)

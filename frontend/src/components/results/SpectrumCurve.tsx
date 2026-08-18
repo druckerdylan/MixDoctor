@@ -3,7 +3,7 @@
  *
  * The single most useful pixel here is the shaded delta between the measured
  * curve and the target: warm where the mix is hot, cool where it is shy. Every
- * axis is labelled and hovering gives exact numbers, because a producer is
+ * axis is labeled and hovering gives exact numbers, because a producer is
  * going to act on this.
  */
 
@@ -244,9 +244,9 @@ export function SpectrumCurve({ spectral, reference }: SpectrumCurveProps) {
   }, [spectral, series, logHz]);
 
   /**
-   * The reference is given as a per-bin delta against the raw centre array, so
+   * The reference is given as a per-bin delta against the raw center array, so
    * each kept bin looks its delta up by its original index. Anything shorter
-   * than the centre array cannot be aligned safely and is dropped.
+   * than the center array cannot be aligned safely and is dropped.
    */
   const refCurve = useMemo<number[] | null>(() => {
     const delta = reference?.third_octave_delta_db;

@@ -18,7 +18,7 @@ export const PEAK_BUCKETS = 600;
 /**
  * Decode the file just far enough to draw it, then throw the PCM away.
  *
- * We keep exactly `buckets` normalised peaks (a few kB) rather than the decoded
+ * We keep exactly `buckets` normalized peaks (a few kB) rather than the decoded
  * AudioBuffer, which for a 6-minute 48k stereo master is ~140 MB of float32 and
  * has no business living in React state.
  *
@@ -62,7 +62,7 @@ export async function decodePeaks(file: File, buckets = PEAK_BUCKETS): Promise<n
     }
 
     if (max <= 0) return null;
-    // Normalise so a quiet rough mix still reads as a waveform, not a flat line.
+    // Normalize so a quiet rough mix still reads as a waveform, not a flat line.
     for (let b = 0; b < buckets; b += 1) peaks[b] = (peaks[b] ?? 0) / max;
     return peaks;
   } catch {
@@ -105,7 +105,7 @@ export interface WaveformPreviewProps {
 
 /**
  * A static peak-envelope waveform. Hand-drawn to canvas: mirrored bars around a
- * centre line, one bar every 3 device-independent pixels, so the shape reads at
+ * center line, one bar every 3 device-independent pixels, so the shape reads at
  * 320px and at 1400px without re-decoding.
  */
 export function WaveformPreview({
@@ -133,7 +133,7 @@ export function WaveformPreview({
 
     const mid = size.h / 2;
 
-    // Centre line — reads as the zero-crossing axis even with no audio loaded.
+    // Center line — reads as the zero-crossing axis even with no audio loaded.
     ctx.fillStyle = 'rgba(255,255,255,0.06)';
     ctx.fillRect(0, mid - 0.5, size.w, 1);
 
@@ -344,7 +344,7 @@ export default function DropZone({
           type="file"
           accept={ACCEPT_ATTR}
           disabled={disabled}
-          // A cancelled picker must not wipe an already-loaded file.
+          // A canceled picker must not wipe an already-loaded file.
           onChange={(e) => {
             const picked = e.target.files?.[0];
             if (picked) accept(picked);

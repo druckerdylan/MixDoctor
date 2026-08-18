@@ -553,7 +553,7 @@ async def analyze(
     failing the request.
 
     What the latency buys is confidence, not extra findings. Vocal balance and
-    kick-versus-808 stop being inferred from a centre estimate and a
+    kick-versus-808 stop being inferred from a center estimate and a
     reconstructed spectrum and become direct measurements (confidence 0.55 to
     0.90 and 0.70 to 0.93 respectively), masking gains a named source on each
     side of it, and per-element compression becomes reportable at all. Every
@@ -684,7 +684,7 @@ def _db_plugins(db: Session, user: User) -> List[OwnedPlugin]:
 
     `models.UserPlugin` has name/manufacturer/category columns and no
     capability column, so these arrive capability-less and
-    `engineer.enrich_plugins` fills in what it recognises by name. A client
+    `engineer.enrich_plugins` fills in what it recognizes by name. A client
     that posts real capability data always beats that guess — see
     `_merge_plugins`.
     """
@@ -769,7 +769,7 @@ async def engineer_consult(
         # What the file is. Without it every brief posted here read as a full
         # mix, so a beat got told to bring its hook up — the exact failure the
         # intent paragraph exists to prevent. Older payloads omit the field and
-        # the model defaults it to `full_mix`, which is the behaviour they had.
+        # the model defaults it to `full_mix`, which is the behavior they had.
         intent=str(getattr(analysis, "intent", "full_mix") or "full_mix"),
         platform_targets=analysis.platform_targets,
         reference=analysis.reference,
@@ -779,7 +779,7 @@ async def engineer_consult(
         grade=analysis.grade,
         # `scores` is Optional on `MixAnalysis`, so a client posting a payload
         # from before the ScoreCard existed sends None and the brief falls back
-        # to the labelled legacy composite. Nothing to guard beyond the getattr:
+        # to the labeled legacy composite. Nothing to guard beyond the getattr:
         # the findings carry `acknowledged`/`clarification` defaults of their
         # own, so an old payload simply has no confirmed choices and no
         # questions, and both new sections render as empty and drop out.

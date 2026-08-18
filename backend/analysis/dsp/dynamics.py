@@ -74,7 +74,7 @@ _K_A2 = np.array([1.0, -1.99004745483398, 0.99007225036621])
 
 
 # ---------------------------------------------------------------------------
-# Sanitising helpers — nothing leaves this module as NaN, inf or None
+# Sanitizing helpers — nothing leaves this module as NaN, inf or None
 # ---------------------------------------------------------------------------
 
 

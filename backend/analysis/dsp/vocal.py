@@ -1,27 +1,27 @@
-"""Vocal balance, estimated from the centre channel.
+"""Vocal balance, estimated from the center channel.
 
 Be honest about what this is: there are no stems. Everything below is inferred
-from a centre estimate, and a centre estimate is not a vocal — a centred synth
+from a center estimate, and a center estimate is not a vocal — a centered synth
 pad, a snare and a mono bass all live there too. Two things keep the numbers
 defensible:
 
-* **Centre extraction.** Per time-frequency cell, `1 - |S| / |M|` is the share
+* **Center extraction.** Per time-frequency cell, `1 - |S| / |M|` is the share
   of the mid channel that is not explained by the side channel. A perfectly
-  centred source gives 1, a hard-panned source gives 0, a 70/30 pan gives 0.6.
-  Multiplying the mid magnitude by that mask gives the centre; everything else
+  centered source gives 1, a hard-panned source gives 0, a 70/30 pan gives 0.6.
+  Multiplying the mid magnitude by that mask gives the center; everything else
   (the rest of the mid, plus all of the side) is "instruments".
 
 * **A voice test, not a level test.** A voice is identified by its temporal
   signature — sustained energy in 300 Hz-6 kHz whose envelope is modulated at
   the syllabic rate, 2-8 Hz — and, crucially, by whether that modulation is
-  *specific to the centre*. A hard-limited mix pumps its whole spectrum at the
-  tempo; comparing the centre's syllabic modulation against the side channel's
+  *specific to the center*. A hard-limited mix pumps its whole spectrum at the
+  tempo; comparing the center's syllabic modulation against the side channel's
   stops that pumping from being reported as a singer.
 
 Graded, not binary
 ------------------
-A single boolean was too eager. Centre energy plus 2-8 Hz modulation is also
-what a centred synth lead, a plucked arpeggio and a mono-ish arrangement look
+A single boolean was too eager. Center energy plus 2-8 Hz modulation is also
+what a centered synth lead, a plucked arpeggio and a mono-ish arrangement look
 like, so on a beat with a hook tucked under the drums the boolean fired and
 every downstream detector then judged the "vocal" as if it were a lead. Three
 things fix that:
@@ -32,11 +32,11 @@ things fix that:
   a threshold, which means a detector can ask how sure we are instead of only
   whether we committed.
 
-* **An articulation test** separates a voice from a sustained centred
+* **An articulation test** separates a voice from a sustained centered
   instrument. Speech alternates vowels and consonants, so the ratio of
   1-4 kHz to 300 Hz-1 kHz *swings* several dB from frame to frame. A synth lead
   or a pad holds a fixed harmonic ratio however loud it gets, so its swing is a
-  couple of dB at most. This is the term that stops a centred lead synth from
+  couple of dB at most. This is the term that stops a centered lead synth from
   reading as a singer.
 
 * **`vocal_prominence`** says where the lead sits rather than only that it
@@ -44,7 +44,7 @@ things fix that:
   is "tucked", and that is a production decision, not a balance fault. The
   detector layer reads it precisely so it can stop calling one the other.
 
-On a mono source there is no side channel, so centre extraction is meaningless.
+On a mono source there is no side channel, so center extraction is meaningless.
 Rather than invent a verdict, `vocal_present` is False, `vocal_confidence` is 0
 and `vocal_prominence` is "absent"; the purely spectral figures are still
 measured.
@@ -98,8 +98,8 @@ _MIN_SYLLABIC_DEPTH = 0.05      # 5 % AM, i.e. about 0.4 dB of swing
 # Macro bands that can actually mask a vocal. Sub and low_bass cannot.
 _VOCAL_MACRO = ("low_mid", "mid", "upper_mid", "presence", "brilliance")
 
-_MIN_CENTRE_RATIO = 0.03            # below this there is no centre to describe
-_MASK_WITHIN_DB = 3.0               # "non-centre sits within ~3 dB of the centre"
+_MIN_CENTRE_RATIO = 0.03            # below this there is no center to describe
+_MASK_WITHIN_DB = 3.0               # "non-center sits within ~3 dB of the center"
 _MOMENT_DB = 6.0                    # how far from its own median counts as an event
 
 # --- the voice test, as five graded terms ----------------------------------
@@ -108,21 +108,21 @@ _MOMENT_DB = 6.0                    # how far from its own median counts as an e
 # measurement at or below the first scores 0, at or above the second scores 1,
 # and it ramps linearly between. The old boolean used the *low* end of each of
 # these as a pass mark, which is why it fired on material that only just had a
-# centre and only just modulated.
-_R_CENTRE = (0.08, 0.28)        # share of 300 Hz-6 kHz that is centred
-_R_MOD = (0.22, 0.45)           # share of the centre's 0.5-16 Hz modulation in 2-8 Hz
-_R_SPECIFIC = (0.02, 0.20)      # how much more the centre modulates than the sides
-_R_ARTICULATION = (2.0, 9.0)    # dB swing of consonant-over-body within the centre
-_R_AUDIBLE = (-25.0, -10.0)     # A-weighted centre vocal band vs everything else, dB
+# center and only just modulated.
+_R_CENTRE = (0.08, 0.28)        # share of 300 Hz-6 kHz that is centered
+_R_MOD = (0.22, 0.45)           # share of the center's 0.5-16 Hz modulation in 2-8 Hz
+_R_SPECIFIC = (0.02, 0.20)      # how much more the center modulates than the sides
+_R_ARTICULATION = (2.0, 9.0)    # dB swing of consonant-over-body within the center
+_R_AUDIBLE = (-25.0, -10.0)     # A-weighted center vocal band vs everything else, dB
 
 # Weights on those five, applied in the geometric mean. Modulation and its
-# centre-specificity are what make this a voice test rather than a level test,
-# so they carry the most; audibility only has to rule out a centre that is
+# center-specificity are what make this a voice test rather than a level test,
+# so they carry the most; audibility only has to rule out a center that is
 # effectively silent.
 _VOICE_WEIGHTS = (1.0, 1.4, 1.4, 1.1, 0.6)
 
 # `vocal_present` is `vocal_confidence` over this. Calibrated so the old
-# boolean's exact pass conditions (centre 0.12, modulation 0.30, specificity
+# boolean's exact pass conditions (center 0.12, modulation 0.30, specificity
 # 1.15x + 0.05) land around 0.42 — i.e. they no longer pass on their own.
 _PRESENT_AT = 0.55
 
@@ -222,8 +222,8 @@ def _weighted_geometric_mean(scores: Tuple[float, ...], weights: Tuple[float, ..
     """Geometric mean, so one empty term collapses the result.
 
     An arithmetic mean lets four weak-but-nonzero signals outvote a hard zero,
-    which is exactly the wrong behaviour here: no syllabic modulation means no
-    voice however much centre energy there is. The geometric mean cannot be
+    which is exactly the wrong behavior here: no syllabic modulation means no
+    voice however much center energy there is. The geometric mean cannot be
     talked out of a zero.
     """
     total = float(sum(weights))
@@ -239,7 +239,7 @@ def _weighted_geometric_mean(scores: Tuple[float, ...], weights: Tuple[float, ..
 
 
 # ---------------------------------------------------------------------------
-# centre extraction
+# center extraction
 # ---------------------------------------------------------------------------
 
 
@@ -283,12 +283,12 @@ def _syllabic(env: np.ndarray, rate: float) -> Tuple[float, float]:
 
 
 def _modulation(buf: AudioBuffer) -> Tuple[float, float]:
-    """(centre syllabic ratio, side-channel syllabic ratio) over a bounded excerpt.
+    """(center syllabic ratio, side-channel syllabic ratio) over a bounded excerpt.
 
     The reference is the **side channel**, not "everything that isn't the
-    centre". The side channel is mask-free — no centred source appears in it at
+    center". The side channel is mask-free — no centered source appears in it at
     all — so it is an independent witness to whether the whole arrangement is
-    modulating at 2-8 Hz. `total - centre` is not independent: it moves in
+    modulating at 2-8 Hz. `total - center` is not independent: it moves in
     antiphase with the mask, so a real vocal makes its own reference light up.
 
     A hard-limited mix pumps every channel at the tempo, which lands inside the
@@ -319,7 +319,7 @@ def _modulation(buf: AudioBuffer) -> Tuple[float, float]:
     mod_centre = share_c if depth_c >= _MIN_SYLLABIC_DEPTH else 0.0
 
     # With almost no side energy, or a side channel that barely moves, there is
-    # nothing to compare against; the centre gets judged on its own.
+    # nothing to compare against; the center gets judged on its own.
     if sides.sum() < 0.01 * float(pm[:, band].sum()):
         return mod_centre, 0.0
     share_s, depth_s = _syllabic(np.sqrt(sides), rate)
@@ -332,7 +332,7 @@ def _modulation(buf: AudioBuffer) -> Tuple[float, float]:
 
 
 def measure_vocal(buf: AudioBuffer) -> VocalMeasurement:
-    """Measure vocal balance from a centre estimate. Never raises on valid audio."""
+    """Measure vocal balance from a center estimate. Never raises on valid audio."""
     sr = buf.sr
     hop = int(round(HOP_SEC * sr))
     mid = np.ascontiguousarray(buf.mid, dtype=np.float64)
@@ -344,9 +344,9 @@ def measure_vocal(buf: AudioBuffer) -> VocalMeasurement:
     _, _, ps = _power_spectrogram(side, sr, _COARSE_NFFT, hop, block=128)
 
     mask = _centre_mask(pm, ps)
-    centre_p = (mask * mask * pm).astype(np.float64)          # centre power per cell
+    centre_p = (mask * mask * pm).astype(np.float64)          # center power per cell
     total_p = (pm.astype(np.float64) + ps.astype(np.float64))  # L^2 + R^2, halved
-    other_p = np.maximum(total_p - centre_p, 0.0)             # sides + off-centre mid
+    other_p = np.maximum(total_p - centre_p, 0.0)             # sides + off-center mid
 
     aw = _a_weight_power(freqs)
     centre_a = centre_p * aw
@@ -354,7 +354,7 @@ def measure_vocal(buf: AudioBuffer) -> VocalMeasurement:
 
     voc = _band_mask(freqs, *VOCAL_HZ)
 
-    # -- centre share --------------------------------------------------------
+    # -- center share --------------------------------------------------------
     c_voc = float(centre_p[:, voc].sum())
     t_voc = float(total_p[:, voc].sum())
     center_energy_ratio = 1.0 if t_voc <= EPS else clamp(c_voc / t_voc, 0.0, 1.0)
@@ -372,7 +372,7 @@ def measure_vocal(buf: AudioBuffer) -> VocalMeasurement:
     )
 
     if buf.is_mono:
-        # No side channel: the "centre" is just the mix. Report the spectral
+        # No side channel: the "center" is just the mix. Report the spectral
         # facts, stay silent on everything separation-derived. There is no
         # confidence to report either — not "we are sure there is no vocal",
         # but "this file cannot be asked the question".
@@ -397,7 +397,7 @@ def measure_vocal(buf: AudioBuffer) -> VocalMeasurement:
     vocal_to_instrument_db = _ratio_db(c_voc_a, max(rest_a, 0.0), -40.0, 40.0)
 
     if center_energy_ratio < _MIN_CENTRE_RATIO:
-        # A polarity-inverted or fully-decorrelated mix has no centre at all.
+        # A polarity-inverted or fully-decorrelated mix has no center at all.
         # The one figure still worth reporting is how far down it is; the
         # spectral shape of what's left is measuring cancellation residue.
         return VocalMeasurement(
@@ -422,15 +422,15 @@ def measure_vocal(buf: AudioBuffer) -> VocalMeasurement:
     snr_db = _ratio_db(c_cons, o_cons, -40.0, 40.0)
     share_db = _ratio_db(c_cons, max(c_voc, EPS), -40.0, 0.0)
     # -18 dB of consonant SNR is unintelligible, +10 dB is in the clear. The
-    # second term stops a centre made entirely of low-mid body from scoring on
+    # second term stops a center made entirely of low-mid body from scoring on
     # SNR alone: no consonants means no words, however clean the background.
     intelligibility_index = clamp(
         (
             0.65 * clamp((snr_db + 18.0) / 28.0, 0.0, 1.0)
             + 0.35 * clamp((share_db + 24.0) / 20.0, 0.0, 1.0)
         )
-        # Both terms are ratios *within* the centre, so a centre that barely
-        # exists can still score well on them. Scale by how much centre there is.
+        # Both terms are ratios *within* the center, so a center that barely
+        # exists can still score well on them. Scale by how much center there is.
         * clamp(center_energy_ratio / 0.15, 0.0, 1.0),
         0.0,
         1.0,
@@ -449,7 +449,7 @@ def measure_vocal(buf: AudioBuffer) -> VocalMeasurement:
         )
     )
 
-    # -- which bands are crowding the centre ---------------------------------
+    # -- which bands are crowding the center ---------------------------------
     masked_bands = _masked_bands(freqs, centre_p, other_p)
 
     # -- where the vocal drops out or jumps ----------------------------------
@@ -462,8 +462,8 @@ def measure_vocal(buf: AudioBuffer) -> VocalMeasurement:
     # -- is it actually a voice, and how sure are we -------------------------
     #
     # Five independent tests, combined geometrically. Read them as a sentence:
-    # there is a centre; it modulates at the syllable rate; that modulation is
-    # specific to the centre rather than the whole mix pumping; the centre
+    # there is a center; it modulates at the syllable rate; that modulation is
+    # specific to the center rather than the whole mix pumping; the center
     # alternates consonants and vowels the way speech does and a synth does
     # not; and it is loud enough to be a lead rather than a ghost.
     mod_centre, mod_side = _modulation(buf)
@@ -503,20 +503,20 @@ def measure_vocal(buf: AudioBuffer) -> VocalMeasurement:
 
 
 def _articulation_db(freqs: np.ndarray, centre_p: np.ndarray, voc: np.ndarray) -> float:
-    """How much the centre's consonant-over-body ratio swings, in dB.
+    """How much the center's consonant-over-body ratio swings, in dB.
 
-    The one cheap test that separates a voice from a sustained centred
+    The one cheap test that separates a voice from a sustained centered
     instrument. Speech alternates vowels and consonants: on a vowel the energy
     sits in 300 Hz-1 kHz, on an 's' or a 't' it moves to 1-4 kHz, so the ratio
     between those two bands moves several dB within a single word. A synth
-    lead, a pad or a centred organ holds one harmonic structure — the ratio
-    barely moves however the note or the level changes. Centred *drums* swing
+    lead, a pad or a centered organ holds one harmonic structure — the ratio
+    barely moves however the note or the level changes. Centered *drums* swing
     too, but they fail the syllabic-rate test instead, which is why both terms
     are needed and neither is sufficient.
 
     Returned as the interquartile spread rather than the full range so one
-    cymbal crash in the centre cannot manufacture a voice, and measured only on
-    frames where the centre is actually carrying something — a ratio computed
+    cymbal crash in the center cannot manufacture a voice, and measured only on
+    frames where the center is actually carrying something — a ratio computed
     across the gaps between phrases is measuring the noise floor.
     """
     body = centre_p[:, _band_mask(freqs, *_BODY_HZ)].sum(axis=1)
@@ -564,7 +564,7 @@ def _prominence(v2i_db: float, confidence: float) -> VocalProminence:
 def _masked_bands(
     freqs: np.ndarray, centre_p: np.ndarray, other_p: np.ndarray
 ) -> List[str]:
-    """Macro bands where non-centre content sits within ~3 dB of the centre."""
+    """Macro bands where non-center content sits within ~3 dB of the center."""
     centre_by_band: Dict[str, float] = {}
     other_by_band: Dict[str, float] = {}
     for name in _VOCAL_MACRO:
@@ -580,7 +580,7 @@ def _masked_bands(
     out: List[str] = []
     for name in _VOCAL_MACRO:
         c = centre_by_band[name]
-        # Skip bands where the centre carries nothing worth defending.
+        # Skip bands where the center carries nothing worth defending.
         if c <= EPS or 10.0 * np.log10(c / peak) < -25.0:
             continue
         if 10.0 * np.log10(max(other_by_band[name], EPS) / c) >= -_MASK_WITHIN_DB:

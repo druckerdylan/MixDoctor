@@ -394,7 +394,7 @@ def measure_loudness(buf: AudioBuffer) -> LoudnessMeasurement:
     short_term_max = _finite(short_term.max() if short_term.size else SERIES_FLOOR_LUFS,
                              SERIES_FLOOR_LUFS, lo=SERIES_FLOOR_LUFS)
 
-    # Nothing cleared the absolute gate: there is no programme to take a ratio
+    # Nothing cleared the absolute gate: there is no program to take a ratio
     # against, and a ratio built from two floors would be pure noise.
     gated_silent = integrated <= ABS_GATE_LUFS
     plr = 0.0 if gated_silent else _finite(true_peak - integrated, 0.0, lo=-20.0, hi=80.0)

@@ -33,7 +33,7 @@ const SEV_WORD: Record<Severity, string> = {
   clean: 'Clean',
 };
 
-/** Shape as well as colour, so severity is never carried by hue alone. */
+/** Shape as well as color, so severity is never carried by hue alone. */
 const SEV_GLYPH: Record<Severity, string> = {
   critical: '▲',
   major: '●',
@@ -208,7 +208,7 @@ export default function MixMap({ dimensions, onSelect, selected }: MixMapProps) 
             />
           )}
 
-          {/* The mix shape, revealed outward from the centre */}
+          {/* The mix shape, revealed outward from the center */}
           <g mask={`url(#${maskId})`}>
             <polygon points={polygon} fill={`url(#${fillId})`} />
             <polygon
@@ -220,7 +220,7 @@ export default function MixMap({ dimensions, onSelect, selected }: MixMapProps) 
             />
           </g>
 
-          {/* Vertices, coloured by that dimension's severity */}
+          {/* Vertices, colored by that dimension's severity */}
           {axes.map((a, i) => {
             const isActive = active === a.dim;
             const isSel = selected === a.dim;
@@ -270,7 +270,7 @@ export default function MixMap({ dimensions, onSelect, selected }: MixMapProps) 
             );
           })}
 
-          {/* Centre readout */}
+          {/* Center readout */}
           <circle cx={CX} cy={CY} r={34} fill="#06060A" opacity={0.9} />
           <circle cx={CX} cy={CY} r={34} fill="none" stroke="#16161F" strokeWidth={0.8} />
           <text
@@ -295,7 +295,7 @@ export default function MixMap({ dimensions, onSelect, selected }: MixMapProps) 
             {centreValue}
           </text>
 
-          {/* Ring scale, drawn last so the shape and the centre disc never bury it. */}
+          {/* Ring scale, drawn last so the shape and the center disc never bury it. */}
           <motion.g
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -404,7 +404,7 @@ export default function MixMap({ dimensions, onSelect, selected }: MixMapProps) 
           <div className="flex min-w-0 flex-col gap-1.5">
             <span className="eyebrow text-ink-muted">Mix map · {n} dimensions</span>
             <p className="text-[13px] leading-snug text-ink-muted">
-              Radius is the dimension score, 0 at the centre to 100 at the outer ring. Hover or
+              Radius is the dimension score, 0 at the center to 100 at the outer ring. Hover or
               focus an axis to inspect it; select one to pin it across the report.
             </p>
           </div>

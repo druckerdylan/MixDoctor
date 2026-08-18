@@ -55,7 +55,7 @@ __all__ = ["measure_stereo"]
 # and the finite value keeps the JSON valid.
 DB_FLOOR = -60.0
 
-# Side/Mid can legitimately run away when the mid is nearly cancelled (an
+# Side/Mid can legitimately run away when the mid is nearly canceled (an
 # inverted channel gives ~12x). Cap it so the number stays plottable.
 WIDTH_MAX = 20.0
 
@@ -261,7 +261,7 @@ def _series(
     lr = np.einsum("ij,ij->i", f_l, f_r) / n
 
     # Mean-removed: a frame can carry real DC from a slow LF component, and an
-    # uncentred correlation would read it as agreement between the channels.
+    # uncentered correlation would read it as agreement between the channels.
     var_l = np.maximum(ll - m_l * m_l, 0.0)
     var_r = np.maximum(rr - m_r * m_r, 0.0)
     cov = lr - m_l * m_r

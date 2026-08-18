@@ -35,7 +35,7 @@ export const API_BASE = resolveApiBase();
  * Defaults to the Ko-fi account above. Set VITE_KOFI_USERNAME to point it
  * somewhere else, or VITE_DONATE_URL for a non-Ko-fi platform; both override
  * the default without a code change. Setting KOFI_DEFAULT to an empty string
- * restores the old behaviour of hiding every donate surface.
+ * restores the old behavior of hiding every donate surface.
  */
 // The tip jar's default home. Hardcoded on purpose: this is a public URL, not
 // a secret, and making it an env var bought nothing but a deploy loop — a

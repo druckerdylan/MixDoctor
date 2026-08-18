@@ -11,7 +11,7 @@ holding all four:
 * **Loudness is not peak.** A track can touch the ceiling and still be quiet.
   Peak is one instant; LUFS is weighted energy over time. They move
   independently, and confusing them is the root of most of these findings.
-* **Streaming normalisation changed the arithmetic.** Loudness above the
+* **Streaming normalization changed the arithmetic.** Loudness above the
   target is handed back at playback. What you did to get there is not.
 * **Micro and macro dynamics are different things.** Macro is the chorus
   lifting above the verse. Micro is the stick surviving inside the hit.
@@ -39,7 +39,7 @@ def _add(finding_id: str, explainer: Explainer) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Limiter behaviour
+# Limiter behavior
 # ---------------------------------------------------------------------------
 
 _add(
@@ -158,7 +158,7 @@ _add(
                 action="Accept the genre's loudness window as the finish line.",
                 detail=(
                     "If the track will not reach the level you want with the limiter working "
-                    "gently, the answer is not more drive. Every platform normalises to a "
+                    "gently, the answer is not more drive. Every platform normalizes to a "
                     "target anyway, so the extra drive is buying distortion and no loudness."
                 ),
             ),
@@ -245,7 +245,7 @@ _add(
         why_it_matters=(
             "Streaming will turn quiet tracks up toward its target, so this may not sound "
             "quiet on Spotify — but that is a plaster, not a fix, and it is not applied "
-            "everywhere. Anything that does not normalise, which includes DJ software, a "
+            "everywhere. Anything that does not normalize, which includes DJ software, a "
             "client's video timeline, a sync brief and most download contexts, plays it as "
             "delivered. The bigger cost is what the peaks force you to do next: reaching genre "
             "level from here means a limiter removing a lot of peak, and that is precisely the "
@@ -346,7 +346,7 @@ _add(
         learn_more=(
             "LUFS comes from ITU-R BS.1770. The signal is passed through a filter that "
             "approximates the ear — a shelf that lifts the upper mids and a high-pass that "
-            "de-emphasises the very bottom — then squared, averaged over time, and gated so "
+            "de-emphasizes the very bottom — then squared, averaged over time, and gated so "
             "that silence and quiet passages do not drag the number down. Peak measurement "
             "does none of that: no filtering, no averaging, no gate, one instant.\n\n"
             "Two consequences follow, and they explain most of this finding. First, energy "
@@ -414,11 +414,11 @@ _add(
         ),
         why_it_matters=(
             "You are paying in dynamics for loudness the listener never receives. A master "
-            "pushed to the edge, played back after normalisation, is bit-for-bit the same "
+            "pushed to the edge, played back after normalization, is bit-for-bit the same "
             "audio turned down — squashed transients and all. Meanwhile a version of the same "
             "mix that was not pushed as hard, turned down less, sounds bigger at identical "
             "measured loudness because it kept the peaks. This is not an aesthetic preference; "
-            "it is arithmetic, and it is why the loudness war ended when normalisation "
+            "it is arithmetic, and it is why the loudness war ended when normalization "
             "arrived."
         ),
         common_causes=(
@@ -429,7 +429,7 @@ _add(
             "Limiter input nudged up repeatedly over a long session. Each nudge is inaudible; "
             "the total is not.",
             "Several loudness stages compounding — a saturated mix bus, then a clipper, then a "
-            "limiter, then a maximiser preset that assumes it is first in the chain.",
+            "limiter, then a maximizer preset that assumes it is first in the chain.",
             "Monitoring quietly. A quiet monitor makes a mix feel undersized, and the fix "
             "reached for is the master rather than the volume knob.",
         ),
@@ -497,7 +497,7 @@ _add(
             "the line."
         ),
         learn_more=(
-            "Normalisation is asymmetric, and that asymmetry is the whole strategy. Turning a "
+            "Normalization is asymmetric, and that asymmetry is the whole strategy. Turning a "
             "loud track down is always safe, so platforms always do it in full: go 6 LU over "
             "the target and you lose exactly 6 LU. Turning a quiet track up is not always "
             "safe, because the gain could push peaks into clipping, so platforms limit how far "
@@ -506,9 +506,9 @@ _add(
             "reward for being over it is zero.\n\n"
             "The genre window matters more than the platform target here. Trap, techno and EDM "
             "releases genuinely sit hot, because dense, saturated, limiter-driven sound is part "
-            "of what the genre is, and they take the normalisation hit knowingly. Acoustic, "
+            "of what the genre is, and they take the normalization hit knowingly. Acoustic, "
             "jazz and classical releases sit far below the target and lose nothing, because "
-            "normalisation raises them and their dynamics are the point. That is why this "
+            "normalization raises them and their dynamics are the point. That is why this "
             "analysis compares against where the genre's releases actually land rather than "
             "against a single number for all music."
         ),
@@ -516,9 +516,9 @@ _add(
         resources=(
             Resource(
                 kind="reference",
-                label="How playback loudness normalisation works",
+                label="How playback loudness normalization works",
                 url="https://en.wikipedia.org/wiki/Audio_normalization",
-                note="Peak normalisation and loudness normalisation side by side, with the worked "
+                note="Peak normalization and loudness normalization side by side, with the worked "
                      "example that makes this finding concrete — a platform simply subtracting "
                      "the difference between your master and its target.",
                 source="Wikipedia",
@@ -526,7 +526,7 @@ _add(
             youtube_search(
                 "spotify loudness normalization why louder masters get turned down",
                 "What streaming actually does to a hot master",
-                "The same master heard before and after a platform's normalisation, which is the "
+                "The same master heard before and after a platform's normalization, which is the "
                 "only comparison that shows you what the extra limiter drive bought you.",
             ),
             youtube_search(
@@ -573,7 +573,7 @@ _add(
             "before it — the ear adapts to whatever level has been present for a few seconds "
             "and judges everything against that. Take away the contrast and you take away the "
             "impact, and no amount of extra level replaces it, because the platform is going "
-            "to normalise the whole thing anyway.\n\n"
+            "to normalize the whole thing anyway.\n\n"
             "It is also printed. Compression that has been rendered into a stereo file cannot "
             "be taken back out — a mastering engineer can make this louder or change its tone, "
             "but nobody can put movement back into a waveform that no longer has any. Turned "
@@ -699,7 +699,7 @@ _add(
                 label="The loudness war, and what ended it",
                 url="https://en.wikipedia.org/wiki/Loudness_war",
                 note="Two decades of masters compressed toward a rectangle, why engineers "
-                     "objected, and how playback normalisation removed the reward — the history "
+                     "objected, and how playback normalization removed the reward — the history "
                      "sitting behind the waveform shape this finding is describing.",
                 source="Wikipedia",
             ),
@@ -744,12 +744,12 @@ _add(
         ),
         why_it_matters=(
             "Less than the other findings in this list, and it is worth being straight about "
-            "that: this is a to-do, not damage. Streaming normalisation raises quiet tracks "
+            "that: this is a to-do, not damage. Streaming normalization raises quiet tracks "
             "toward the target, so on Spotify the level gap largely closes by itself. What "
             "does not close by itself is everything else mastering does — the final tonal "
             "decisions, the glue, the consistency across a release — and a track that has "
             "never been mastered has usually not had any of it. It also matters wherever "
-            "normalisation does not apply: DJ software, a client's timeline, a car A/B against "
+            "normalization does not apply: DJ software, a client's timeline, a car A/B against "
             "the radio."
         ),
         common_causes=(
@@ -881,7 +881,7 @@ _add(
             "above the median, so there is no arrival.\n\n"
             "Be aware of what is and is not certain in that. The loudness figures are direct "
             "measurements and are solid. Where the section boundaries were placed is an "
-            "algorithm's judgement, so it may not agree with where you would say the chorus "
+            "algorithm's judgment, so it may not agree with where you would say the chorus "
             "starts. The conclusion — that nothing in this record is much louder than anything "
             "else — does not depend on getting the boundaries exactly right."
         ),
@@ -897,7 +897,7 @@ _add(
             "This one is worth saying plainly because it is the most commonly misdiagnosed "
             "finding in the whole analysis: no plugin on the master fixes it. A limiter cannot "
             "make one section louder than another — it does the exact opposite, it pulls them "
-            "toward each other. Compression, saturation and loudness maximising all reduce the "
+            "toward each other. Compression, saturation and loudness maximizing all reduce the "
             "difference you are trying to create. The lift has to be built in the arrangement "
             "and in the faders, upstream of everything on the master bus.\n\n"
             "Some music is not built this way at all, and the detector knows it: it does not "
@@ -914,9 +914,9 @@ _add(
             "The mix bus compressor is doing more gain reduction in the chorus than in the "
             "verse, which cancels the lift precisely where you built it. This one is extremely "
             "common and invisible unless you watch the meter across the transition.",
-            "Every section was gain-staged or normalised to the same level during production.",
+            "Every section was gain-staged or normalized to the same level during production.",
             "The hook occupies the same instrumentation and the same register as the verse, so "
-            "there is no change of colour to carry the arrival even if the level moves.",
+            "there is no change of color to carry the arrival even if the level moves.",
         ),
         how_to_fix=(
             FixStep(
@@ -968,12 +968,12 @@ _add(
                 action="Keep the verse narrow and open the chorus out.",
                 detail=(
                     "Width contrast works the same way level contrast does. A verse held "
-                    "closer to the centre makes a wide chorus feel like the room got bigger."
+                    "closer to the center makes a wide chorus feel like the room got bigger."
                 ),
                 needs="imager",
                 without=(
                     "Do it with panning instead: pull the verse's supporting parts in toward "
-                    "the centre and spread the chorus doubles out wide. Same contrast, no "
+                    "the center and spread the chorus doubles out wide. Same contrast, no "
                     "plugin, and it is more phase-safe than an imager anyway."
                 ),
             ),
@@ -1077,7 +1077,7 @@ _add(
             "signal and the dry path is the garnish.",
             "Samples that arrived already limited. A loop bounced from someone else's master "
             "has no transient left to preserve.",
-            "A transient shaper set to reduce attack, or a preset labelled 'punch' that is "
+            "A transient shaper set to reduce attack, or a preset labeled 'punch' that is "
             "actually adding sustain.",
         ),
         how_to_fix=(
@@ -1581,7 +1581,7 @@ _add(
             "measured micro-dynamics have to be short of your genre's window *and* the vocal's "
             "own crest collapse and peak pinning have to independently look like several dB of "
             "gain reduction. An unusually even singer is not over-compression, and calling it "
-            "that would be a taste judgement wearing a number."
+            "that would be a taste judgment wearing a number."
         ),
         what_you_hear=(
             "The vocal sits at one distance for the whole song and never comes toward you. The "
@@ -1683,7 +1683,7 @@ _add(
             FixStep(
                 action="Check whether the master limiter is the thing flattening it.",
                 detail=(
-                    "In a dense mix the vocal is usually the loudest centred element, so it "
+                    "In a dense mix the vocal is usually the loudest centered element, so it "
                     "takes the most gain reduction — the limiter ends up riding the vocal "
                     "specifically. Bypass the master chain and compare. If the vocal moves "
                     "again without it, the fix is less drive into the limiter, not less "

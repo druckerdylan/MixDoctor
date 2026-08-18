@@ -30,7 +30,7 @@ HOP_SEC = 0.250
 
 EPS = 1e-12
 
-# ISO 1/3-octave centres, 20 Hz .. 20 kHz.
+# ISO 1/3-octave centers, 20 Hz .. 20 kHz.
 THIRD_OCTAVE_CENTERS: Tuple[float, ...] = (
     20.0, 25.0, 31.5, 40.0, 50.0, 63.0, 80.0, 100.0, 125.0, 160.0,
     200.0, 250.0, 315.0, 400.0, 500.0, 630.0, 800.0, 1000.0, 1250.0, 1600.0,
@@ -174,7 +174,7 @@ def load_audio(path: str, max_seconds: float = 600.0) -> AudioBuffer:
         left, right = data[:, 0], data[:, 1]
     else:
         # >2 channels: fold everything past the first pair into both sides so
-        # a surround stem doesn't silently lose its centre channel.
+        # a surround stem doesn't silently lose its center channel.
         extra = data[:, 2:].mean(axis=1)
         left = data[:, 0] + extra * 0.7071
         right = data[:, 1] + extra * 0.7071
@@ -235,7 +235,7 @@ def frame_signal(x: np.ndarray, frame_len: int, hop: int) -> np.ndarray:
 
 
 def frame_times(n_frames: int, frame_len: int, hop: int, sr: int) -> np.ndarray:
-    """Centre time, in seconds, of each frame."""
+    """Center time, in seconds, of each frame."""
     return (np.arange(n_frames) * hop + frame_len * 0.5) / sr
 
 
@@ -259,7 +259,7 @@ def stft_power(
 
     windowed = frames * window
     spec = np.fft.rfft(windowed, n=n_fft, axis=1)
-    # Normalise so the result is independent of window length/gain.
+    # Normalize so the result is independent of window length/gain.
     scale = 1.0 / (np.sum(window) + EPS)
     power = (np.abs(spec) * scale) ** 2
 
@@ -269,7 +269,7 @@ def stft_power(
 
 
 def band_edges(centers: Tuple[float, ...] = THIRD_OCTAVE_CENTERS) -> np.ndarray:
-    """Lower/upper edges for 1/3-octave bands: centre * 2^(±1/6)."""
+    """Lower/upper edges for 1/3-octave bands: center * 2^(±1/6)."""
     c = np.asarray(centers, dtype=np.float64)
     return np.stack([c * 2 ** (-1 / 6), c * 2 ** (1 / 6)], axis=1)
 

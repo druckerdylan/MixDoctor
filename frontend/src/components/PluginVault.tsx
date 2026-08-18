@@ -137,7 +137,7 @@ export const GAP_RULES: GapRule[] = [
     needs: ['mono_maker', 'eq_mid_side'],
     title: 'No way to mono the low end',
     consequence:
-      'Nothing you own can collapse the bottom to the centre. Low-end phase smear has to be fixed at source — re-centre the parts, or narrow the sub in the arrangement.',
+      'Nothing you own can collapse the bottom to the center. Low-end phase smear has to be fixed at source — re-center the parts, or narrow the sub in the arrangement.',
     dimensions: ['phase', 'low_end'],
   },
   {
@@ -623,7 +623,7 @@ export default function PluginVault({ open, onClose }: PluginVaultProps) {
 
   const results = useMemo(() => searchCatalog(query, category), [query, category]);
 
-  /** Catalogue results grouped by maker, makers with no hits dropped. */
+  /** Catalog results grouped by maker, makers with no hits dropped. */
   const grouped = useMemo(() => {
     const map = new Map<string, CatalogPlugin[]>();
     for (const plugin of results) {
@@ -637,7 +637,7 @@ export default function PluginVault({ open, onClose }: PluginVaultProps) {
     }));
   }, [results]);
 
-  /** Owned entries that survive the current filter, catalogue or custom. */
+  /** Owned entries that survive the current filter, catalog or custom. */
   const ownedVisible = useMemo(() => {
     const inResults = new Set(results.map((p) => `${p.manufacturer}::${p.name}`));
     const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -887,7 +887,7 @@ export default function PluginVault({ open, onClose }: PluginVaultProps) {
                   </div>
 
                   <p className="mt-2 font-mono text-micro uppercase tracking-[0.14em] text-ink-faint">
-                    {results.length} of {PLUGIN_CATALOG.length} in the catalogue
+                    {results.length} of {PLUGIN_CATALOG.length} in the catalog
                     {filtering ? ' match' : ''}
                   </p>
 

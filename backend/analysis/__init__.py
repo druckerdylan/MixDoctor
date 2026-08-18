@@ -4,7 +4,7 @@ Layering, outermost first:
 
     engine.analyze_mix()      orchestrates everything, returns MixAnalysis
       detectors.*             turn measurements into evidence-backed Findings
-        dsp.*                 pure DSP -> measured numbers, no judgement
+        dsp.*                 pure DSP -> measured numbers, no judgment
           core / targets      shared framing, band math, genre reference data
 
 Nothing in `dsp` knows about genres or thresholds; nothing in `detectors`

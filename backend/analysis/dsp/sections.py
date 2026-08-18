@@ -14,7 +14,7 @@ So this module measures the record *in pieces*:
    that curve are candidate boundaries.
 2. **Gate.** A novelty peak is only accepted where the audio on either side
    *measurably* differs: a level change, or a change in tonal balance, in dB.
-   Self-normalising similarity will find "structure" in a 4-minute loop if you
+   Self-normalizing similarity will find "structure" in a 4-minute loop if you
    let it, and a report that invents an arrangement is worse than one that says
    the track is uniform.
 3. **Cluster and label.** Segments are clustered by feature similarity, then
@@ -88,7 +88,7 @@ MAX_SECTIONS = 12
 # phrase and short enough to place a boundary within a bar or two.
 KERNEL_HALF_SEC = 8.0
 
-# Novelty is normalised so it reads as (mean similarity within a side) minus
+# Novelty is normalized so it reads as (mean similarity within a side) minus
 # (mean similarity across the boundary): 0 on uniform material, ~0.3-0.8 at a
 # real section change. The floor is deliberately low because the contrast gate
 # below, not this, is what rejects imaginary boundaries.
@@ -101,7 +101,7 @@ CONTRAST_DB = 1.6
 RELAXED_CONTRAST_DB = 1.0
 
 # Similarity bandwidth floor, in feature units. Without a floor the affinity
-# self-normalises and a dead-uniform loop's numerical noise blows up into
+# self-normalizes and a dead-uniform loop's numerical noise blows up into
 # structure; with it, uniform material stays uniform.
 SIGMA_FLOOR = 0.30
 
@@ -298,7 +298,7 @@ def _power_scale(freqs: np.ndarray, sr: int) -> float:
 
     Two corrections. The rfft is one-sided, so the total needs doubling. And
     `stft_power` divides by the window's *coherent* gain (sum of the window),
-    which is the right normalisation for a sinusoid and 1.76 dB hot for
+    which is the right normalization for a sinusoid and 1.76 dB hot for
     broadband content through a Hann window — band levels are broadband, so the
     noise-power bandwidth is the one to correct for. Measured against
     `core.band_rms_db` on pink noise this lands inside half a decibel.
@@ -369,10 +369,10 @@ def _frame_matrix(
 
 
 def _checkerboard(half: int) -> np.ndarray:
-    """Gaussian-tapered Foote kernel, normalised to read as a similarity gap.
+    """Gaussian-tapered Foote kernel, normalized to read as a similarity gap.
 
     Positive weights sum to +1 and negative weights to -1, so the convolution
-    result is (mean similarity either side of the centre) - (mean similarity
+    result is (mean similarity either side of the center) - (mean similarity
     across it): 0 on uniform material, up to ~1 at a hard cut.
     """
     idx = np.arange(-half, half, dtype=np.float64) + 0.5
@@ -396,8 +396,8 @@ def _self_similarity(features: np.ndarray) -> np.ndarray:
     arrangements that are not there.
 
     That floor is also why this is a dense affinity rather than
-    `librosa.segment.recurrence_matrix`. A k-nearest-neighbour recurrence plot
-    is self-normalising by construction — every frame gets its k neighbours
+    `librosa.segment.recurrence_matrix`. A k-nearest-neighbor recurrence plot
+    is self-normalizing by construction — every frame gets its k neighbors
     whether or not anything in the track resembles it — so on a four-minute
     loop it produces exactly the confident, structured-looking matrix this
     module must not produce. Foote novelty wants a dense similarity anyway.
@@ -717,7 +717,7 @@ def _onset_times(mono: np.ndarray, sr: int) -> np.ndarray:
 
 
 # ---------------------------------------------------------------------------
-# Labelling
+# Labeling
 # ---------------------------------------------------------------------------
 
 

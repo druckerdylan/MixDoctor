@@ -185,7 +185,7 @@ _add(
             "True-peak detection (or oversampling) is switched off in the limiter — it is "
             "off by default in a lot of stock plugins.",
             "Something adds gain after the limiter: a mix-bus trim, a metering plugin left "
-            "in, or the export dialogue's own normalisation.",
+            "in, or the export dialogue's own normalization.",
             "A clipper or saturator ahead of the limiter. Squaring off a waveform adds "
             "harmonics high up in the spectrum, and high-frequency content is exactly what "
             "overshoots hardest between samples — so the limiter holds its ceiling on the "
@@ -196,7 +196,7 @@ _add(
                 action="Set the limiter's output ceiling to -1.0 dBTP.",
                 detail=(
                     "Not -0.1, and not 0. The extra dB is the encoder's working room, not "
-                    "wasted loudness — streaming normalisation turns everything down to a "
+                    "wasted loudness — streaming normalization turns everything down to a "
                     "target loudness anyway, so that dB costs you nothing audible."
                 ),
                 needs="limiter",
@@ -217,7 +217,7 @@ _add(
                 action="Check the signal path after the limiter.",
                 detail=(
                     "Anything adding gain downstream undoes the ceiling — a trim, an "
-                    "analyzer with output gain, or normalisation in the bounce dialogue."
+                    "analyzer with output gain, or normalization in the bounce dialogue."
                 ),
             ),
             FixStep(
@@ -258,7 +258,7 @@ _add(
                 note=(
                     "The fix is two switches — output ceiling and true-peak detection — and "
                     "where they live differs per limiter. These walk through the common ones "
-                    "and why the extra dB costs you no audible loudness after normalisation."
+                    "and why the extra dB costs you no audible loudness after normalization."
                 ),
             ),
             Resource(
@@ -355,7 +355,7 @@ _add(
                 label="What a squared-off waveform actually sounds like",
                 note=(
                     "Hearing clipping next to the clean signal is the quickest way to learn to "
-                    "recognise it in your own mix, which is the skill this finding is standing "
+                    "recognize it in your own mix, which is the skill this finding is standing "
                     "in for until you have it."
                 ),
             ),

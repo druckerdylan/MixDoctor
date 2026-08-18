@@ -13,7 +13,7 @@ Three things make it different from the string-parsing approach it replaces:
 2. **A wire model separate from the contract.** `analysis.types.EngineerReport`
    is the UI contract; `_ReportDraft` below is what the model fills in. They are
    deliberately not the same shape (see `_MoveDraft.settings`), and the
-   conversion is where sanitisation happens.
+   conversion is where sanitization happens.
 3. **The failure mode is `None`.** `consult_engineer` never raises. If the API
    is unavailable the caller renders the deterministic findings, which already
    say something true on their own.
@@ -90,7 +90,7 @@ MAX_LIST_ITEMS = 8
 MAX_MOMENTS_IN_BRIEF = 16
 
 # The brief renders at most this many plugins. The API clamps to the same
-# number before we ever get here; this is the second line of defence, because a
+# number before we ever get here; this is the second line of defense, because a
 # 4000-entry plugin list is a way to push the real evidence out of context.
 MAX_PLUGINS_IN_BRIEF = 200
 
@@ -232,7 +232,7 @@ def coerce_plugin(item: Any) -> Optional[OwnedPlugin]:
 
 
 def coerce_plugins(items: Optional[Sequence[Any]]) -> List[OwnedPlugin]:
-    """Normalise a mixed list, de-duplicating by name (case-insensitive).
+    """Normalize a mixed list, de-duplicating by name (case-insensitive).
 
     The richer record wins a collision: a posted `OwnedPlugin` carrying
     capabilities beats the same name arriving as a bare string from the DB.
@@ -373,7 +373,7 @@ class EngineerContext:
         `capabilities.owned_capabilities` returns stock-first-then-discovered,
         which reads as a random pile. Re-ordering to the declaration order in
         `capabilities.CAPABILITIES` groups it by family — EQ, dynamics,
-        loudness, repair, colour, space, metering — which is how an engineer
+        loudness, repair, color, space, metering — which is how an engineer
         thinks about a rack.
         """
         have = set(caps.owned_capabilities(self.plugins))
@@ -736,17 +736,17 @@ The brief marks this, and you have to respect the mark.
 samples, the spectrum, correlation, width, crest factor, tempo. State those flatly.
 
 **Inferred** means it was reconstructed from the two-track because nothing better was available. \
-Without separated stems the vocal figures are a centre-channel proxy that cannot tell a lead \
-vocal from a centred synth; the kick and bass figures come from band overlap rather than from two \
+Without separated stems the vocal figures are a center-channel proxy that cannot tell a lead \
+vocal from a centered synth; the kick and bass figures come from band overlap rather than from two \
 separate objects; the sidechain call and the ducking depth are read off an envelope; the \
 gain-reduction figure is an estimate of what a limiter did, not a reading from one; the \
-attribution of bursty 5-9 kHz energy to consonants or to hats is a judgement made without ever \
-hearing either. Hedge those in proportion — "the centre-channel estimate puts the lead around 7 dB \
+attribution of bursty 5-9 kHz energy to consonants or to hats is a judgment made without ever \
+hearing either. Hedge those in proportion — "the center-channel estimate puts the lead around 7 dB \
 under the bed, which on a beat is where you'd expect it" — and never present an inference as a \
 measurement.
 
 When your recommendation actually turns on an inferred number — when you would say one thing if \
-that really is a lead vocal sitting 7 dB down and something else if it is a centred synth pad — \
+that really is a lead vocal sitting 7 dB down and something else if it is a centered synth pad — \
 say so plainly and tell them to run the analysis again with stem separation enabled, which turns \
 those inferences into measurements. Once, where it genuinely changes the answer. Not as a \
 blanket disclaimer on every paragraph.
@@ -759,7 +759,7 @@ fact about this mix. There is no penalty for speaking qualitatively; there is a 
 for a confident number the analysis never measured, because the producer will check it.
 
 You are still expected to reason past the numbers. "The 808 and the kick are fighting for the \
-same octave" is a judgement, and judgement is what you're here for. "The 808 sits at 55 Hz" is \
+same octave" is a judgment, and judgment is what you're here for. "The 808 sits at 55 Hz" is \
 a measurement, and is only allowed if 55 Hz appears in the brief. When you prescribe a move you \
 are naturally choosing new numbers — a corner frequency, a Q, an amount of gain reduction. That \
 is a prescription, not a measurement, and it has to be anchored to a measured one: cut where the \
@@ -882,8 +882,8 @@ brief tells you they are inferences.
 
 **Stems.** When a `## Per-source analysis` section is present, those numbers came off separated \
 sources. They are measurements of the vocal, the drums, the bass and everything else as \
-individual objects, not centre-channel proxies, and they outrank every 2-track inference in the \
-brief. Say them flatly: "the vocal sits 4.2 dB under the music bus", not "the centre-channel \
+individual objects, not center-channel proxies, and they outrank every 2-track inference in the \
+brief. Say them flatly: "the vocal sits 4.2 dB under the music bus", not "the center-channel \
 estimate suggests the vocal may be sitting low". The masking table is measured too — name the \
 masker, the maskee and the band it happens in, and prescribe on the *masker*, which is the \
 element that can afford to lose that region. When a stem figure and a 2-track figure disagree, \
@@ -961,7 +961,7 @@ to add a topline, telling somebody's reference track to re-render, telling a rou
 - A report in which nothing at all reads as deliberate. If every deviation in the brief turned \
 into a fix, you did not think about what the record is.
 - Ranking by how far a number is outside its window instead of by what a listener would notice.
-- Presenting an inferred figure as a measurement, or hedging about the centre channel when the \
+- Presenting an inferred figure as a measurement, or hedging about the center channel when the \
 brief has measured stems.
 - Any number that is not in the brief.
 - "Use EQ to clean up the mix", "add some compression", "check your levels" — advice that would \
@@ -1139,7 +1139,7 @@ _INTENT_BRIEF: Dict[str, str] = {
     ),
     "stem": (
         "This is a **SINGLE STEM** — one element in isolation, not a mix. Whole-mix "
-        "judgements are category errors against it: a bass stem is supposed to be all low "
+        "judgments are category errors against it: a bass stem is supposed to be all low "
         "end and a vocal stem is supposed to have nothing under it. Report what is "
         "measured; do not prescribe tonal balance."
     ),
@@ -1169,7 +1169,7 @@ def _score_block(ctx: EngineerContext) -> str:
     stops that search.
 
     Returns "" when the caller predates `ScoreCard`, in which case the header's
-    own legacy line is all there is and it is labelled as such.
+    own legacy line is all there is and it is labeled as such.
     """
     sc = ctx.scores
     if sc is None:
@@ -1328,7 +1328,7 @@ def _header(ctx: EngineerContext) -> str:
         bits.append(f"**Mastering-ready:** {_yn(ctx.mastering_ready)}")
     if ctx.scores is None and ctx.health_score is not None:
         # Only reached by a caller that predates the ScoreCard. One line, and it
-        # is still labelled as the composite so nothing reads it as a verdict.
+        # is still labeled as the composite so nothing reads it as a verdict.
         grade = f" (grade {ctx.grade})" if ctx.grade else ""
         bits.append(
             f"**Legacy composite score:** {_fin(ctx.health_score):.0f}/100{grade} — a single "
@@ -1363,8 +1363,8 @@ def _provenance_section(ctx: EngineerContext) -> str:
 
     Every number in the brief is real, but they are not all the same kind of
     real. A true-peak reading is a measurement. "The vocal sits 7 dB under the
-    instruments" — with no stems — is a centre-channel proxy that cannot tell a
-    lead vocal from a centred synth, and a report that states the two in the same
+    instruments" — with no stems — is a center-channel proxy that cannot tell a
+    lead vocal from a centered synth, and a report that states the two in the same
     voice is overclaiming on the second one. This table is what lets the write-up
     hedge in proportion instead of hedging everywhere or nowhere.
     """
@@ -1386,7 +1386,7 @@ def _provenance_section(ctx: EngineerContext) -> str:
             "Vocal level, prominence, presence and sibilance",
             "**measured**",
             "Separation ran. These came off a separated vocal source, so state them as facts "
-            "and do not hedge about the centre channel.",
+            "and do not hedge about the center channel.",
         ))
         rows.append((
             "Kick and bass fundamentals, kick/bass collision",
@@ -1395,11 +1395,11 @@ def _provenance_section(ctx: EngineerContext) -> str:
         ))
     else:
         rows.append((
-            "Vocal present, prominence, vocal-to-instrument, intelligibility, centre sibilance",
+            "Vocal present, prominence, vocal-to-instrument, intelligibility, center sibilance",
             "_inferred_",
-            "A centre-channel proxy. It cannot tell a lead vocal from a centred synth, a "
+            "A center-channel proxy. It cannot tell a lead vocal from a centered synth, a "
             "chopped sample or a mono-summed pad, and a tucked lead is exactly the case it is "
-            "least sure about. Say \"the centre-channel estimate puts...\", never \"the vocal "
+            "least sure about. Say \"the center-channel estimate puts...\", never \"the vocal "
             "is...\".",
         ))
         rows.append((
@@ -1412,7 +1412,7 @@ def _provenance_section(ctx: EngineerContext) -> str:
             "Which source owns the bursty 5-9 kHz energy",
             "_inferred_",
             "Consonants and closed hi-hats are the same shape of burst in the same band. With "
-            "no stems, the attribution in the findings table is a judgement from the voice test "
+            "no stems, the attribution in the findings table is a judgment from the voice test "
             "and the intent, not a measurement.",
         ))
 
@@ -1454,7 +1454,7 @@ def _provenance_section(ctx: EngineerContext) -> str:
             ""
             if has_stems else
             "\n\nIf a recommendation genuinely turns on one of the inferred rows above — you "
-            "would say one thing if that is a lead vocal and something else if it is a centred "
+            "would say one thing if that is a lead vocal and something else if it is a centered "
             "synth — say so once, in the `alternative` of that prescription, and tell the "
             "producer to re-run the analysis with **stem separation enabled**, which converts "
             "those rows into measurements. Once, where it changes the answer. Not everywhere."
@@ -1495,7 +1495,7 @@ def _dynamics_section(ctx: EngineerContext) -> str:
         ("Macro-dynamics", _n(D.macro_dynamics_lu, 1, "LU"), "—", "—"),
         ("DR value (TT style)", _n(D.dr_value, 1), "—", "—"),
         ("Peak to loudness", _n(D.peak_to_loudness_db, 1, "dB"), "—", "—"),
-        ("Programme RMS", _n(D.rms_db, 1, "dBFS"), "—", "—"),
+        ("Program RMS", _n(D.rms_db, 1, "dBFS"), "—", "—"),
         ("Estimated gain reduction", _n(D.gain_reduction_estimate_db, 1, "dB"), "—", "—"),
         ("Pumping index", _n(D.pumping_index, 2), "0 = none, 1 = severe", "—"),
         ("Pumping rate", _n(D.pumping_rate_hz, 2, "Hz"), "—", "—"),
@@ -1664,7 +1664,7 @@ def _vocal_section(ctx: EngineerContext) -> str:
         ("Vocal to instrument", _n(V.vocal_to_instrument_db, 1, "dB", signed=True),
          _rng(p.vocal_to_instrument_db, 1, "dB"),
          _vs_usual(V.vocal_to_instrument_db, p.vocal_to_instrument_db)),
-        ("Centre energy ratio", _n(V.center_energy_ratio, 2), "—", "—"),
+        ("Center energy ratio", _n(V.center_energy_ratio, 2), "—", "—"),
         ("Intelligibility index", _n(V.intelligibility_index, 2), "0 = buried, 1 = crystal", "—"),
         ("Presence balance", _n(V.presence_balance_db, 1, "dB", signed=True), "—", "—"),
         ("Sibilance", _n(V.sibilance_db, 1, "dB"), "—", "—"),
@@ -1673,8 +1673,8 @@ def _vocal_section(ctx: EngineerContext) -> str:
     provenance = (
         "Measured on a separated vocal source — state these as facts.\n\n"
         if has_vocal_stem else
-        "**Every figure in this table is inferred from the centre channel, not measured on a "
-        "vocal.** The test cannot tell a lead vocal from a centred synth, a mono-summed pad or "
+        "**Every figure in this table is inferred from the center channel, not measured on a "
+        "vocal.** The test cannot tell a lead vocal from a centered synth, a mono-summed pad or "
         "a chopped sample, and it is least certain exactly when the voice is quiet. Word these "
         "as estimates.\n\n"
     )
@@ -1686,7 +1686,7 @@ def _vocal_section(ctx: EngineerContext) -> str:
     if no_lead_expected:
         out.append(
             "\n\n**No lead is expected on this file** — see \"What this file is\" at the top. "
-            "Whatever the centre channel is showing, there is no vocal balance here to fix. Do "
+            "Whatever the center channel is showing, there is no vocal balance here to fix. Do "
             "not prescribe raising, de-essing, compressing or riding a lead, and do not read a "
             "low figure in this table as an unfinished mix."
         )
@@ -1702,7 +1702,7 @@ def _vocal_section(ctx: EngineerContext) -> str:
         )
 
     if V.masked_bands:
-        out.append(f"\n\nBands masking the centre: {', '.join(V.masked_bands)}.")
+        out.append(f"\n\nBands masking the center: {', '.join(V.masked_bands)}.")
     return "".join(out)
 
 
@@ -1990,7 +1990,7 @@ def _stems_section(ctx: EngineerContext) -> str:
 
     The "didn't" branch matters as much as the other one: without it the model
     reads `vocal_to_instrument_db` as a per-source measurement, and it is a
-    centre-channel proxy that cannot tell a lead vocal from a centred synth.
+    center-channel proxy that cannot tell a lead vocal from a centered synth.
     """
     S = ctx.stems
     if not S.available:
@@ -2001,7 +2001,7 @@ def _stems_section(ctx: EngineerContext) -> str:
             "## Per-source analysis\n\n_Source separation was not run on this mix._"
             + reason
             + " Everything above is measured from the 2-track, which means the vocal figures "
-            "are centre-channel proxies and the kick/bass figures come from band overlap rather "
+            "are center-channel proxies and the kick/bass figures come from band overlap rather "
             "than from two separated objects. Treat them as estimates, say so when you lean on "
             "them, and do not describe them as per-source measurements."
         )
@@ -2268,7 +2268,7 @@ _CAPABILITY_FAMILY: Tuple[Tuple[Tuple[str, ...], str], ...] = (
     (("comp_", "expander"), "Dynamics"),
     (("limiter", "clipper"), "Loudness"),
     (("deesser", "resonance_suppressor", "spectral_repair", "noise_reduction"), "Spectral repair"),
-    (("saturation", "tape", "exciter"), "Colour"),
+    (("saturation", "tape", "exciter"), "Color"),
     (("imager", "mono_maker", "reverb", "delay", "transient_shaper"), "Space & shaping"),
     (("meter_", "reference_matching"), "Metering"),
     (("pitch_correction",), "Pitch"),
@@ -2386,7 +2386,7 @@ def _closing_section(ctx: EngineerContext) -> str:
             "vocal fix, a de-esser for the hats, or a master to genre loudness."
         ),
         "instrumental": "**This is an instrumental.** Say nothing about vocals.",
-        "stem": "**This is a single stem.** Whole-mix balance judgements do not apply to it.",
+        "stem": "**This is a single stem.** Whole-mix balance judgments do not apply to it.",
         "reference": (
             "**This is somebody else's finished record.** Describe what it does. Prescribe "
             "nothing."
@@ -2433,7 +2433,7 @@ def _closing_section(ctx: EngineerContext) -> str:
         + "- **Fix every defect and say plainly that it is broken.** No hedging, no genre excuse.\n"
         f"- **Treat every deviation as a difference from the {label} reference, not as damage.** "
         "Decide for each one whether it reads as deliberate. Say so and leave the deliberate "
-        "ones alone — that judgement is the most valuable thing in this report. Prescribe a "
+        "ones alone — that judgment is the most valuable thing in this report. Prescribe a "
         "change only where you can argue the cost beats what it buys, and name both sides.\n"
         "- **Rank by what a listener would notice**, not by how far a number sits outside a "
         "window.\n"
@@ -2582,7 +2582,7 @@ def _log_tool_fit(prescriptions: Sequence[Prescription], ctx: EngineerContext) -
     """Count how many moves stayed inside the producer's own rack.
 
     Whether the advice is genuinely shaped by what they own is not something a
-    server can assert on — it is a judgement about prose. What it can do is
+    server can assert on — it is a judgment about prose. What it can do is
     count, and a run where most moves name something outside the list is the
     signal that either the prompt has drifted or the plugin list never made it
     through the API. Observability only; nothing is dropped on this basis,
@@ -2610,7 +2610,7 @@ def _log_tool_fit(prescriptions: Sequence[Prescription], ctx: EngineerContext) -
 
 
 def _to_report(draft: _ReportDraft, ctx: EngineerContext) -> EngineerReport:
-    """Convert, sanitise, and drop anything that references a finding we never raised.
+    """Convert, sanitize, and drop anything that references a finding we never raised.
 
     Dropping is deliberate. A prescription pinned to an id the UI has never
     heard of renders as an orphan card, and an id the model invented is by

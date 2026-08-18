@@ -168,7 +168,7 @@ SELF_TEST_GRID_TOL_DB = 3.5
 # tool is willing to call it wrong — a half-width, applied symmetrically.
 #
 # A corpus can agree with itself far more tightly than this tool can measure it.
-# At the 1 kHz normalisation anchor the IQR collapses to hundredths of a decibel
+# At the 1 kHz normalization anchor the IQR collapses to hundredths of a decibel
 # *by construction* — that is where the 0 dB reference is — so a strict "is the
 # hand-set value inside the IQR" test flags every band near 1 kHz whose hand-set
 # value is not the median to two decimal places. That is noise dressed as a
@@ -185,7 +185,7 @@ def _grid_bias_db() -> Dict[float, float]:
     """Predicted per-band bias of the 1/3-octave measurement, from the FFT grid alone.
 
     `spectral.py` defines a band's level as the *summed* power of the FFT bins
-    whose centres fall inside it. For a locally flat power density that sum is
+    whose centers fall inside it. For a locally flat power density that sum is
     proportional to the bin count, and the bin count is an integer while the band
     width is not — so a band 1.25 bins wide that captures 2 bins reads 2.06 dB
     hot, and one 1.58 bins wide that captures 1 reads 1.99 dB shy. Nothing about
@@ -277,7 +277,7 @@ SCALAR_SPECS: Tuple[ScalarSpec, ...] = (
 )
 
 # The anchor frequencies every curve in targets.py is written at. All fifteen
-# are ISO 1/3-octave centres, so each one reads straight off the fitted curve
+# are ISO 1/3-octave centers, so each one reads straight off the fitted curve
 # with no interpolation on the way in.
 ANCHOR_HZ: Tuple[float, ...] = (
     20.0, 40.0, 63.0, 100.0, 160.0, 250.0, 400.0, 630.0, 1000.0,
@@ -292,7 +292,7 @@ def _is_grid_limited(hz: float) -> bool:
 # Four of those fifteen anchors (20, 40, 63 Hz and 20 kHz) sit on grid-limited
 # bands, and an anchor carries its own bias into every band it interpolates
 # across — so the 25 Hz band reads correctly but the *anchor-reduced* curve is
-# ~1.9 dB wrong there, inherited from its neighbours at 20 and 40 Hz. The span
+# ~1.9 dB wrong there, inherited from its neighbors at 20 and 40 Hz. The span
 # below is where every bracketing anchor is clean, and is therefore the only
 # region where the anchor format can be held to account for its own fidelity.
 _CLEAN_ANCHORS: Tuple[float, ...] = tuple(
@@ -585,8 +585,8 @@ def _judge_scalar(spec: ScalarSpec, st: Stats, values: Sequence[float],
     """Compare one fitted distribution against its hand-set target.
 
     Window targets are judged two ways, because they can fail two ways: the
-    window can be centred in the wrong place (the corpus median falls outside
-    it) or it can be the wrong shape (it is centred correctly but so narrow that
+    window can be centered in the wrong place (the corpus median falls outside
+    it) or it can be the wrong shape (it is centered correctly but so narrow that
     most real records sit outside it). Either one means the detector fires on
     records that are fine, so either one is `wrong`.
     """
@@ -627,7 +627,7 @@ def _judge_scalar(spec: ScalarSpec, st: Stats, values: Sequence[float],
         elif in_pct < 50.0:
             verdict = "wrong"
             note = (
-                f"Window is centred correctly but too narrow — only {in_pct:.0f}% of the "
+                f"Window is centered correctly but too narrow — only {in_pct:.0f}% of the "
                 f"corpus falls inside it, so the detector fires on records that are fine."
             )
         elif in_pct < 75.0:
@@ -871,7 +871,7 @@ def render_report(fit: CorpusFit) -> str:
     # -- curve ---------------------------------------------------------------
     add("## Fitted target curve")
     add("")
-    add(_para("Median 1/3-octave level across the corpus, normalised to the 800/1000/1250 Hz "
+    add(_para("Median 1/3-octave level across the corpus, normalized to the 800/1000/1250 Hz "
         "power mean — the same 0 dB reference `analysis/dsp/spectral.py` uses, so these "
         "numbers drop straight onto `targets.target_curve()` without conversion. "
         "**This is the empirical target curve.**"))
@@ -986,7 +986,7 @@ def render_report(fit: CorpusFit) -> str:
         f"`core.stft_power` runs an {_STFT_N_FFT}-point FFT at "
         f"{core.ANALYSIS_SR // 1000} kHz, so the bins are {spacing:.2f} Hz apart, and "
         f"`spectral.py` defines a band's level as the summed power of the bins whose "
-        f"centres fall inside it. That sum is proportional to an integer bin count "
+        f"centers fall inside it. That sum is proportional to an integer bin count "
         f"while the band width is not, so every 1/3-octave band narrow enough to hold "
         f"only a few bins reads systematically hot or shy — arithmetic on the grid, "
         f"nothing to do with the audio."

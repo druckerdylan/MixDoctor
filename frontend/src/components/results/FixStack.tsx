@@ -256,7 +256,7 @@ function measurementCount(finding: Finding | null): string | undefined {
 }
 
 /**
- * The affordance. These cards always opened; nobody realised they did, because
+ * The affordance. These cards always opened; nobody realized they did, because
  * a severity chip and a headline read as a summary rather than as a door. So a
  * collapsed card now says what is inside it, in words, and lights up on hover.
  */
@@ -397,7 +397,7 @@ function ProgressHead({
   /**
    * Whether the report carries a `ScoreCard`. Every figure in this panel comes
    * off the legacy composite, and where the top of the page is showing
-   * `Technical 100 · A+`, an unlabelled "Projected score 54 / 84" underneath it
+   * `Technical 100 · A+`, an unlabeled "Projected score 54 / 84" underneath it
    * reads as a contradiction rather than as a second measure. It is not one —
    * the composite mixes defects and genre distance, which is exactly why the
    * split exists — so when the split is present this says which number it is.
@@ -662,7 +662,7 @@ function PrescriptionCard({
         borderColor: done || acknowledged ? 'rgba(82,242,196,0.28)' : undefined,
       }}
     >
-      {/* Severity rail — colour plus position, never colour alone. */}
+      {/* Severity rail — color plus position, never color alone. */}
       <span
         aria-hidden="true"
         className="absolute inset-y-0 left-0 w-[3px]"

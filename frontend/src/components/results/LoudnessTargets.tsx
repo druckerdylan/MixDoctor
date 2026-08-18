@@ -4,7 +4,7 @@
  * The single fact most producers get wrong is that streaming turns loud
  * masters down, so the loudness war was lost years ago and mastering hot only
  * costs dynamics. So the delta is the hero here: one diverging bar per
- * platform, centred on that platform's target, reading "turned down 4.2 LU"
+ * platform, centered on that platform's target, reading "turned down 4.2 LU"
  * in plain words.
  */
 
@@ -137,7 +137,7 @@ function LufsRail({ integrated, groups }: { integrated: number; groups: RailGrou
           numbers 26–36, platform stack 38–64. Nothing overlaps anything.
           Below ~600px the tick labels would collide, so the scale scrolls
           inside itself rather than dropping data or stacking on top of it. */}
-      {/* Negative margin + matching padding: the end labels are centred on the
+      {/* Negative margin + matching padding: the end labels are centered on the
           scale ends, so they need room to hang past them without being clipped. */}
       <div ref={scrollRef} className="-mx-3 overflow-x-auto px-3 pb-1">
       <div
@@ -488,7 +488,7 @@ export default function LoudnessTargets({ targets, loudness }: LoudnessTargetsPr
                   ? 'On target'
                   : under
                     ? `${Math.abs(r.over).toFixed(1)} LU under · left alone`
-                    : `${Math.abs(r.over).toFixed(1)} LU over · not normalised`;
+                    : `${Math.abs(r.over).toFixed(1)} LU over · not normalized`;
 
               return (
                 <li
@@ -598,7 +598,7 @@ export default function LoudnessTargets({ targets, loudness }: LoudnessTargetsPr
             label="Integrated"
             value={lufs(integrated)}
             unit="LUFS"
-            note="Whole-programme loudness"
+            note="Whole-program loudness"
           />
           <Stat
             label="Short-term max"

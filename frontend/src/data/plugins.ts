@@ -1,5 +1,5 @@
 /**
- * The plugin catalogue, tagged by capability.
+ * The plugin catalog, tagged by capability.
  *
  * Mirrors backend/analysis/capabilities.py. The point is not the brand name —
  * it is what the box can *do*, because that is what changes the shape of a
@@ -43,7 +43,7 @@ export const CAPABILITY_LABELS: Record<string, string> = {
   deesser: 'De-esser',
   resonance_suppressor: 'Resonance suppressor',
   spectral_repair: 'Spectral repair',
-  // Colour
+  // Color
   saturation: 'Saturation',
   tape: 'Tape',
   exciter: 'Exciter',
@@ -68,13 +68,13 @@ export const CAPABILITY_BLURBS: Record<string, string> = {
   eq_static: 'Fixed bells, shelves and filters.',
   eq_dynamic: 'A band that only acts when the region crosses a threshold.',
   eq_linear_phase: 'No phase smear across the crossover. Pre-rings on transients.',
-  eq_mid_side: 'Treat the centre and the sides independently.',
+  eq_mid_side: 'Treat the center and the sides independently.',
   eq_match: 'Fit the spectrum to a captured reference curve.',
   comp_single: 'Standard downward compression.',
   comp_multiband: 'Compress one region without the rest ducking with it.',
   comp_sidechain_ext: "Duck one source from another's signal.",
   comp_parallel: 'Built-in dry/wet — density without losing the transient.',
-  comp_bus: 'Glue-style bus compression, slow and programme-dependent.',
+  comp_bus: 'Glue-style bus compression, slow and program-dependent.',
   comp_opto: 'Slow, level-dependent release. Forgiving on vocals.',
   comp_fet: 'Very fast attack. Aggressive on drums and rock vocals.',
   comp_vca: 'Precise and punchy, tight control of attack and release.',
@@ -120,7 +120,7 @@ export const CAPABILITY_GROUPS: { label: string; capabilities: string[] }[] = [
   },
   { label: 'Loudness', capabilities: ['limiter', 'limiter_truepeak', 'clipper'] },
   { label: 'Repair', capabilities: ['deesser', 'resonance_suppressor', 'spectral_repair', 'noise_reduction'] },
-  { label: 'Colour', capabilities: ['saturation', 'tape', 'exciter'] },
+  { label: 'Color', capabilities: ['saturation', 'tape', 'exciter'] },
   { label: 'Space', capabilities: ['imager', 'mono_maker', 'reverb', 'delay', 'transient_shaper'] },
   {
     label: 'Measurement',
@@ -194,7 +194,7 @@ export function orderCapabilities(caps: readonly string[]): string[] {
 }
 
 /* ------------------------------------------------------------------ */
-/* Catalogue                                                           */
+/* Catalog                                                           */
 /* ------------------------------------------------------------------ */
 
 export interface CatalogPlugin {
@@ -738,7 +738,7 @@ const CATALOG_BY_MANUFACTURER: Record<string, Entry[]> = {
   ],
 };
 
-/** Flattened catalogue — the list the picker actually searches. */
+/** Flattened catalog — the list the picker actually searches. */
 export const PLUGIN_CATALOG: CatalogPlugin[] = Object.entries(CATALOG_BY_MANUFACTURER).flatMap(
   ([manufacturer, entries]) =>
     entries.map((entry) => ({
@@ -753,7 +753,7 @@ export const MANUFACTURERS: string[] = Object.keys(CATALOG_BY_MANUFACTURER).sort
   a.localeCompare(b),
 );
 
-/** Every category present in the catalogue, alphabetical. */
+/** Every category present in the catalog, alphabetical. */
 export const CATEGORIES: string[] = Array.from(
   new Set(PLUGIN_CATALOG.map((p) => p.category)),
 ).sort((a, b) => a.localeCompare(b));
@@ -800,7 +800,7 @@ export const CAPABILITIES_FOR_CATEGORY: Record<string, string[]> = {
   Other: [],
 };
 
-/** Category list for the custom-plugin form — catalogue categories plus 'Other'. */
+/** Category list for the custom-plugin form — catalog categories plus 'Other'. */
 export const CUSTOM_CATEGORIES: string[] = Array.from(
   new Set([...CATEGORIES, ...Object.keys(CAPABILITIES_FOR_CATEGORY)]),
 ).sort((a, b) => a.localeCompare(b));
@@ -887,7 +887,7 @@ export const VAULT_PRESETS: VaultPreset[] = [
   {
     id: 'waves-mercury',
     label: 'Waves Mercury',
-    detail: 'The Waves catalogue in this list.',
+    detail: 'The Waves catalog in this list.',
     plugins: byManufacturer('Waves'),
   },
   {

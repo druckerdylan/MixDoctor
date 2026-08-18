@@ -45,7 +45,7 @@ _add(
             "amateur'.\n\n"
             "Your ear does not measure frequencies one at a time. The inner ear is a strip "
             "that responds to different pitches along its length, and a loud sound does not "
-            "just occupy its own spot — it excites the neighbouring region too. Anything "
+            "just occupy its own spot — it excites the neighboring region too. Anything "
             "quieter landing in that region stops being heard as a separate sound. It is not "
             "made quieter. It becomes invisible, while still consuming level, headroom and "
             "space in your mix.\n\n"
@@ -176,7 +176,7 @@ _add(
                 detail=(
                     "Two parts in the same band stop masking each other if they are not in the "
                     "same place or not playing at the same moment. Pan them apart, or use "
-                    "mid/side EQ to keep the centre for the lead and the sides for the layers. "
+                    "mid/side EQ to keep the center for the lead and the sides for the layers. "
                     "Failing that, edit: shorten one part so the other has a gap to speak in."
                 ),
                 needs="eq_mid_side",
@@ -214,7 +214,7 @@ _add(
             "why 40 Hz and 55 Hz are effectively the same event to your ear while 2 kHz and "
             "2.2 kHz are not, and why low-end arrangement problems are so much less forgiving "
             "than midrange ones.\n\n"
-            "Each filter then spreads energy onto its neighbours: steeply downward — roughly "
+            "Each filter then spreads energy onto its neighbors: steeply downward — roughly "
             "27 dB for every filter-width of distance — and shallowly upward, with the upward "
             "slope flattening further as the masker gets louder. Anything falling under the "
             "resulting threshold is counted as masked. There is a time dimension too: a loud "
@@ -323,7 +323,7 @@ _add(
                 detail=(
                     "The threshold hiding the buried part is set by the loud one, so lowering "
                     "the loud one is what uncovers it — at the level it already had, without "
-                    "adding anything to the mix. Wide bell, 2-4 dB, centred in the band the "
+                    "adding anything to the mix. Wide bell, 2-4 dB, centered in the band the "
                     "finding names. If the masker is a supporting part, be braver: 6 dB out of "
                     "a pad's low mids is normal and nobody notices except as clarity."
                 ),
@@ -363,17 +363,17 @@ _add(
                 ),
             ),
             FixStep(
-                action="Move one of them out of the centre.",
+                action="Move one of them out of the center.",
                 detail=(
                     "Masking is strongest between sources in the same place. If the contested "
                     "band is above roughly 200 Hz, widening or panning the masker while the "
-                    "buried part holds the centre buys separation without either losing level. "
+                    "buried part holds the center buys separation without either losing level. "
                     "Below 200 Hz this does not work and will cost you mono compatibility."
                 ),
                 needs="eq_mid_side",
                 without=(
-                    "Pan the masker off centre if it is a supporting part, or use a short "
-                    "delay of 10-25 ms on one side of it to widen it away from the centre."
+                    "Pan the masker off center if it is a supporting part, or use a short "
+                    "delay of 10-25 ms on one side of it to widen it away from the center."
                 ),
             ),
             FixStep(
@@ -477,7 +477,7 @@ _add(
         why_it_matters=(
             "Transients are how a listener locates the beat in time, so losing them costs you "
             "the groove — the thing most people actually respond to. They also cost you "
-            "loudness, counter-intuitively: every platform normalises playback to a target "
+            "loudness, counter-intuitively: every platform normalizes playback to a target "
             "loudness, so what a listener hears is not your peak level but your contrast at a "
             "fixed loudness. Played back next to a flattened mix at the same measured loudness, "
             "a mix with real transients sounds bigger and hits harder, every time — the "
@@ -628,14 +628,14 @@ _add(
                 "compressor attack and release settings for punchy drums",
                 "Hearing what attack time actually does to a hit",
                 "The number one cause on the list above, demonstrated: the same drum bus at "
-                "1 ms and at 30 ms, until you can recognise a clamped transient by ear "
+                "1 ms and at 30 ms, until you can recognize a clamped transient by ear "
                 "rather than by meter.",
             ),
             youtube_search(
                 "why does my mix lose punch when I make it louder",
                 "Punch against loudness, which is the trade this finding is about",
                 "Why the flattened version loses to the dynamic one once a platform "
-                "normalises them to the same loudness, and where to take the level back "
+                "normalizes them to the same loudness, and where to take the level back "
                 "from instead of the limiter.",
             ),
             Resource(
@@ -661,10 +661,10 @@ _add(
 
 _VOCAL_INFERENCE_NOTE = (
     "One thing to know about how this was measured. If you ran the standard analysis, there "
-    "were no separated parts to work with, so the vocal level was estimated from the CENTRE of "
+    "were no separated parts to work with, so the vocal level was estimated from the CENTER of "
     "the stereo field — the content that appears equally in both channels. That is a fair "
-    "proxy for a lead vocal, because leads are almost always centred, but it cannot tell a "
-    "singer from a centred synth, a mono bass or a snare, and it is meaningless on a mono "
+    "proxy for a lead vocal, because leads are almost always centered, but it cannot tell a "
+    "singer from a centered synth, a mono bass or a snare, and it is meaningless on a mono "
     "file. Treat it as directional. Running the deep analysis separates the vocal as an actual "
     "source and compares it against the real instrumental, which turns this from an inference "
     "into a measurement — worth doing before you make a big move on the strength of it."
@@ -723,7 +723,7 @@ _add(
             "fall under the instrumental. The average reads fine and half the words do not.",
             "Reverb and delay pushing the vocal back. Wet sounds read as distant, and the tail "
             "of one word masks the start of the next.",
-            "The master limiter. In a dense mix the vocal is often the loudest centred thing, "
+            "The master limiter. In a dense mix the vocal is often the loudest centered thing, "
             "so it takes the most gain reduction — the limiter is effectively riding it down.",
             "Mixing the vocal early against a half-finished instrumental and never re-checking "
             "it once everything else arrived.",
@@ -874,7 +874,7 @@ _add(
             "further above the instrumental than records in your genre sit.\n\n"
             "Too loud is a real fault, not just a taste call, for two reasons. Masking works in "
             "both directions — a vocal that is too far up covers the arrangement underneath it, "
-            "so the track sounds thinner than it is. And on a master, the loudest centred "
+            "so the track sounds thinner than it is. And on a master, the loudest centered "
             "element decides how hard the limiter works; a vocal riding 3 dB above where it "
             "belongs is a vocal that costs the whole record its loudness.\n\n"
             + _VOCAL_INFERENCE_NOTE
@@ -889,7 +889,7 @@ _add(
             "usually why."
         ),
         why_it_matters=(
-            "It costs loudness directly. Streaming normalises to a target, so a master whose "
+            "It costs loudness directly. Streaming normalizes to a target, so a master whose "
             "limiter is being driven by one over-loud element ends up quieter and flatter than "
             "one where the vocal sits in place — you pay for those extra decibels of vocal with "
             "decibels of everything else. It costs weight too: the arrangement you spent days "
@@ -1010,7 +1010,7 @@ _add(
                 "how loud should the vocal be compare to reference track",
                 "Settling this against a record instead of from memory",
                 "Vocal placement is a genre convention, and this finding is a genre "
-                "judgement — these cover level-matching a reference properly, which is the "
+                "judgment — these cover level-matching a reference properly, which is the "
                 "only way to tell 'too loud' from 'correct for pop'.",
             ),
             youtube_search(

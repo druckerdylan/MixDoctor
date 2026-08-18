@@ -6,7 +6,7 @@
  * blocks sized by duration and shaded by each section's own loudness, then
  * says the consequence out loud underneath.
  *
- * Colour here is a *sequential ramp*, not the severity palette. Severity means
+ * Color here is a *sequential ramp*, not the severity palette. Severity means
  * "how bad", and a loud section is not bad — it is loud. Mixing the two
  * vocabularies is how a chart starts lying. The ramp is anchored to a fixed
  * 12 LU window below the loudest section, so a flat track renders as a flat

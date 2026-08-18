@@ -2,7 +2,7 @@
  * StemBalance — the separated sources, measured one at a time.
  *
  * Every other panel in this report reads a two-track. That means "vocal
- * balance" is a centre-channel proxy, "compression" is whatever the master bus
+ * balance" is a center-channel proxy, "compression" is whatever the master bus
  * shows, and "the music is burying the vocal" is an inference from a congested
  * band. With stems those become readings: each source has its own loudness
  * against the full mix, its own crest, its own gain reduction, and the masking
@@ -17,7 +17,7 @@
  * One thing this file owns that the backend does not: the per-stem level
  * window. `targets.py` has genre windows for loudness, width, crest and
  * vocal-to-instrument, but nothing for stem-versus-mix level, so the zones
- * below are a frontend table and are labelled as "typical for <genre>" rather
+ * below are a frontend table and are labeled as "typical for <genre>" rather
  * than as a measured target.
  */
 
@@ -46,7 +46,7 @@ const SEV_CLASS: Record<Severity, string> = {
   clean: 'sev-clean',
 };
 
-/** Shape as well as hue — severity is never carried by colour alone. */
+/** Shape as well as hue — severity is never carried by color alone. */
 const SEV_GLYPH: Record<Severity, string> = {
   critical: '▲',
   major: '●',
@@ -102,7 +102,7 @@ const ZONE_FAMILIES: Record<string, Record<StemKind, Zone>> = {
 const NEUTRAL_ZONES = ZONE_FAMILIES.neutral as Record<StemKind, Zone>;
 
 /**
- * The analysis carries the *normalised* genre key ("hip_hop", "rnb", "lofi"),
+ * The analysis carries the *normalized* genre key ("hip_hop", "rnb", "lofi"),
  * not the label the user picked. Printing the key raw looks like a leaked
  * internal, so it gets a display form; the matching below runs on the key.
  */
@@ -593,7 +593,7 @@ export default function StemBalance({ stems, genre }: StemBalanceProps) {
       </motion.p>
 
       <motion.p {...rise(0.06)} className="mt-3 max-w-2xl text-[12.5px] leading-relaxed text-ink-muted">
-        These are direct readings, not centre-channel estimates. Each source was pulled out of the
+        These are direct readings, not center-channel estimates. Each source was pulled out of the
         bounce and measured on its own, which is the only way a 2-track can tell you the vocal is
         quiet rather than that the 1–2 kHz region is busy.
       </motion.p>

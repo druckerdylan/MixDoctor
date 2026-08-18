@@ -80,7 +80,7 @@ function SpectrumField() {
       const maxH = h * 0.72;
       const decay = maxH * 0.45 * dt;
 
-      // Bars — one gradient shared by every rect, so colour tracks frequency
+      // Bars — one gradient shared by every rect, so color tracks frequency
       // position for free and we allocate nothing per frame.
       ctx.globalAlpha = 0.4;
       ctx.fillStyle = gradient;
@@ -192,7 +192,7 @@ const DIMENSION_BLURB: Record<(typeof DIMENSIONS)[number], string> = {
   clipping: 'Sample & inter-sample overs, flat-topped runs',
   phase: 'Correlation, polarity, mono-sum loss per band',
   loudness: 'Integrated LUFS, loudness range, short-term peaks',
-  limiter: 'Ceiling behaviour, PSR, signs of over-limiting',
+  limiter: 'Ceiling behavior, PSR, signs of over-limiting',
   dynamic_range: 'Crest factor, DR value, macro movement',
   compression: 'Pumping rate & depth, gain-reduction estimate',
   frequency_balance: '1/3-octave curve against the genre target',

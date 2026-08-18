@@ -21,7 +21,7 @@ const STAGES: Stage[] = [
   { label: 'Stereo field & phase', readout: 'CORR' },
   { label: 'Dynamics & transients', readout: 'CREST · PSR' },
   { label: 'Low end', readout: 'KICK · SUB' },
-  { label: 'Vocal balance', readout: 'CENTRE dB' },
+  { label: 'Vocal balance', readout: 'CENTER dB' },
   { label: 'Masking & clarity', readout: 'MASK IDX' },
   { label: 'Consulting the engineer', readout: 'REPORT' },
 ];

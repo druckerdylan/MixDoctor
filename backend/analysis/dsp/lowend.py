@@ -196,7 +196,7 @@ def _detect_onsets(kick_band: np.ndarray, sr: int) -> np.ndarray:
         return np.zeros(0, dtype=np.int64)
 
     # Frame i covers [i*hop, i*hop+n_fft); flux peaks as the transient reaches
-    # the strong part of the window, i.e. roughly the frame centre.
+    # the strong part of the window, i.e. roughly the frame center.
     approx = peaks.astype(np.int64) * _ONSET_HOP + _ONSET_NFFT // 2
     return _refine_onsets(approx, kick_band, sr)
 
@@ -335,7 +335,7 @@ def measure_low_end(buf: AudioBuffer) -> LowEndMeasurement:
         kick_definition_db = _finite(clamp(float(np.median(per_hit)), 0.0, 60.0))
         weakest_hit_db = _finite(clamp(float(np.percentile(per_hit, 25)), -60.0, 60.0))
 
-    # A "kick" has to repeat on a recognisable grid, punch above the low-end
+    # A "kick" has to repeat on a recognizable grid, punch above the low-end
     # floor on most hits, and live in a band that actually carries some of the
     # mix. Spectral flux will happily find "onsets" in the filter's noise floor
     # under a sustained pad, and in white noise it finds dozens; these gates are
@@ -484,7 +484,7 @@ def _collision(
     """Spectral overlap of the kick's own energy with the bass's, in dB.
 
     `spec_on - spec_off` isolates what the kick adds on top of whatever the bass
-    was already doing. Both distributions are normalised over 25-250 Hz, so the
+    was already doing. Both distributions are normalized over 25-250 Hz, so the
     result is a shape comparison, not a level comparison: 0 dB means the kick
     and the bass occupy the same frequencies in the same proportions.
 

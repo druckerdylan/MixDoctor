@@ -45,7 +45,7 @@ _add(
             "The sound of that channel on its own is unchanged, because your ear does not "
             "care which way a cone moves first. But add the two channels together and the "
             "flipped one subtracts from the other instead of adding to it. Anything the "
-            "two channels share — the vocal, the kick, the bass, everything centred — "
+            "two channels share — the vocal, the kick, the bass, everything centered — "
             "arrives as a number and its own negative, and cancels to silence."
         ),
         what_you_hear=(
@@ -54,14 +54,14 @@ _add(
             "from a point in front of you, and you cannot say where the kick is. It can "
             "read as impressively wide, which is why this ships. Sum it to mono and the "
             "illusion is over: the record largely disappears and what is left is the thin "
-            "residue of whatever was panned off centre."
+            "residue of whatever was panned off center."
         ),
         why_it_matters=(
             "This is not a width choice with a downside, it is a fault. A club plays a "
             "summed signal to the subs and often to the whole room; a phone has one "
             "speaker; most Bluetooth speakers sum; a DJ mixer has a mono button that gets "
             "used. In every one of those situations the parts of the mix you spent the "
-            "most time on are the parts that vanish, because they are the centred ones. "
+            "most time on are the parts that vanish, because they are the centered ones. "
             "It is also the cheapest problem on this list to fix — usually one button."
         ),
         common_causes=(
@@ -134,7 +134,7 @@ _add(
         learn_more=(
             "Correlation is one number describing how much the two channels have in "
             "common, and it runs from +1 to -1. At +1 the channels are identical — a mono "
-            "file, or anything panned centre. At 0 they are unrelated, which is what a "
+            "file, or anything panned center. At 0 they are unrelated, which is what a "
             "genuinely wide mix reads on its busiest moments and is completely healthy; "
             "summing two unrelated signals costs about 3 dB because they add as energy "
             "rather than as level. At -1 they are mirror images, and summing them gives "
@@ -143,7 +143,7 @@ _add(
             "flip applied to the entire signal at once — every frequency, every instant. "
             "Phase is a time relationship, and a delay shifts different frequencies by "
             "different amounts of their own cycle, which is why a delayed copy cancels "
-            "some frequencies and reinforces others rather than cancelling all of them. "
+            "some frequencies and reinforces others rather than canceling all of them. "
             "Polarity is a switch. Phase is a slider. This finding is the switch."
         ),
         minutes=15,
@@ -154,7 +154,7 @@ _add(
                 "Worth watching before you touch anything, because the two words get used "
                 "interchangeably and only one of them is your problem here. These show the "
                 "sign flip on a waveform, which is what makes it obvious why an inverted "
-                "channel deletes the centre of a mix rather than moving it.",
+                "channel deletes the center of a mix rather than moving it.",
             ),
             youtube_search(
                 "how to check your mix in mono phase problems",
@@ -186,7 +186,7 @@ _add(
             "Mono fold-down is what happens when a system adds your left and right "
             "channels into one. Two channels that are genuinely different — real stereo "
             "content — lose about 3 dB when you do that, and that loss is pure arithmetic, "
-            "not damage. Beyond that, something is cancelling: parts of the two channels "
+            "not damage. Beyond that, something is canceling: parts of the two channels "
             "are opposite enough that adding them subtracts. This finding fires when the "
             "fold-down costs more than arithmetic explains, or when the two channels have "
             "less in common than this genre's records normally do."
@@ -197,7 +197,7 @@ _add(
             "ones, so doubled guitars, wide pads, backing vocals, reverb tails and hats. "
             "Everything else appears to jump forward because the things around it got "
             "quieter. If you have ever mono'd a mix and thought 'the vocal suddenly sounds "
-            "too loud', the vocal did not change; its surroundings cancelled."
+            "too loud', the vocal did not change; its surroundings canceled."
         ),
         why_it_matters=(
             "Mono did not go away, it moved. Club systems sum the low end to the subs and "
@@ -207,11 +207,11 @@ _add(
             "That is a large share of the listening your record will actually get, and it "
             "is getting a different balance from the one you approved. The mono check also "
             "catches cancellation that is quietly making your stereo mix mushy — if a "
-            "doubled guitar loses 6 dB in mono, it is partly cancelling in stereo too."
+            "doubled guitar loses 6 dB in mono, it is partly canceling in stereo too."
         ),
         common_causes=(
             "A stereo widener or imager on the master or a bus, pushed past what it can "
-            "do without cancelling.",
+            "do without canceling.",
             "Haas widening: a copy of a mono source delayed by a few milliseconds and "
             "panned opposite. Wide in stereo, comb-filtered to pieces in mono.",
             "A chorus, doubler or 'stereo spread' run at full wet on a bus rather than as "
@@ -219,7 +219,7 @@ _add(
             "A mid/side EQ boosting the side channel broadly to add air or size.",
             "Two mics on one source at different distances — DI and amp, top and bottom "
             "snare — panned apart and never time-aligned.",
-            "Sample-pack loops and one-shots labelled 'wide' that are a mono sound with "
+            "Sample-pack loops and one-shots labeled 'wide' that are a mono sound with "
             "one side delayed or flipped.",
         ),
         how_to_fix=(
@@ -242,7 +242,7 @@ _add(
                 without=(
                     "No correlation meter: A/B each bus stereo against mono and judge by "
                     "level, not by width. Anything that gets quieter rather than narrower "
-                    "is cancelling."
+                    "is canceling."
                 ),
             ),
             FixStep(
@@ -270,7 +270,7 @@ _add(
                 ),
             ),
             FixStep(
-                action="Make space in the centre rather than pushing things out of it.",
+                action="Make space in the center rather than pushing things out of it.",
                 detail=(
                     "A narrow cut in the mid channel where the wide part lives lets the "
                     "sides be heard without any of them being processed wider. It costs "
@@ -279,8 +279,8 @@ _add(
                 ),
                 needs="eq_mid_side",
                 without=(
-                    "Without mid/side EQ, pan real elements apart to open the centre — "
-                    "move a doubled part, a percussion layer or a keys track off centre "
+                    "Without mid/side EQ, pan real elements apart to open the center — "
+                    "move a doubled part, a percussion layer or a keys track off center "
                     "instead of processing width into anything."
                 ),
             ),
@@ -319,7 +319,7 @@ _add(
                 "What a widener is actually doing to your side channel",
                 "Most mono-compatibility findings trace back to one plugin on one bus. These "
                 "show the cancellation a widener creates, which is the fastest way to learn "
-                "to recognise it on your own master.",
+                "to recognize it on your own master.",
             ),
             Resource(
                 kind="reference",
@@ -348,18 +348,18 @@ _add(
             "two channels are opposite enough that adding them subtracts instead.\n\n"
             "The catch this finding exists for: the usual phase reading is one number "
             "averaged across the whole spectrum and dominated by whatever is loudest. A "
-            "well-centred mix can therefore look completely healthy while one narrow "
+            "well-centered mix can therefore look completely healthy while one narrow "
             "frequency range cancels away to nothing underneath it, simply because that "
             "range holds a small share of the total energy. So each band is folded down to "
             "mono separately here, and the one losing far more than its share is reported."
         ),
         what_you_hear=(
             "In stereo, nothing wrong. In mono, one specific thing goes wrong and it "
-            "depends where the cancelling band is. Down low, the bottom drops out and the "
+            "depends where the canceling band is. Down low, the bottom drops out and the "
             "kick loses weight while the rest of the mix is untouched. In the low mids, the "
             "mix goes hollow or nasal, like it is being played through a tube. Up top, the "
             "air and the reverb tails vanish and cymbals turn dull and dry. If a delayed "
-            "copy is the cause, you may also hear a static metallic colouration in stereo — "
+            "copy is the cause, you may also hear a static metallic coloration in stereo — "
             "a flanger frozen in one position."
         ),
         why_it_matters=(
@@ -396,7 +396,7 @@ _add(
                 needs="eq_static",
             ),
             FixStep(
-                action="If the cancelling band is below roughly 120 Hz, mono the low end.",
+                action="If the canceling band is below roughly 120 Hz, mono the low end.",
                 detail=(
                     "Set the crossover just above where the bass fundamental lives. This is "
                     "not a compromise down there — you cannot localise those frequencies "
@@ -406,7 +406,7 @@ _add(
                 without=(
                     "No mono maker: high-pass the side channel with a mid/side EQ around "
                     "120 Hz. With neither, do it at the source — take the stereo processing "
-                    "off the bass and the kick and pan them dead centre."
+                    "off the bass and the kick and pan them dead center."
                 ),
             ),
             FixStep(
@@ -440,14 +440,14 @@ _add(
                 action="Take the width out of that band and give it back somewhere safer.",
                 detail=(
                     "Narrow the side channel in the affected region and widen a region that "
-                    "is not cancelling — usually above 3 kHz. The mix keeps its size and "
+                    "is not canceling — usually above 3 kHz. The mix keeps its size and "
                     "stops losing that layer when it is summed."
                 ),
                 needs="eq_mid_side",
                 without=(
                     "Without mid/side EQ, reduce the wet level of whatever is widening that "
                     "region and add the sense of space back with a reverb send on the parts "
-                    "you want wide, keeping their dry signal centred."
+                    "you want wide, keeping their dry signal centered."
                 ),
             ),
         ),
@@ -494,7 +494,7 @@ _add(
                 url="https://en.wikipedia.org/wiki/Comb_filter",
                 note=(
                     "The arithmetic of the notch spacing, for working backwards from the "
-                    "band that is cancelling to the delay in milliseconds that must be "
+                    "band that is canceling to the delay in milliseconds that must be "
                     "causing it."
                 ),
                 source="Wikipedia",
@@ -525,23 +525,23 @@ _add(
         ),
         what_you_hear=(
             "On headphones it is impressive: open, enveloping, everywhere. Headphones never "
-            "sum, which is why this keeps getting approved. On speakers the centre feels "
+            "sum, which is why this keeps getting approved. On speakers the center feels "
             "hollow — the vocal and kick lack authority, the mix seems to happen around you "
             "rather than in front of you, and turning it up makes it louder without making "
             "it bigger. You also lose the ability to point at anything; everything is "
             "smeared across the field instead of occupying a place."
         ),
         why_it_matters=(
-            "Perceived power lives in the centre, so a side-heavy mix has to be pushed "
+            "Perceived power lives in the center, so a side-heavy mix has to be pushed "
             "harder to sound as loud as a competitor, and the pushing costs you dynamics. "
             "On anything that sums, the side energy is not merely quieter, it is gone. And "
-            "the widening usually crowds out what should be centred: vocal, kick, snare and "
+            "the widening usually crowds out what should be centered: vocal, kick, snare and "
             "bass all belong in the mid, and there is only so much room there.\n\n"
             "This is genre-dependent to an extreme degree. Ambient and cinematic records run "
             "near the top of the scale by design, with the two channels sharing very little "
             "— that is the point of the music, not a defect in it. Trap and hip-hop sit far "
-            "narrower, at roughly a quarter of the width, because the record is a centred "
-            "808, a centred kick and a centred vocal, and width is hats and ad-libs. 'Too "
+            "narrower, at roughly a quarter of the width, because the record is a centered "
+            "808, a centered kick and a centered vocal, and width is hats and ad-libs. 'Too "
             "wide' here means wide for what this genre's records do, not wide in the "
             "abstract."
         ),
@@ -550,7 +550,7 @@ _add(
             "Widening applied across the whole spectrum, so the bass is being spread along "
             "with the hats.",
             "Every synth patch left on its factory unison setting, so nothing in the "
-            "arrangement is genuinely centred.",
+            "arrangement is genuinely centered.",
             "Stereo reverb louder than it seems, especially on the drum bus, pushing energy "
             "into the sides on every hit.",
             "Doubling by short delay rather than by a second performance.",
@@ -587,7 +587,7 @@ _add(
                 without=(
                     "Without an imager, work on the sources: pull back the wet on the "
                     "reverbs, choruses and doublers a couple of dB at a time and check "
-                    "whether the centre gets denser. It will."
+                    "whether the center gets denser. It will."
                 ),
             ),
             FixStep(
@@ -601,20 +601,20 @@ _add(
                 without=(
                     "No mono maker: high-pass the side channel with a mid/side EQ, or "
                     "failing that remove stereo processing from the bass, kick and any "
-                    "sub-carrying synth and pan them centre."
+                    "sub-carrying synth and pan them center."
                 ),
             ),
             FixStep(
-                action="Lift the centre rather than pushing the sides.",
+                action="Lift the center rather than pushing the sides.",
                 detail=(
                     "A small boost in the mid channel where the lead lives makes the mix "
-                    "feel wider, because width is a contrast between centre and sides and "
+                    "feel wider, because width is a contrast between center and sides and "
                     "you can create it from either direction. Boosting the mid is free on "
                     "fold-down; boosting the sides is not."
                 ),
                 needs="eq_mid_side",
                 without=(
-                    "Without mid/side EQ, get the same contrast by raising the centred "
+                    "Without mid/side EQ, get the same contrast by raising the centered "
                     "elements — vocal, kick, snare, bass — a touch and lowering the wide "
                     "ones, rather than processing anything."
                 ),
@@ -623,7 +623,7 @@ _add(
                 action="A/B against a record from the same genre at matched loudness.",
                 detail=(
                     "Width is the parameter you are least able to judge in isolation, "
-                    "because your ear normalises to whatever it has been hearing. Ten "
+                    "because your ear normalizes to whatever it has been hearing. Ten "
                     "seconds of a reference resets it."
                 ),
                 needs="reference_matching",
@@ -638,7 +638,7 @@ _add(
             "Side-to-mid should land inside the genre's window, and summing to mono should "
             "cost only the couple of dB that summing always costs, not more. By ear: in "
             "mono, the balance between vocal, "
-            "kick and everything else should be recognisably the mix you approved in "
+            "kick and everything else should be recognizably the mix you approved in "
             "stereo. If mono changes who is loudest, you are not done."
         ),
         learn_more=(
@@ -661,8 +661,8 @@ _add(
             youtube_search(
                 "how wide should your mix be stereo width mastering check",
                 "How much width a mix can carry before it starts costing",
-                "Aimed at the judgement this finding forces on you: engineers demonstrating "
-                "the point where widening stops adding size and starts hollowing the centre, "
+                "Aimed at the judgment this finding forces on you: engineers demonstrating "
+                "the point where widening stops adding size and starts hollowing the center, "
                 "judged against released records rather than against a meter.",
             ),
             youtube_search(
@@ -718,23 +718,23 @@ _add(
             "carving costs you tone. Most listening now happens on headphones and earbuds, "
             "where the absence of width is unmistakable.\n\n"
             "But check the genre before you act. Lo-fi and trap sit narrow legitimately, "
-            "because the record is a centred 808, a centred kick and a centred vocal — a "
+            "because the record is a centered 808, a centered kick and a centered vocal — a "
             "narrow trap mix is usually correct. Ambient, cinematic and orchestral want "
             "several times as much. This finding compares you against your genre, so the "
             "question to ask is not 'is this wide enough' but 'do the records I am competing "
             "with sit wider'."
         ),
         common_causes=(
-            "Everything programmed or recorded in mono and left at centre pan, with small "
+            "Everything programmed or recorded in mono and left at center pan, with small "
             "10-20% pans that crowd the middle without creating any separation.",
             "A mono maker or utility with its crossover set far too high — mono up to 500 "
             "Hz collapses guitars, keys and low synths.",
             "A widener left on a narrowing setting, or a mono switch engaged on the master "
             "bus and forgotten.",
             "A stereo source printed from only one of its channels.",
-            "All reverbs and delays on mono sends returning to the centre, so the space is "
+            "All reverbs and delays on mono sends returning to the center, so the space is "
             "in the same place as the source.",
-            "Heavy limiting: it turns down the loud centred hits and drags everything else "
+            "Heavy limiting: it turns down the loud centered hits and drags everything else "
             "with them, which compresses the image toward the middle.",
         ),
         how_to_fix=(
@@ -756,7 +756,7 @@ _add(
                 ),
             ),
             FixStep(
-                action="Put the effects out to the sides and keep the dry signal centred.",
+                action="Put the effects out to the sides and keep the dry signal centered.",
                 detail=(
                     "A short offset delay panned opposite the source, or a ping-pong, gives "
                     "you width that is genuinely different audio on each side. Keep the dry "
@@ -805,7 +805,7 @@ _add(
             "frequency range mask each other far less when they arrive from different "
             "directions — the auditory system uses the difference between your two ears to "
             "pull them apart, and the effect is worth several dB of apparent separation. "
-            "That is why a well-panned mix needs less EQ carving than a centred one: you got "
+            "That is why a well-panned mix needs less EQ carving than a centered one: you got "
             "the separation for free from geometry instead of paying for it in tone.\n\n"
             "The distinction that matters when you add width is where it comes from. Width "
             "built from genuinely different signals — two performances, two voices, a real "
@@ -845,17 +845,17 @@ _add(
 _add(
     "stereo_width.channel_imbalance",
     Explainer(
-        headline="The whole mix leans to one side, so the centre of your image is not in the centre.",
+        headline="The whole mix leans to one side, so the center of your image is not in the center.",
         what_it_is=(
             "The average level of the left channel against the right, measured across the "
-            "entire track. A mix with a centred vocal, kick, snare and bass should come out "
+            "entire track. A mix with a centered vocal, kick, snare and bass should come out "
             "close to even, because those elements dominate and they are supposed to be in "
             "the middle. This is not a guitar solo panned right for eight bars — a "
             "whole-file average washes that out. It is a constant offset that is present all "
             "the way through."
         ),
         what_you_hear=(
-            "Very often, nothing at all. Your hearing rebuilds a 'centre' wherever the "
+            "Very often, nothing at all. Your hearing rebuilds a 'center' wherever the "
             "energy is within a few seconds of listening, and then everything sounds normal. "
             "That adaptation is exactly why this survives to release. What you notice "
             "instead is indirect: you keep nudging pans on other elements to compensate, the "
@@ -864,16 +864,16 @@ _add(
         ),
         why_it_matters=(
             "Every pan decision you make after the offset exists is slightly wrong, because "
-            "you are placing things relative to a centre that has moved. A listener with one "
+            "you are placing things relative to a center that has moved. A listener with one "
             "earbud in gets a materially different mix depending on which ear they chose. "
-            "Vinyl cutting is affected, since an off-centre image loads the two groove walls "
+            "Vinyl cutting is affected, since an off-center image loads the two groove walls "
             "unevenly. And an offset that is genuinely constant almost always means "
             "something upstream is misconfigured — the imbalance is the symptom, and the "
             "cause is usually still doing other damage. It also costs nothing to fix, which "
             "makes leaving it in indefensible."
         ),
         common_causes=(
-            "A mono element panned very slightly off centre and never spotted — a lead vocal "
+            "A mono element panned very slightly off center and never spotted — a lead vocal "
             "a few percent right will do it on its own.",
             "A pan law mismatch after moving a project between DAWs, or a mono source "
             "sitting on a stereo channel where the pan control behaves as a balance control.",
@@ -891,7 +891,7 @@ _add(
             FixStep(
                 action="Look at the meter, do not listen for it.",
                 detail=(
-                    "Your ears have already adapted and will tell you the mix is centred. "
+                    "Your ears have already adapted and will tell you the mix is centered. "
                     "Play the whole track and compare the two channels' average levels on "
                     "the master meter — averages, not peaks, and over the full duration, not "
                     "one section."
@@ -906,11 +906,11 @@ _add(
                 ),
             ),
             FixStep(
-                action="Check the pan positions of anything that should be dead centre.",
+                action="Check the pan positions of anything that should be dead center.",
                 detail=(
                     "Lead vocal, kick, snare, bass. In most DAWs you can reset a pan control "
-                    "to exact centre with a modifier-click, which removes the possibility of "
-                    "a value that merely looks centred."
+                    "to exact center with a modifier-click, which removes the possibility of "
+                    "a value that merely looks centered."
                 ),
             ),
             FixStep(
@@ -927,7 +927,7 @@ _add(
                 detail=(
                     "A master trim shifts everything, including the parts that were already "
                     "correct, so it is a last resort rather than a first move. If you use "
-                    "one, re-check that the phantom centre lands between the speakers "
+                    "one, re-check that the phantom center lands between the speakers "
                     "afterwards."
                 ),
             ),
@@ -940,15 +940,15 @@ _add(
             "disappears."
         ),
         learn_more=(
-            "This is about the phantom centre, which is an illusion rather than a place. A "
+            "This is about the phantom center, which is an illusion rather than a place. A "
             "sound coming equally out of two speakers is not localised at either one; your "
             "hearing constructs a single source hanging between them. The illusion depends "
             "on the two arrivals being matched in level and time. Roughly a dB of level "
-            "difference is enough to shift the phantom image noticeably off centre, and by "
+            "difference is enough to shift the phantom image noticeably off center, and by "
             "about 15-18 dB it has collapsed entirely into the louder speaker.\n\n"
             "Your room produces exactly the same shift without anything being wrong with the "
             "file — a wall closer on one side, an asymmetric desk reflection, a listening "
-            "position off the centre line. Since the two are indistinguishable by ear, an "
+            "position off the center line. Since the two are indistinguishable by ear, an "
             "offset you can measure in the file matters far more than one you think you can "
             "hear in the room, and the correct order of operations is always: measure the "
             "file, verify by swapping the speakers, and only then reach for a trim."
@@ -957,15 +957,15 @@ _add(
         resources=(
             youtube_search(
                 "phantom center stereo image mixing explained",
-                "What the phantom centre is and how easily it moves",
+                "What the phantom center is and how easily it moves",
                 "Explains the illusion this finding breaks: why a sound coming equally from "
                 "two speakers appears between them, and how little level difference it takes "
-                "to drag that image off centre without anything sounding wrong.",
+                "to drag that image off center without anything sounding wrong.",
             ),
             youtube_search(
                 "speaker setup listening position symmetry stereo image home studio",
                 "Ruling out your room before you trust the lean",
-                "Half of all apparent imbalance is an asymmetric room or an off-centre chair, "
+                "Half of all apparent imbalance is an asymmetric room or an off-center chair, "
                 "and correcting the file for that makes it worse. These cover the symmetry "
                 "checks worth doing before you touch a balance trim.",
             ),
@@ -1105,7 +1105,7 @@ _add(
             FixStep(
                 action="Duck one frequency band instead of the whole bass.",
                 detail=(
-                    "A dynamic EQ band on the bass, keyed from the kick and centred on the "
+                    "A dynamic EQ band on the bass, keyed from the kick and centered on the "
                     "kick's fundamental, removes the collision while the bass keeps its body "
                     "and its harmonics. This is the fix when full-range ducking makes the "
                     "track feel like it is breathing."
@@ -1239,7 +1239,7 @@ _add(
             "send the master back.\n\n"
             "There is a headroom argument too. The bottom octave is the most expensive part "
             "of the mix in energy terms, and any of it spent on content that will be "
-            "cancelled downstream is wasted twice: once in your limiter, once in the room."
+            "canceled downstream is wasted twice: once in your limiter, once in the room."
         ),
         common_causes=(
             "A widener or imager on the master or the bass bus applied across the whole "
@@ -1265,7 +1265,7 @@ _add(
                     "No mono maker: use a mid/side EQ and high-pass the side channel around "
                     "120 Hz — same result, one more step. With neither, fix it at the "
                     "source: remove the stereo processing from the bass and kick and pan them "
-                    "dead centre."
+                    "dead center."
                 ),
             ),
             FixStep(
@@ -1405,7 +1405,7 @@ _add(
             "bigger on small speakers.",
             "A room mode or a null at your listening position making the sub sound thin to "
             "you while it is hot in the file — extremely common, and the reason this is a "
-            "measurement rather than a judgement call.",
+            "measurement rather than a judgment call.",
             "Pitch-shifted 808s whose fundamental has dropped below where the patch was "
             "designed to sit.",
         ),
@@ -1638,7 +1638,7 @@ _add(
             "check for the second one."
         ),
         learn_more=(
-            "The reason a bass line is recognisable on a phone at all is an effect called the "
+            "The reason a bass line is recognizable on a phone at all is an effect called the "
             "missing fundamental. Play the harmonics of a 50 Hz note — 100, 150, 200 Hz — "
             "without the 50 Hz itself and the ear still reports the pitch as 50 Hz, because "
             "pitch is derived from the spacing of the harmonic series rather than from the "
@@ -1844,7 +1844,7 @@ _add(
             "are carrying the record — the ones nearly as loud as the loudest. Because it is "
             "a share rather than an absolute, a quiet intro cannot trigger it: quiet parts "
             "being quiet is not a fault. What it catches is a section that is as loud as its "
-            "neighbours and has far less bottom under it. Something that was holding up the "
+            "neighbors and has far less bottom under it. Something that was holding up the "
             "low end stopped doing so there.\n\n"
             "Which section it is decides how loudly this is said. An intro or an outro with "
             "the bottom pulled back is how arrangements work, so one has to swing about twice "

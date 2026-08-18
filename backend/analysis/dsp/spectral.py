@@ -13,9 +13,9 @@ goes quietly wrong:
 * "Level" of a 1/3-octave band means the **summed** power in that band, which
   makes pink noise read flat across the 31 bands. That is the convention
   `targets.target_curve()` is written in, so `third_octave_db` drops straight
-  onto it after normalising the 1 kHz band to 0 dB.
+  onto it after normalizing the 1 kHz band to 0 dB.
 * Ratios between two *unequal-width* regions (mud vs low bass, harsh vs its
-  neighbours) are computed as power **density** -- mean power per FFT bin --
+  neighbors) are computed as power **density** -- mean power per FFT bin --
   so the answer doesn't change just because one region is wider than the other.
 * Everything returned is finite. NaN and inf serialise to invalid JSON, so
   every scalar goes through `_finite()` and every list through `_round_list()`.
@@ -217,7 +217,7 @@ def _log_grid() -> np.ndarray:
 def _curve_matrix(freqs: np.ndarray, grid: np.ndarray) -> np.ndarray:
     """Constant-relative-bandwidth analysis matrix on the log grid.
 
-    Rows are normalised to mean-power-per-bin and then re-scaled by the band's
+    Rows are normalized to mean-power-per-bin and then re-scaled by the band's
     width in Hz, so the resulting curve is band *energy* at constant relative
     bandwidth: flat for pink noise, which is the right baseline for spotting a
     bump. The `_CURVE_MIN_BW_HZ` floor keeps the low bands wide enough to span
@@ -458,7 +458,7 @@ def _empty_measurement(genre: str) -> SpectralMeasurement:
 
 
 def measure_spectral(buf: AudioBuffer, genre: str) -> SpectralMeasurement:
-    """Measure the mix's tonal balance, colouration and resonances.
+    """Measure the mix's tonal balance, coloration and resonances.
 
     `genre` only selects the target curve the macro bands are scored against;
     every raw number in the result is genre-independent.
@@ -492,7 +492,7 @@ def measure_spectral(buf: AudioBuffer, genre: str) -> SpectralMeasurement:
     toct_frames = band_energy(power, tmat)                 # (n_frames, 31)
     toct_mean = np.asarray(band_energy(mean_power[None, :], tmat)[0], dtype=np.float64)
 
-    # Normalise to the 1 kHz band so the curve is directly comparable with
+    # Normalize to the 1 kHz band so the curve is directly comparable with
     # targets.target_curve(). Guard against a mix with nothing at 1 kHz.
     peak_band = float(np.max(toct_mean))
     ref = max(float(np.mean(toct_mean[_REF_INDEX])), peak_band * 1e-9, EPS)
@@ -596,7 +596,7 @@ def measure_spectral(buf: AudioBuffer, genre: str) -> SpectralMeasurement:
 
     # -- harshness -----------------------------------------------------------
     # Not "is 2-5 kHz loud" but "does 2-5 kHz stick out of the curve its own
-    # neighbours describe". A bright mix runs a smooth slope through here; a
+    # neighbors describe". A bright mix runs a smooth slope through here; a
     # harsh one has a shelf or a spike sitting on top of it.
     harsh_excess = _neighbour_excess(
         dens_db["harsh"], regions["harsh"],
@@ -669,10 +669,10 @@ def _neighbour_excess(
     high_db: float,
     high_region: Tuple[float, float],
 ) -> float:
-    """How far a region sits above the line its two neighbours draw.
+    """How far a region sits above the line its two neighbors draw.
 
     Interpolating in log-frequency means a mix with an ordinary downward tilt
-    scores ~0 here: only a genuine bump registers. The upper neighbour is
+    scores ~0 here: only a genuine bump registers. The upper neighbor is
     clamped so a band-limited or lowpassed track can't turn a missing top end
     into a fake 30 dB peak.
     """

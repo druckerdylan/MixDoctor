@@ -213,7 +213,7 @@ export function useClarifications(
 
   /**
    * Optimistic by design. The answer lands on screen on the click and the
-   * server catches up; a question that greys out for a round trip stops being
+   * server catches up; a question that grays out for a round trip stops being
    * a conversation. A failure puts it back — see the catch in `post`.
    */
   const commit = useCallback(

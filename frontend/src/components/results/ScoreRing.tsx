@@ -248,7 +248,7 @@ export default function ScoreRing({
           />
         )}
 
-        {/* Centre readout — SVG text so it scales exactly with the ring. */}
+        {/* Center readout — SVG text so it scales exactly with the ring. */}
         <text
           x={C}
           y={33}

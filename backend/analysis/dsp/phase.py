@@ -15,7 +15,7 @@ needs but shouldn't have to recompute:
     clickable.
 
 Thresholds here are physical, not stylistic. -0.5 correlation is not "a bit
-wide", it is more energy cancelling than surviving; 0.2 is the point below
+wide", it is more energy canceling than surviving; 0.2 is the point below
 which a fold-down is audibly hollow on any material in any genre. Genre
 windows stay in targets.py and are the detector's business.
 """
@@ -67,7 +67,7 @@ def _intensity(worst_corr: float) -> float:
 
 
 def _problem_moments(times: np.ndarray, corr: np.ndarray) -> List[Moment]:
-    """Spans where the image collapses, each labelled with its worst reading."""
+    """Spans where the image collapses, each labeled with its worst reading."""
     if times.size == 0 or corr.size == 0:
         return []
     n = min(times.size, corr.size)

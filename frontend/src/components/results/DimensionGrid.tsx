@@ -43,7 +43,7 @@ const SEV_WORD: Record<Severity, string> = {
   clean: 'Clean',
 };
 
-/** Shape carries the severity too — colour is never the only signal. */
+/** Shape carries the severity too — color is never the only signal. */
 const SEV_GLYPH: Record<Severity, string> = {
   critical: '▲',
   major: '●',

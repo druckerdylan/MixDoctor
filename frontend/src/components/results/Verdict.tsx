@@ -197,7 +197,7 @@ function AlertMark() {
 /**
  * How close this is to the genre reference — and nothing more than that.
  *
- * Deliberately the calmest thing on the page. No grade, no severity colour, no
+ * Deliberately the calmest thing on the page. No grade, no severity color, no
  * red: a low number here means the record does not sound like the reference,
  * which is a description and is often the entire point. The composite that
  * this replaces let exactly this figure drag a defect-free, master-ready mix

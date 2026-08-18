@@ -16,12 +16,12 @@ product, so it is a real psychoacoustic model rather than an analogy:
    questions are worth asking.
 
 2. **Simultaneous masking, asymmetric and level-dependent.** Each band casts a
-   masking skirt on its neighbours. Downward (a masker hiding something below
+   masking skirt on its neighbors. Downward (a masker hiding something below
    it) the skirt is steep, 27 dB/Bark. Upward it is shallow — and gets
    shallower as the masker gets louder — at (24 + 0.23/f_kHz − 0.2·L) dB/Bark.
    That asymmetry is the whole reason a loud low end eats a mix's midrange and
    not the other way round. The slopes are specified per Bark and evaluated at
-   the Bark distance between the ERB centres, so the ERB grid inherits the
+   the Bark distance between the ERB centers, so the ERB grid inherits the
    classic slopes without re-deriving them. Level dependence is handled by
    building one spreading matrix per 10 dB of masker level and mixing them per
    frame, so the whole thing stays a handful of matrix multiplies.
@@ -32,7 +32,7 @@ product, so it is a real psychoacoustic model rather than an analogy:
    maxima — causal for post, anti-causal for pre — computed with a cumulative
    maximum in the dB domain, so no per-frame Python loop.
 
-4. **Threshold and index.** The spread excitation is normalised by the
+4. **Threshold and index.** The spread excitation is normalized by the
    spreading gain (standard practice: convolving with a spreading function
    adds energy that was never there) and dropped by a tonality-dependent
    signal-to-mask offset, then floored at the absolute threshold of hearing.
@@ -40,7 +40,7 @@ product, so it is a real psychoacoustic model rather than an analogy:
    energy nobody can hear as a separate thing. `masking_index` is the
    loudness-weighted fraction of the audible excitation in that state.
 
-Level is normalised to a fixed presentation SPL first, so turning the file
+Level is normalized to a fixed presentation SPL first, so turning the file
 down 6 dB does not change the answer — but the *internal* level asymmetries
 that drive spread and audibility are preserved.
 
@@ -127,10 +127,10 @@ _PRE_DB_PER_SEC = 1800.0      # ~30 dB gone after 17 ms
 # spectral flatness of the frame's excitation pattern.
 #
 # The noise offset is deliberately half of _MASK_SOFT_DB. Because the spread
-# threshold is renormalised, a spectrum that is flat across the ERB scale
+# threshold is renormalized, a spectrum that is flat across the ERB scale
 # spreads to exactly itself, and that pairing makes the criterion reduce to
 # something you can say in one sentence: a band counts as masked in proportion
-# to how many dB it sits *below* the level its neighbourhood spreads onto it,
+# to how many dB it sits *below* the level its neighborhood spreads onto it,
 # reaching fully masked 12 dB under. Pink noise, which is flat per ERB, sits
 # exactly at zero — correctly, because you can hear a notch cut into pink
 # noise; its bands do not bury each other.
@@ -147,10 +147,10 @@ _ATH_MIN_DB = -5.0
 _ATH_MAX_DB = 70.0
 
 # Playback level the model assumes. Masking is level-dependent, so the model
-# needs *a* level; pinning the programme's own RMS to a fixed SPL makes the
+# needs *a* level; pinning the program's own RMS to a fixed SPL makes the
 # measurement invariant to the file's gain, which is the property we want.
 _PRESENTATION_SPL_DB = 80.0
-_ACTIVE_FLOOR_DB = 40.0       # frames this far under the loudest are not programme
+_ACTIVE_FLOOR_DB = 40.0       # frames this far under the loudest are not program
 
 _LOUDNESS_EXP = 0.23          # Zwicker specific-loudness compression exponent
 
@@ -245,12 +245,12 @@ def _erb_matrix(freqs: np.ndarray, centers: np.ndarray) -> np.ndarray:
     """(n_erb, n_bins) analysis channel weights on the ERB-rate scale.
 
     Each channel is one ERB wide, one ERB apart, cos^2-shaped in ERB-rate — so
-    neighbouring channels sum to exactly 1 and the bank neither loses nor
+    neighboring channels sum to exactly 1 and the bank neither loses nor
     double-counts energy. The shape is deliberately *selective* rather than
     roex(p): the ear's filter skirt belongs in the spreading function, and
     putting it in the analysis bank too would both double-count it and destroy
     the measurement. A roex bank smears a loud 1 kHz tone to -21 dB a third of
-    an octave away, which is louder than the quiet neighbour we are trying to
+    an octave away, which is louder than the quiet neighbor we are trying to
     decide the audibility of — the bank would answer the question before the
     masking model got to it. Standard psychoacoustic models (MPEG model 1,
     PEAQ) take the same split: selective partitions in, spreading function
@@ -268,11 +268,11 @@ def _spread_bank(centers: np.ndarray) -> np.ndarray:
     """(n_levels, n_erb, n_erb) linear spreading gains; [level, masker, maskee].
 
     Slopes are the classic per-Bark ones, evaluated at the *Bark* distance
-    between ERB centres — that is the conversion from Bark spacing to ERB
+    between ERB centers — that is the conversion from Bark spacing to ERB
     spacing, and it is frequency-dependent (1 ERB is ~0.35 Bark at 100 Hz and
     ~0.85 Bark at 1 kHz), which a single scalar factor would get wrong at both
     ends. The diagonal is unity: a band is its own strongest masker, and the
-    normalisation in `_masking_model` depends on it being included.
+    normalization in `_masking_model` depends on it being included.
     """
     z = _bark(centers)
     dz = z[None, :] - z[:, None]                  # maskee bark - masker bark
@@ -392,10 +392,10 @@ def _temporal_spread(exc_db: np.ndarray, hop_sec: float) -> np.ndarray:
 
 @dataclass
 class _Masking:
-    """Per-cell masking state for one track. Plain container, no behaviour."""
+    """Per-cell masking state for one track. Plain container, no behavior."""
 
-    times: np.ndarray            # (frames,) centre time of each frame, seconds
-    centers: np.ndarray          # (n_erb,) filter centre frequencies, Hz
+    times: np.ndarray            # (frames,) center time of each frame, seconds
+    centers: np.ndarray          # (n_erb,) filter center frequencies, Hz
     widths: np.ndarray           # (n_erb,) filter bandwidths, Hz
     excitation_db: np.ndarray    # (frames, n_erb) dB SPL at the presentation level
     threshold_db: np.ndarray     # (frames, n_erb) masking threshold, dB SPL
@@ -406,7 +406,7 @@ class _Masking:
 
 
 def _presentation_offset_db(frame_power: np.ndarray) -> float:
-    """dB to add so the programme sits at _PRESENTATION_SPL_DB, level-invariantly."""
+    """dB to add so the program sits at _PRESENTATION_SPL_DB, level-invariantly."""
     if frame_power.size == 0:
         return _PRESENTATION_SPL_DB
     peak = float(frame_power.max())
@@ -418,12 +418,12 @@ def _presentation_offset_db(frame_power: np.ndarray) -> float:
 
 
 def _spread_threshold(exc_db_spl: np.ndarray, banks: np.ndarray) -> np.ndarray:
-    """Normalised, level-dependent spread of the excitation pattern, in dB.
+    """Normalized, level-dependent spread of the excitation pattern, in dB.
 
     The masker's level picks the spreading matrix, so the bank is applied in
-    10 dB slices with linear interpolation between neighbouring slices — nine
+    10 dB slices with linear interpolation between neighboring slices — nine
     small matmuls instead of one per frame. Dividing by the spread of the
-    *weights* renormalises the convolution: a flat excitation pattern spreads
+    *weights* renormalizes the convolution: a flat excitation pattern spreads
     to itself, which is what makes this a measure of arrangement rather than a
     measure of how much energy the track happens to contain.
     """

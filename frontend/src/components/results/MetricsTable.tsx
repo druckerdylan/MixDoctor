@@ -3,7 +3,7 @@
  *
  * Everything the analyzer actually measured, grouped the way an engineer would
  * look for it. No editorialising, no derived opinions: label, value, unit. Time
- * series are summarised (range and sample count) rather than dumped, because a
+ * series are summarized (range and sample count) rather than dumped, because a
  * thousand raw floats is noise, not evidence.
  */
 
@@ -20,7 +20,7 @@ import {
 const EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
 /**
- * Prominence in words. Deliberately non-judgemental: "tucked" describes where
+ * Prominence in words. Deliberately non-judgmental: "tucked" describes where
  * the lead sits, not whether putting it there was a mistake.
  */
 const PROMINENCE_LABEL: Record<VocalProminence, string> = {
@@ -49,7 +49,7 @@ type Row =
       value: boolean;
       yes: string;
       no: string;
-      /** Which state, if either, deserves the alarm colour. */
+      /** Which state, if either, deserves the alarm color. */
       alarmOn?: boolean;
     }
   | {
@@ -138,7 +138,7 @@ function ValueCell({ row }: { row: Row }) {
     case 'text':
       return <span className="stat text-[13px] text-ink">{row.value || '—'}</span>;
     case 'bool': {
-      // Only bools with a stated alarm state get a severity colour. The rest
+      // Only bools with a stated alarm state get a severity color. The rest
       // are facts about the file, not verdicts, so they stay neutral.
       const alarmed = row.alarmOn !== undefined && row.value === row.alarmOn;
       const cls =
@@ -345,7 +345,7 @@ function buildSections(m: Measurements): Section[] {
         { kind: 'bool', label: 'Sidechain detected', value: low.has_sidechain, yes: 'Yes', no: 'No' },
         { kind: 'num', label: 'Ducking depth', value: low.ducking_depth_db, unit: 'dB' },
         { kind: 'num', label: 'Kick definition', value: low.kick_definition_db, unit: 'dB' },
-        { kind: 'num', label: 'Low-end mono ratio', value: low.low_end_mono_ratio, unit: '', digits: 2, note: '1.0 = fully centred' },
+        { kind: 'num', label: 'Low-end mono ratio', value: low.low_end_mono_ratio, unit: '', digits: 2, note: '1.0 = fully centered' },
         { kind: 'num', label: 'Sub rumble', value: low.sub_rumble_db, unit: 'dB', note: 'Below 25 Hz' },
         { kind: 'moments', label: 'Collision moments', value: low.collision_moments },
       ],
@@ -367,7 +367,7 @@ function buildSections(m: Measurements): Section[] {
           value: vocal.vocal_confidence,
           unit: '',
           digits: 2,
-          note: 'Centre energy, syllabic modulation and consonant articulation combined',
+          note: 'Center energy, syllabic modulation and consonant articulation combined',
         },
         {
           kind: 'text',
@@ -375,7 +375,7 @@ function buildSections(m: Measurements): Section[] {
           value: PROMINENCE_LABEL[vocal.vocal_prominence] ?? 'Not assessed',
           note: 'Where the lead sits against the instrument bed',
         },
-        { kind: 'num', label: 'Centre energy ratio', value: vocal.center_energy_ratio, unit: '', digits: 2 },
+        { kind: 'num', label: 'Center energy ratio', value: vocal.center_energy_ratio, unit: '', digits: 2 },
         { kind: 'num', label: 'Vocal to instruments', value: vocal.vocal_to_instrument_db, unit: 'dB', signed: true },
         { kind: 'num', label: 'Intelligibility', value: vocal.intelligibility_index, unit: '', digits: 2 },
         { kind: 'num', label: 'Presence balance', value: vocal.presence_balance_db, unit: 'dB', signed: true, note: '2–6 kHz' },

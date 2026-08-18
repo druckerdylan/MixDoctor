@@ -290,7 +290,7 @@ class Table(Block):
 
 @dataclass
 class Callout(Block):
-    """A boxed aside. `tone` drives colour in HTML and a label in Markdown."""
+    """A boxed aside. `tone` drives color in HTML and a label in Markdown."""
 
     tone: str  # defect | reference | good | note | ai | verdict | question | choice
     title: str
@@ -867,7 +867,7 @@ _TRADEOFFS: Dict[str, Tradeoff] = {
         ),
         right_when=(
             "You are cutting for a club system, a DJ pool or physical media — anywhere nothing "
-            "normalises and the level in the file is the level people hear."
+            "normalizes and the level in the file is the level people hear."
         ),
     ),
     "loudness.cannot_reach_level": Tradeoff(
@@ -1114,18 +1114,18 @@ _TRADEOFFS: Dict[str, Tradeoff] = {
             "and immersive in a way a narrow one never does."
         ),
         right_when=(
-            "The headphone experience is the one you are optimising and the mono sum has been "
+            "The headphone experience is the one you are optimizing and the mono sum has been "
             "checked and is acceptable rather than assumed."
         ),
     ),
     "stereo_width.too_narrow": Tradeoff(
-        costs="Room. With everything stacked in the centre, parts have to fight for the same space.",
+        costs="Room. With everything stacked in the center, parts have to fight for the same space.",
         buys=(
-            "Power and translation. A centred mix is the same mix everywhere, it survives mono, "
+            "Power and translation. A centered mix is the same mix everywhere, it survives mono, "
             "and it hits harder per dB because nothing is spent on the sides."
         ),
         right_when=(
-            "The genre is centre-heavy by design — a lot of hip-hop and drill is deliberately "
+            "The genre is center-heavy by design — a lot of hip-hop and drill is deliberately "
             "narrow so the low end and the lead stay solid on any system."
         ),
     ),
@@ -1162,7 +1162,7 @@ _TRADEOFFS: Dict[str, Tradeoff] = {
     ),
     "vocal_balance.topline_headroom": Tradeoff(
         costs=(
-            "Nothing on its own. This is a note about how much space is left in the centre for "
+            "Nothing on its own. This is a note about how much space is left in the center for "
             "a topline, not a fault in what is here."
         ),
         buys=(
@@ -1665,7 +1665,7 @@ def _score_entries(analysis: MixAnalysis) -> List[Tuple[str, str]]:
     carries none.
 
     Falls back to the composite for an analysis posted by a client from before
-    `scores` existed — labelled as the composite, so nobody reads it as the
+    `scores` existed — labeled as the composite, so nobody reads it as the
     verdict it could not support.
     """
     scores = getattr(analysis, "scores", None)
@@ -2448,14 +2448,14 @@ def _measurement_rows(m: Measurements, genre: str) -> List[Tuple[str, List[List[
         row("Estimated tempo", _num(tr.estimated_tempo, 1), "BPM", "—"),
     ]))
 
-    groups.append(("Lead / centre channel", [
+    groups.append(("Lead / center channel", [
         row("Lead detected", _yes(vo.vocal_present), "", "yes" if p.vocal_expected else "—",
             f"confidence {_pct(vo.vocal_confidence)}"),
         row("Prominence", vo.vocal_prominence, "", "—",
             "absent / tucked / balanced / forward"),
         row("Lead to instruments", _num(vo.vocal_to_instrument_db, 1), "dB",
             _window(p.vocal_to_instrument_db, "dB")),
-        row("Centre energy ratio", _num(vo.center_energy_ratio, 3), "", "—"),
+        row("Center energy ratio", _num(vo.center_energy_ratio, 3), "", "—"),
         row("Intelligibility", _num(vo.intelligibility_index, 3), "", "—"),
         row("Presence balance", _num(vo.presence_balance_db, 1), "dB", "—"),
         row("Sibilance level", _num(vo.sibilance_db, 1), "dB", "—"),
@@ -2481,7 +2481,7 @@ def _appendix(doc: Doc, analysis: MixAnalysis, genre_label: str, num: _Numbering
 
     m = analysis.measurements
     doc.p(
-        "Nothing on the previous pages is a judgement call about how something sounds — every "
+        "Nothing on the previous pages is a judgment call about how something sounds — every "
         "one of them comes from a number in this appendix. The reference column is where "
         f"{genre_label} releases sit, not a pass mark: a value outside it is a difference, and "
         "the defect and deviation sections are where that difference is interpreted.",
@@ -2518,8 +2518,8 @@ def _appendix(doc: Doc, analysis: MixAnalysis, genre_label: str, num: _Numbering
     if analysis.platform_targets:
         doc.h(3, "Delivery targets")
         doc.p(
-            "Where this master lands on each platform after its own normalisation. "
-            + doc.term("Normalisation", "a fixed volume change the platform applies so every "
+            "Where this master lands on each platform after its own normalization. "
+            + doc.term("Normalization", "a fixed volume change the platform applies so every "
                        "track in a playlist arrives at a similar loudness")
             + " is a level change and nothing else — it does not compress and it cannot undo "
               "anything spent getting there."
@@ -2638,7 +2638,7 @@ def _sanitise(analysis: MixAnalysis) -> None:
     """Bound the client-supplied prose in place.
 
     The document renders everything through `_inline`, which escapes before it
-    marks up, so this is not an injection defence — it is a size defence. The
+    marks up, so this is not an injection defense — it is a size defense. The
     payload arrives from the browser and an unbounded string there is an
     unbounded document here. The limits are far above anything the analyzer
     itself produces, so real content is never touched.

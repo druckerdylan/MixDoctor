@@ -8,7 +8,7 @@ nothing you can act on unless you already know what the low mids do.
 Three things this file tries to do that a spec sheet does not:
 
 1. **Name the sound before the science.** Boxy, honky, woolly, glassy. A
-   producer recognises those instantly and recognises "excess 300-600 Hz" only
+   producer recognizes those instantly and recognizes "excess 300-600 Hz" only
    after they already know the answer.
 2. **Say what lives in the band.** Every one of the eighteen band explainers
    names what is usually responsible, because "presence is low" is a
@@ -145,13 +145,13 @@ _add(
                 action="If the buildup is one ringing note rather than a broad heaviness, treat it as a resonance.",
                 detail=(
                     "A suppressor tracks the peak and ducks it only while it rings, which is the "
-                    "right behaviour for a room mode or a resonant cabinet — those come and go "
+                    "right behavior for a room mode or a resonant cabinet — those come and go "
                     "with the note being played."
                 ),
                 needs="resonance_suppressor",
                 without=(
                     "Find it by hand: a narrow bell boosted 6 dB, swept slowly from 150 to 400 "
-                    "Hz until one spot rings much louder than its neighbours. Invert that boost "
+                    "Hz until one spot rings much louder than its neighbors. Invert that boost "
                     "into a 3-4 dB cut at the same frequency, on the source, and check it in the "
                     "full arrangement rather than solo — a notch that sounds right solo is "
                     "usually twice as deep as it needs to be."
@@ -197,7 +197,7 @@ _add(
                 query="where to set high pass filter on every track mixing",
                 label="Where to put the high-pass on each source",
                 note=(
-                    "The judgement this fix turns on: how far up you can filter a guitar, a "
+                    "The judgment this fix turns on: how far up you can filter a guitar, a "
                     "pad or a reverb return before you take out its body along with its "
                     "rumble."
                 ),
@@ -229,7 +229,7 @@ _add(
         what_it_is=(
             "2 to 5 kHz is the region your ear is most sensitive to, and this measurement is "
             "deliberately not 'is that region loud'. It asks how far the region stands above the "
-            "line its own neighbours draw: the analyzer looks at the span below it and the span "
+            "line its own neighbors draw: the analyzer looks at the span below it and the span "
             "above it, works out the slope your mix is on, and measures the departure. A mix "
             "with an ordinary smooth downward tilt scores near zero no matter how bright it is. "
             "A mix with a shelf or a spike sitting on top of that slope scores high even if it "
@@ -268,7 +268,7 @@ _add(
             "resonance, a snare ring that nobody damped.",
             "A limiter working too hard. Its release lets the midrange swell back between kicks, "
             "and that movement reads as edge rather than as pumping.",
-            "'Air' and 'exciter' plugins whose band is centred lower than the name suggests.",
+            "'Air' and 'exciter' plugins whose band is centered lower than the name suggests.",
         ),
         how_to_fix=(
             FixStep(
@@ -373,7 +373,7 @@ _add(
                 query="how to find and remove resonant frequencies EQ sweep",
                 label="Sweeping to find the resonance",
                 note=(
-                    "This finding is a peak standing above its neighbours rather than general "
+                    "This finding is a peak standing above its neighbors rather than general "
                     "brightness, so the first job is locating it. These walk through the "
                     "boost-and-sweep method for pinning the exact frequency."
                 ),
@@ -411,7 +411,7 @@ _add(
             "Sibilance is the noise burst inside consonants — s, sh, ch, t, z, f. Unlike a sung "
             "note it has no pitch: it is turbulent air over teeth and tongue, and it lands "
             "roughly between 5 and 9 kHz. Two things separate it from air and general "
-            "brightness, and the measurement uses both. It sits above the line its neighbouring "
+            "brightness, and the measurement uses both. It sits above the line its neighboring "
             "regions draw, and — more usefully — it is intermittent. It arrives in short bursts "
             "a few times a bar instead of running continuously, so the index compares the "
             "loudest frames in the band against the typical frame. A steady shimmer of cymbals "
@@ -453,8 +453,8 @@ _add(
             FixStep(
                 action="Confirm it is actually the singer before you treat it.",
                 detail=(
-                    "Without separate stems this is measured on an extracted centre channel, not "
-                    "on the real vocal track, so a centred hi-hat, shaker or tambourine can "
+                    "Without separate stems this is measured on an extracted center channel, not "
+                    "on the real vocal track, so a centered hi-hat, shaker or tambourine can "
                     "inflate the reading. Loop a line and listen for whether the spit is on the "
                     "consonants. If it lands on the offbeats instead, the problem is percussion "
                     "and a de-esser is the wrong tool."
@@ -472,7 +472,7 @@ _add(
                 action="Find the frequency instead of guessing it.",
                 detail=(
                     "Loop the worst word. Take a narrow bell, boost it 6 dB and sweep from 5 to "
-                    "9 kHz until the ess becomes intolerable — that is your centre. Deeper "
+                    "9 kHz until the ess becomes intolerable — that is your center. Deeper "
                     "voices usually sit in the lower half of that span and brighter voices "
                     "higher, but the ranges overlap enough that sweeping is faster than "
                     "assuming."
@@ -512,7 +512,7 @@ _add(
                 needs="eq_dynamic",
             ),
             FixStep(
-                action="On a finished stereo mix, work on the centre only.",
+                action="On a finished stereo mix, work on the center only.",
                 detail=(
                     "The esses are in the middle and the hats and cymbals mostly are not, so a "
                     "dynamic band applied to the mid channel takes the ess down without dulling "
@@ -548,7 +548,7 @@ _add(
         ),
         learn_more=(
             "Why intermittency is the right way to measure this: a fricative is turbulent noise "
-            "lasting 50 to 150 milliseconds, with a broad spectral peak whose centre shifts with "
+            "lasting 50 to 150 milliseconds, with a broad spectral peak whose center shifts with "
             "the singer's anatomy and mouth shape. Cymbal wash, breath and room tone occupy the "
             "same band and are near-continuous. Average the whole track and the two are "
             "indistinguishable, which is why a plain '5-9 kHz level' reading is useless here and "
@@ -657,7 +657,7 @@ _add(
             "A transient shaper or a clipper on the drum bus with attack pushed up. Both make "
             "the hat's leading edge sharper, which is precisely the thing this measures.",
             "Layered percussion: a closed hat, a shaker and a tambourine on the same 16ths. "
-            "Three sources with the same spectral centre stack into one burst that is far "
+            "Three sources with the same spectral center stack into one burst that is far "
             "louder than any of them, and the pattern reads as a single very loud hat.",
             "Bus compression with a slow attack on the drums. It lets the transient through "
             "untouched and then turns down the body behind it, which raises the transient's "
@@ -998,10 +998,10 @@ _add(
         ),
         why_it_matters=(
             "In bass-led genres the sub is not support, it is the hook — the thing the listener "
-            "came for. Streaming normalisation also works against you here: platforms turn "
+            "came for. Streaming normalization also works against you here: platforms turn "
             "everything down to a common loudness, so a track that made its impact by being "
             "loud rather than by being big arrives at the same level as everyone else's and now "
-            "has nothing left. Weight is one of the very few things normalisation cannot take "
+            "has nothing left. Weight is one of the very few things normalization cannot take "
             "away from you."
         ),
         common_causes=(
@@ -1137,7 +1137,7 @@ _add(
         what_you_hear=(
             "Boom, and one-note bass: the bassline stops having a melody and becomes a series of "
             "similar-sounding thuds because the loudest note in the room is whichever one your "
-            "speakers and room happen to favour. The kick sounds big on its own and swallows the "
+            "speakers and room happen to favor. The kick sounds big on its own and swallows the "
             "bass in the arrangement. When the mix is loud, the whole track breathes on every "
             "kick, because that is what the limiter is following."
         ),
@@ -1536,7 +1536,7 @@ _add(
                 label="Proximity effect (audio)",
                 url="https://en.wikipedia.org/wiki/Proximity_effect_(audio)",
                 note=(
-                    "The directional-microphone behaviour that puts several dB into exactly "
+                    "The directional-microphone behavior that puts several dB into exactly "
                     "this band before you have touched an EQ, and why it changes shot to shot "
                     "as a singer moves."
                 ),
@@ -1583,8 +1583,8 @@ _add(
             "not being backed by anything else filling the region.",
             "Mixing on headphones or speakers with a bump here, so you cut what your monitoring "
             "added.",
-            "Mid/side widening. Pushing the sides up and the centre down thins exactly the "
-            "instruments that carry this band, because they are mostly centred.",
+            "Mid/side widening. Pushing the sides up and the center down thins exactly the "
+            "instruments that carry this band, because they are mostly centered.",
         ),
         how_to_fix=(
             FixStep(
@@ -1610,13 +1610,13 @@ _add(
                 action="Check whether this happened while you were fixing mud.",
                 detail=(
                     "If you cut this band to clear a covered mix, the cut was too wide. Narrow "
-                    "it and move it up: the muddy region is centred higher, and you can usually "
+                    "it and move it up: the muddy region is centered higher, and you can usually "
                     "get the same clarity with a tighter, shallower move that leaves the body "
                     "alone."
                 ),
             ),
             FixStep(
-                action="Check the centre against the sides.",
+                action="Check the center against the sides.",
                 detail=(
                     "If the sides are much fuller than the middle through this band, a widener "
                     "is the cause and no amount of boosting will fix the hollowness — narrow "
@@ -1626,7 +1626,7 @@ _add(
                 without=(
                     "Sum the mix to mono and listen. If it collapses to something noticeably "
                     "thinner and smaller rather than just narrower, side-channel processing is "
-                    "eating the centre and that is the thing to fix first."
+                    "eating the center and that is the thing to fix first."
                 ),
             ),
         ),
@@ -1697,7 +1697,7 @@ _add(
         ),
         why_it_matters=(
             "Boxiness reads as amateur faster than almost anything else, because it is the "
-            "signature of a small untreated space and listeners recognise it without being able "
+            "signature of a small untreated space and listeners recognize it without being able "
             "to name it. It also sits directly underneath the region where vocal intelligibility "
             "lives, so it costs clarity as well as tone. If the region below this one is heavy "
             "too, you will normally see the low-mid buildup finding instead — that is the same "
@@ -1996,7 +1996,7 @@ _add(
                 detail=(
                     "A narrow boosted bell moved slowly through 500 Hz to 1 kHz on the full mix "
                     "will find a specific spot that sounds like a mouth shape. That is your "
-                    "centre. Broad cuts placed by guesswork in this region take the identity out "
+                    "center. Broad cuts placed by guesswork in this region take the identity out "
                     "of the instruments along with the honk."
                 ),
                 needs="eq_static",
@@ -2124,7 +2124,7 @@ _add(
             "Scooping guitars out of habit. It works when a wall of them is filling the region "
             "collectively and it fails when there are two.",
             "Stereo widening. Most wideners raise the sides and reduce the middle, and the "
-            "instruments that carry this band are almost all centred.",
+            "instruments that carry this band are almost all centered.",
             "Chasing separation. Every source cut in the mids sounds more distinct on its own, "
             "and the mix gets emptier every time.",
             "Mixing loud. At high levels your ears flatten out and the mids feel more prominent "
@@ -2152,14 +2152,14 @@ _add(
             FixStep(
                 action="Check whether the middle went missing rather than being cut.",
                 detail=(
-                    "If the sides are much fuller than the centre through this band, a widener "
+                    "If the sides are much fuller than the center through this band, a widener "
                     "or a mid/side move is the cause. Narrowing the image back toward the middle "
                     "restores the band without any EQ at all."
                 ),
                 needs="eq_mid_side",
                 without=(
                     "Sum to mono and compare. If mono sounds dramatically weaker rather than "
-                    "just narrower, side-heavy processing is thinning the centre and that is "
+                    "just narrower, side-heavy processing is thinning the center and that is "
                     "what to fix first."
                 ),
             ),
@@ -2225,7 +2225,7 @@ _add(
             "1 to 2 kHz is the shout band. It carries the pick attack of a guitar, the crack of "
             "a snare, the lower half of vocal consonants, and the part of a voice that raises "
             "when someone speaks over noise. It is the region a megaphone, a telephone and a "
-            "cheap PA all emphasise, and it is where a mix reads as forward, urgent and "
+            "cheap PA all emphasize, and it is where a mix reads as forward, urgent and "
             "aggressive. It is next door to the harshness region but a different problem: 2-5 "
             "kHz is edge and glare, this is shout and honk — you hear it as effort rather than "
             "as brightness."
@@ -2240,7 +2240,7 @@ _add(
         why_it_matters=(
             "The ear's sensitivity is already climbing steeply through this band toward its peak "
             "just above it, so an excess costs more perceived loudness than it looks like on a "
-            "spectrum. It is also the region that most cheap playback hardware emphasises, so "
+            "spectrum. It is also the region that most cheap playback hardware emphasizes, so "
             "the listener with the worst speakers gets the worst version. And it consumes "
             "loudness: a mix that shouts feels loud at a lower measured level, but it also makes "
             "people turn it down, which loses you exactly what you were buying."
@@ -2250,11 +2250,11 @@ _add(
             "reaching for the same shelf of intelligibility.",
             "Distortion on midrange sources, which produces harmonics that pile into this band "
             "from below.",
-            "EQ decisions made to fix a mix on small speakers, which naturally emphasise this "
+            "EQ decisions made to fix a mix on small speakers, which naturally emphasize this "
             "region — you end up adding what they already have.",
             "Over-compressed bus processing, which raises the mid content between transients "
             "because it is the most continuous part of the signal.",
-            "Amp sims and presence controls, which are usually centred lower than the word "
+            "Amp sims and presence controls, which are usually centered lower than the word "
             "'presence' suggests.",
         ),
         how_to_fix=(
@@ -2479,7 +2479,7 @@ _add(
             "where your hearing is at its most sensitive, so it is the most powerful two octaves "
             "in a mix and the easiest to overspend in. This finding is about level: the region "
             "is louder than your genre's curve expects. That is related to but distinct from "
-            "harshness, which asks whether the region is peaking above its own neighbours. A "
+            "harshness, which asks whether the region is peaking above its own neighbors. A "
             "smooth, even lift across the band reads as forward and aggressive; a spike inside "
             "it reads as glare. You can have either, or both."
         ),
@@ -2574,7 +2574,7 @@ _add(
             "different measurements of the same band, and they call for different fixes. Level "
             "asks how much total energy is in 2-5 kHz compared to what the genre expects, and it "
             "responds to shelves and broad moves. Peakiness — the harshness index — asks whether "
-            "the band departs from the slope its own neighbours describe, and it responds only "
+            "the band departs from the slope its own neighbors describe, and it responds only "
             "to narrow, targeted work. A mix can be high on level and low on peakiness, which is "
             "a bright, forward, perfectly listenable record. It can also be low on level and "
             "high on peakiness, which is a dull mix with a nasty spike in it, and turning the "
@@ -2923,7 +2923,7 @@ _add(
             "something."
         ),
         what_you_hear=(
-            "Dull, closed, muffled. Cymbals become a grey wash without shape. Acoustic guitars "
+            "Dull, closed, muffled. Cymbals become a gray wash without shape. Acoustic guitars "
             "lose their strings and become a body. The mix sounds acceptable when it is loud and "
             "dead when it is quiet, because the little detail there is stops being audible "
             "first. Next to a commercial reference it sounds like a cloth is over the tweeters."
@@ -2970,7 +2970,7 @@ _add(
                 action="Lift the sides rather than the whole image.",
                 detail=(
                     "A high shelf on the side channel only brightens the cymbals, room and "
-                    "reverb without touching the centred vocal. You get air and detail with no "
+                    "reverb without touching the centered vocal. You get air and detail with no "
                     "additional sibilance, which is the cleanest version of this move."
                 ),
                 needs="eq_mid_side",

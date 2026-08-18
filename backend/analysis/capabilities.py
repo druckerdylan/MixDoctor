@@ -35,7 +35,7 @@ CAPABILITIES: Dict[str, Tuple[str, str]] = {
     ),
     "eq_mid_side": (
         "Mid/Side EQ",
-        "EQ the centre and the sides independently — the correct tool for widening the top "
+        "EQ the center and the sides independently — the correct tool for widening the top "
         "without touching the lead, or mono-ing the low end.",
     ),
     "eq_match": (
@@ -56,7 +56,7 @@ CAPABILITIES: Dict[str, Tuple[str, str]] = {
         "Parallel / blend",
         "Built-in dry-wet, so density can be added without losing the transient.",
     ),
-    "comp_bus": ("Bus compressor", "Glue-style bus compression, slow attack, programme-dependent."),
+    "comp_bus": ("Bus compressor", "Glue-style bus compression, slow attack, program-dependent."),
     "comp_opto": ("Opto compressor", "Slow, level-dependent release. Forgiving on vocals."),
     "comp_fet": ("FET compressor", "Very fast attack. Aggressive; good on drums and rock vocals."),
     "comp_vca": ("VCA compressor", "Precise, punchy, tight control of attack and release."),
@@ -81,7 +81,7 @@ CAPABILITIES: Dict[str, Tuple[str, str]] = {
         "for individual peaks with a notch.",
     ),
     "spectral_repair": ("Spectral repair", "Remove a sound from the spectrogram directly."),
-    # --- Colour -------------------------------------------------------------
+    # --- Color -------------------------------------------------------------
     "saturation": ("Saturation", "Harmonic generation for density and perceived loudness."),
     "tape": ("Tape", "Compression, HF softening and wow/flutter as one character."),
     "exciter": (
@@ -150,7 +150,7 @@ def normalise(caps: Sequence[str]) -> List[str]:
     """Drop unknown slugs and de-duplicate, preserving order.
 
     Capability tags arrive from the client, so they are untrusted input; an
-    unrecognised slug means a stale build, not a new feature.
+    unrecognized slug means a stale build, not a new feature.
     """
     seen: Dict[str, None] = {}
     for cap in caps:

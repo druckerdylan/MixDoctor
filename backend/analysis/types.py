@@ -19,7 +19,7 @@ Verdict = Literal["good", "watch", "problem"]
 # A tucked lead is a fault in a finished song and the entire point of a beat; a
 # bass stem is supposed to be all low end; nobody needs to be told to fix a
 # released record. Defaults to `full_mix`, so every existing caller keeps the
-# behaviour it has today.
+# behavior it has today.
 TrackIntent = Literal["full_mix", "beat", "instrumental", "stem", "reference", "demo"]
 
 TRACK_INTENTS: Tuple[str, ...] = (
@@ -96,7 +96,7 @@ DIMENSION_LABELS: Dict[str, str] = {
     "vocal_balance": "Vocal Balance",
     "compression": "Compression",
     "loudness": "Loudness",
-    "limiter": "Limiter Behaviour",
+    "limiter": "Limiter Behavior",
     "transients": "Transient Impact",
     "clarity": "Mix Clarity",
 }
@@ -241,7 +241,7 @@ class ScoreCard(BaseModel):
 
     reference_match: float = Field(
         ge=0.0, le=100.0,
-        description="Closeness to the genre reference. NOT a quality judgement.",
+        description="Closeness to the genre reference. NOT a quality judgment.",
     )
     reference_label: str = Field(
         description="Plain wording, e.g. 'Distinctly different from the Trap reference'"
@@ -413,10 +413,10 @@ class VocalMeasurement(BaseModel):
     #: this is what lets the detector layer tell the two apart.
     vocal_prominence: VocalProminence = Field(
         default="absent",
-        description="absent / tucked / balanced / forward, from the centre-to-instrument ratio",
+        description="absent / tucked / balanced / forward, from the center-to-instrument ratio",
     )
     center_energy_ratio: float = Field(ge=0.0, le=1.0)
-    vocal_to_instrument_db: float = Field(description="Centre 300-6k vs sides + non-vocal bands")
+    vocal_to_instrument_db: float = Field(description="Center 300-6k vs sides + non-vocal bands")
     intelligibility_index: float = Field(ge=0.0, le=1.0)
     presence_balance_db: float
     sibilance_db: float
@@ -446,7 +446,7 @@ class StemMeasurement(BaseModel):
     """One separated source, measured on its own.
 
     Everything here is inferred from the 2-track without separation — badly.
-    A centre-channel proxy cannot tell a lead vocal from a centred synth, and
+    A center-channel proxy cannot tell a lead vocal from a centered synth, and
     it cannot measure the kick and the 808 as separate objects at all. With
     stems these become direct measurements instead of guesses, which is why
     `confidence` on the findings they feed rises when this is populated.
@@ -641,7 +641,7 @@ class Prescription(BaseModel):
 
 
 class EngineerReport(BaseModel):
-    """The AI layer's contribution. Language and judgement only — never numbers
+    """The AI layer's contribution. Language and judgment only — never numbers
     it invented; every figure it cites comes from Measurements."""
 
     verdict: str = Field(description="Two or three sentences, spoken like a real engineer")

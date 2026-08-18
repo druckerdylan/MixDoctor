@@ -763,7 +763,7 @@ export function Timeline({ analysis, audioUrl, selected, onSeek }: TimelineProps
                 <>
                   {/* Read-only (no audio): there is no "played" region to
                       distinguish, so light the whole waveform rather than
-                      leaving a dead grey slab. */}
+                      leaving a dead gray slab. */}
                   <WaveCanvas
                     width={contentW}
                     height={waveH}

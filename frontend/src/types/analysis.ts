@@ -214,7 +214,7 @@ export interface Finding {
    *
    * This is the magnitude `severity` buckets away. A deviation's label caps at
    * `major` however far out it is, so two findings can share a label and not a
-   * distance — sort or emphasise by this, not by `severity` alone.
+   * distance — sort or emphasize by this, not by `severity` alone.
    */
   miss_ratio: number;
 }
@@ -237,7 +237,7 @@ export interface ScoreCard {
   technical: number;
   /** A+ .. F, and only ever about defects. */
   technical_grade: string;
-  /** Closeness to the genre reference. NOT a quality judgement. */
+  /** Closeness to the genre reference. NOT a quality judgment. */
   reference_match: number;
   /** Plain wording, e.g. "Distinctly different from the Trap reference". */
   reference_label: string;

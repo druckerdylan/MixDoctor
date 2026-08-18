@@ -3,7 +3,7 @@
  *
  * Rendered twice on the results page, and the two placements want different
  * things. In the sticky header it is a control you should be able to find
- * without reading anything, so it is compact and unlabelled beyond the verb. At
+ * without reading anything, so it is compact and unlabeled beyond the verb. At
  * the foot of the report it is an offer, so it explains what the document
  * actually contains — which is the only place a first-time user learns that
  * this is eight sections and a short course rather than a screenshot.

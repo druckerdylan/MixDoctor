@@ -3,7 +3,7 @@
  *
  * A **defect** is wrong regardless of genre, intent, artist or decade: a
  * squared-off waveform, an inverted channel, a mix that vanishes in mono.
- * Nobody chose it and nobody would, so it keeps the alarm colour.
+ * Nobody chose it and nobody would, so it keeps the alarm color.
  *
  * A **deviation** is a measured difference from the genre reference. It may be
  * deliberate and it may be the best decision on the record — a beat leaving the
@@ -11,7 +11,7 @@
  * therefore gets a neutral chip and never the red one. Presenting somebody's
  * choice back to them as damage is the failure this component exists to stop.
  *
- * The colour is deliberately *not* the severity colour. Severity is magnitude,
+ * The color is deliberately *not* the severity color. Severity is magnitude,
  * kind is category; sharing a hue would collapse two independent axes into one
  * and make a small defect look like a large deviation.
  */

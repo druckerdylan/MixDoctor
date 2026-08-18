@@ -131,7 +131,7 @@ def _separation_budget() -> float:
 #
 # These are "how much does this ruin the record", not "how hard is it to fix".
 # Clipping and phase are at the top because they are damage: a squared-off
-# waveform or a cancelling fold-down is broken on every playback system and no
+# waveform or a canceling fold-down is broken on every playback system and no
 # amount of taste makes it acceptable. Clarity and frequency balance come next
 # because they decide whether the mix reads at all. Loudness and limiter sit in
 # the middle: they are recoverable with a fader and a re-render. Stereo width
@@ -180,7 +180,7 @@ _MAX_COMPOUND_PENALTY = 24.0
 # are tempted to add one back, the thing to change is the curve.
 
 # A soft ceiling, not a hard cap. Hard caps look right on one file and destroy
-# the ordering across a catalogue: three mixes with three criticals each all
+# the ordering across a catalog: three mixes with three criticals each all
 # pin to exactly the cap and become indistinguishable, which is what a score is
 # for. Excess above the ceiling is compressed to 20% instead, so a clipped
 # master can never grade well but a clipped master with nothing else wrong
@@ -202,7 +202,7 @@ _GRADES: Tuple[Tuple[float, str], ...] = (
     (63.0, "D+"), (60.0, "D"), (55.0, "D-"),
 )
 
-# Above this delta a platform's normalisation is audibly handing loudness back.
+# Above this delta a platform's normalization is audibly handing loudness back.
 _TURNDOWN_LU = 0.5
 
 # Largest/smallest value `_sanitize` will substitute for an infinity. Well
@@ -666,7 +666,7 @@ def measure_stems_stage(
     four more measurement passes over its output — which is why it is off by
     default and why every failure path here ends in an `available=False`
     `StemAnalysis` rather than an exception. `separation.measure_stems` already
-    promises not to raise; the try/except is the second line of defence for the
+    promises not to raise; the try/except is the second line of defense for the
     cases it cannot promise about (no torch, an OOM, a killed worker).
 
     The warnings it produces are already written for the person who uploaded
@@ -807,7 +807,7 @@ def compute_health(
     3. A compounding penalty for every critical/major dimension *past the worst
        one*, and a compressed ceiling while anything critical is outstanding.
 
-    Step 3 is what makes the number usable across a catalogue rather than only
+    Step 3 is what makes the number usable across a catalog rather than only
     on one file: a mix with one critical problem and a mix with four must not
     land on the same score.
 
@@ -1042,7 +1042,7 @@ _REFERENCE_HALF_MATCH_DISTANCE = 3.6
 # is a true thing to say about a record; "F" is not.
 _REFERENCE_BANDS: Tuple[Tuple[float, str], ...] = (
     (90.0, "Sits close to the {genre} reference"),
-    (70.0, "Recognisably {genre}, with its own character"),
+    (70.0, "Recognizably {genre}, with its own character"),
     (50.0, "Departs from the {genre} reference in several places"),
 )
 _REFERENCE_BAND_FLOOR = "Distinctly different from the {genre} reference"
@@ -1086,7 +1086,7 @@ def _counts_against_the_score(finding: Finding) -> bool:
 
     Nothing else falls in that gap. Exactly one detector emits a genuinely
     positive observation — `vocal_balance.topline_headroom`, a beat's open
-    centre — and it reports a miss of zero, so it is excluded by both halves.
+    center — and it reports a miss of zero, so it is excluded by both halves.
     """
     return _measured_out(finding) and not bool(finding.acknowledged)
 
@@ -1216,7 +1216,7 @@ def technical_score(findings: Sequence[Finding], m: Measurements) -> float:
 def reference_match(findings: Sequence[Finding]) -> float:
     """0-100 on deviations alone. How close the track sits to its genre reference.
 
-    **Not a quality judgement, and it never gets a grade.** A record can be a
+    **Not a quality judgment, and it never gets a grade.** A record can be a
     long way from the reference and be exactly what it was meant to be — that is
     most of what "having a sound" means.
 
@@ -1346,7 +1346,7 @@ def build_score_card(
 
 
 def platform_targets(m: Measurements) -> List[PlatformTarget]:
-    """Where this master lands against every platform's normalisation."""
+    """Where this master lands against every platform's normalization."""
     integrated = _fin(m.loudness.integrated_lufs, -70.0)
     true_peak = _fin(m.loudness.true_peak_dbtp, -120.0)
 
@@ -1439,7 +1439,7 @@ def waveform(buf: AudioBuffer, buckets: int = WAVEFORM_BUCKETS) -> Tuple[List[fl
     peaks = peak_src[:usable].reshape(buckets, size).max(axis=1)
     rms = np.sqrt(np.square(rms_src[:usable].reshape(buckets, size)).mean(axis=1))
 
-    # Both normalise against the same peak so the RMS trace sits inside the
+    # Both normalize against the same peak so the RMS trace sits inside the
     # peak trace, which is what a waveform view is supposed to show.
     norm = float(np.max(peaks)) if peaks.size else 0.0
     if not math.isfinite(norm) or norm <= 0.0:
@@ -1496,7 +1496,7 @@ def _reference_similarity(
 def build_reference_delta(mix: Measurements, ref: Measurements) -> ReferenceDelta:
     """Measured difference between the mix and an uploaded reference.
 
-    Every level figure compared here is already normalised to the track's own
+    Every level figure compared here is already normalized to the track's own
     1 kHz band, so a reference that is simply louder does not read as brighter.
     """
     d_lufs = _fin(mix.loudness.integrated_lufs) - _fin(ref.loudness.integrated_lufs)
@@ -1680,7 +1680,7 @@ def analyze_mix_detailed(
     if buf.duration < 3.0:
         warnings.append(
             f"This file is {buf.duration:.1f} s. Loudness, dynamics and transient "
-            f"statistics need several seconds of programme to settle, so the "
+            f"statistics need several seconds of program to settle, so the "
             f"dimensions that depend on them are not scored."
         )
 
@@ -1795,7 +1795,7 @@ def analyze_mix_detailed(
     analysis.analysis_ms = int(round((time.perf_counter() - started) * 1000.0))
     timings["total"] = float(analysis.analysis_ms)
 
-    # 8. Last line of defence before the wire.
+    # 8. Last line of defense before the wire.
     clean = MixAnalysis.model_validate(_sanitize(analysis.model_dump()))
     card = clean.scores
     logger.info(
@@ -1841,7 +1841,7 @@ def analyze_mix(
     `separate_stems` adds the per-source pass: Demucs splits the mix into
     vocals/drums/bass/other and each source is measured on its own. That turns
     four inferences into measurements — vocal level against the actual
-    instrumental rather than a centre proxy, kick against 808 as two objects
+    instrumental rather than a center proxy, kick against 808 as two objects
     rather than one waveform, per-element compression, and source-against-source
     masking — and the findings built on them carry visibly higher confidence.
 
@@ -1901,7 +1901,7 @@ def apply_answers(
 
     **No DSP runs.** Nothing about the audio changed — the mix is 5.2 dB thin at
     2 kHz whether or not that was the plan — so every measurement is carried
-    through untouched and only the judgement on top of them moves. That is what
+    through untouched and only the judgment on top of them moves. That is what
     keeps this a few milliseconds instead of a few seconds, and it is also why
     it is honest: an answer cannot alter a number, only what the report makes of
     one.
