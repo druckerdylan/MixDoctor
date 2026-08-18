@@ -131,6 +131,32 @@ export default function Shell({ children, actions, onHome }: ShellProps) {
             <DonateLink />
           </div>
         </div>
+
+        {/* Policy row. Plain anchors, not router links: these are static pages
+            served straight from the filesystem, ahead of the SPA rewrite. */}
+        <div className="mx-auto max-w-[1800px] px-4 pb-8 sm:px-6 lg:px-10">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            {[
+              ['/terms', 'Terms'],
+              ['/privacy', 'Privacy'],
+              ['/dmca', 'Copyright'],
+              ['/licenses.txt', 'Licences'],
+            ].map(([href, label]) => (
+              <a
+                key={href}
+                href={href}
+                className="font-mono text-micro uppercase tracking-[0.14em] text-ink-faint transition-colors hover:text-ink"
+              >
+                {label}
+              </a>
+            ))}
+          </div>
+          <p className="mt-3 max-w-[80ch] text-micro leading-relaxed text-ink-faint">
+            Your upload is deleted as soon as it has been measured — never stored, never sent
+            anywhere else. Plugin, DAW and platform names are trademarks of their respective owners;
+            Mix Diagnostic is not affiliated with, endorsed by or sponsored by any of them.
+          </p>
+        </div>
       </footer>
 
       {/* One drawer for the whole app — the header button and the intake form

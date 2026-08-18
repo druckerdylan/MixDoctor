@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Privacy Policy — Mix Diagnostic</title>
+<meta name="robots" content="index,follow">
+<style>
+:root{--bg:#06060a;--panel:#0d0d13;--line:#1e1e28;--ink:#e8e8ee;--dim:#a2a2b0;
+--faint:#6c6c7c;--signal:#52F2C4;--warn:#ffd166;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding:48px 22px 120px}
+a{color:var(--signal)}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;
+border-bottom:1px solid var(--line);padding-bottom:18px;margin-bottom:40px}
+.brand{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;letter-spacing:.16em;
+text-transform:uppercase;color:var(--faint);text-decoration:none}
+.brand b{color:var(--ink);font-weight:600}
+h1{font-size:2rem;line-height:1.15;letter-spacing:-.02em;margin:0 0 6px}
+.updated{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.14em;
+text-transform:uppercase;color:var(--faint);margin:0 0 36px}
+h2{font-size:1.12rem;margin:2.6em 0 .6em;padding-top:1.1em;border-top:1px solid var(--line)}
+h2:first-of-type{border-top:0;padding-top:0;margin-top:2em}
+h3{font-size:.98rem;margin:1.7em 0 .4em;color:var(--dim)}
+p,li{color:var(--dim)}
+li{margin:.4em 0}
+strong{color:var(--ink);font-weight:600}
+.lead{font-size:1.05rem;color:var(--ink);border-left:2px solid var(--signal);
+padding-left:18px;margin:0 0 34px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:22px 0}
+.box p:first-child{margin-top:0}.box p:last-child{margin-bottom:0}
+.fill{border-color:var(--warn);background:rgba(255,209,102,.06)}
+.fill .tag{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.16em;
+text-transform:uppercase;color:var(--warn);display:block;margin-bottom:10px}
+code{font-family:ui-monospace,monospace;font-size:.88em;background:#15151d;
+border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:var(--ink)}
+footer{margin-top:72px;padding-top:22px;border-top:1px solid var(--line);
+font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+footer a{color:var(--faint);text-decoration:none;margin-right:18px}
+footer a:hover{color:var(--ink)}
+</style>
+</head><body><div class="wrap">
+<div class="top">
+  <a class="brand" href="/"><b>Mix Diagnostic</b> — measurement first</a>
+  <a class="brand" href="/">&larr; Back to the analyzer</a>
+</div>
+<h1>Privacy Policy</h1>
+<p class="updated">Last updated 18 August 2026</p>
+
+<p class="lead">Your music is deleted as soon as it has been measured. It is never stored, never
+sent to a third party, and never used to train anything. That is the whole policy; the rest of this
+page is the detail behind it.</p>
+
+<div class="box fill"><span class="tag">Fill these in before this page goes live</span><p><strong>Operator:</strong> [LEGAL NAME OR BUSINESS ENTITY]<br><strong>Contact e-mail:</strong> [CONTACT@YOURDOMAIN]<br><strong>Postal address:</strong> [STREET, CITY, STATE, ZIP, COUNTRY]<br><strong>Governing law:</strong> the State of [STATE], United States</p></div>
+
+<h2>1. Audio you upload</h2>
+<p>When you analyze a mix, the file is streamed to a temporary location on the analysis server, read
+into memory, measured, and then <strong>deleted immediately as part of the same request</strong>.
+Deletion is unconditional: it happens if the analysis succeeds, if it fails with an error, and if the
+upload is rejected for exceeding the size limit.</p>
+<p>Specifically, your audio is <strong>not</strong>:</p>
+<ul>
+  <li>written to any permanent store, bucket, archive or backup;</li>
+  <li>placed on a content-delivery network or given a shareable URL;</li>
+  <li>sent to any third party, including any AI provider;</li>
+  <li>used to train, fine-tune or evaluate any model;</li>
+  <li>listened to, retained for review, or kept after the response is returned.</li>
+</ul>
+<p>Because nothing is retained, there is no stored copy for anyone to request, export or breach.</p>
+
+<h2>2. Reference tracks</h2>
+<p>An optional reference track is handled the same way and more narrowly still. It is read once and
+reduced to a small set of aggregate figures — overall loudness, stereo width, spectral balance and
+dynamics — which are compared against your mix to produce a difference. The reference is
+<strong>never separated into stems</strong>, never reproduced in listenable form, never returned to
+you, and is deleted with the rest of the request.</p>
+
+<h2>3. What is kept</h2>
+<h3>Without an account</h3>
+<p>Nothing about your analysis is stored. The report exists in your browser for as long as the page
+is open. Closing or reloading the tab discards it.</p>
+<h3>With an account</h3>
+<p>If you choose to create an account, the site stores your e-mail address, a securely hashed
+password, and the <em>results</em> of analyses you run while signed in: file name, genre, score and
+findings. <strong>No audio is stored.</strong> You can ask for the account and all of its history to
+be deleted at any time by writing to the contact address above.</p>
+<h3>In your own browser</h3>
+<p>The list of plugins you own is saved in your browser's local storage so you do not have to enter
+it again. It stays on your device, is not an account, and is cleared when you clear site data.</p>
+
+<h2>4. Server logs</h2>
+<p>The hosting provider keeps ordinary operational logs — timestamp, request path, response status,
+IP address, user agent — for a short period, for security and debugging. These logs are a normal
+function of the host and do not contain your audio.</p>
+
+<h2>5. Analytics</h2>
+<p>The site is built to support Google Analytics 4, but only when a measurement ID has been
+configured. <strong>At the time of writing, no analytics is configured on mixdiagnostic.com: no
+analytics script is loaded, no analytics cookie is set, and no analytics request leaves your
+browser.</strong> If that changes, this page will be updated and the configuration will use IP
+anonymization.</p>
+
+<h2>6. The optional written summary</h2>
+<p>A written engineer's summary can be generated on top of the measurements by a third-party language
+model. <strong>This feature is currently disabled on mixdiagnostic.com.</strong> If it is ever
+enabled, what is sent is the numeric findings and their text descriptions — never your audio, and
+never anything that could be used to reconstruct it.</p>
+
+<h2>7. Cookies</h2>
+<p>No advertising or tracking cookies are set. If you sign in, a token is stored so the session
+persists. With analytics disabled there is no analytics cookie.</p>
+
+<h2>8. Donations</h2>
+<p>The tip jar links out to a third-party payment provider. Payments happen entirely on that
+provider's site under its own privacy policy. No card or payment details ever reach this site.</p>
+
+<h2>9. Your rights</h2>
+<p>Depending on where you live you may have rights to access, correct, export or delete personal data
+held about you. Since no audio is retained and no account is required, the only personal data that
+can exist is an account record you created yourself. Write to the contact address above and it will
+be deleted.</p>
+
+<h2>10. Children</h2>
+<p>The service is not directed at children under 13, and accounts are not knowingly created for them.</p>
+
+<h2>11. Changes</h2>
+<p>This policy may be updated; the date at the top changes when it is. Material changes to how
+uploads are handled will be described here rather than made quietly.</p>
+
+<footer><a href="/">Home</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/dmca">Copyright</a><a href="/licenses.txt">Licences</a><p style="margin-top:14px;text-transform:none;letter-spacing:0;font-size:11.5px;line-height:1.6">Plugin, DAW and platform names are trademarks of their respective owners. Mix Diagnostic is not affiliated with, endorsed by or sponsored by any of them.</p></footer>
+</div></body></html>

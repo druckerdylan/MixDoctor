@@ -44,7 +44,7 @@ const INTENT_OPTIONS: IntentOption[] = [
   {
     value: 'reference',
     title: 'Reference track',
-    line: "Someone else's record, measuring it to learn.",
+    line: 'A commercial reference you have legal access to — measured, never stored.',
   },
   { value: 'demo', title: 'Rough demo', line: 'Early, not polished yet.' },
 ];
@@ -255,7 +255,7 @@ export default function Intake({
               initialPeaks={restore?.peaks ?? null}
               disabled={busy}
               title="The mix"
-              hint={`${ACCEPTED_EXTENSIONS.map((e) => e.replace('.', '').toUpperCase()).join(' · ')} — up to ${formatBytes(MAX_UPLOAD_BYTES)}. Highest-quality bounce you have; MP3 hides the top octave.`}
+              hint={`${ACCEPTED_EXTENSIONS.map((e) => e.replace('.', '').toUpperCase()).join(' · ')} — up to ${formatBytes(MAX_UPLOAD_BYTES)}. Highest-quality bounce you have; MP3 hides the top octave. Deleted from the server the moment it has been measured.`}
             />
           </div>
 
@@ -433,7 +433,7 @@ export default function Intake({
                   disabled={busy}
                   compact
                   title="Reference track"
-                  hint="A released record you want this to sit next to. Adds a spectrum, width, dynamics and loudness delta against it."
+                  hint="A released record you have legal access to, for this to sit next to. Adds a spectrum, width, dynamics and loudness delta — measured to numbers, never separated or stored."
                 />
               </div>
 
