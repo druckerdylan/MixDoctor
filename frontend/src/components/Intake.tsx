@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 
 import DropZone from './DropZone';
@@ -125,6 +126,44 @@ export interface IntakeProps {
   restore?: IntakeSubmission | null;
 }
 
+
+/**
+ * The reasoning behind a choice, folded away until it is wanted.
+ *
+ * Every section here had a paragraph explaining itself, and stacked up that is
+ * six of them between "I want to check my mix" and the button that does it.
+ * The writing is worth keeping — it is what stops someone picking a genre at
+ * random — but it belongs one tap away rather than in the way. Closed by
+ * default, and the label says what is inside rather than "read more".
+ */
+function WhyThis({ children, label = 'Why this matters' }: { children: ReactNode; label?: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mb-4">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="inline-flex items-center gap-1.5 font-mono text-micro uppercase tracking-[0.14em] text-ink-faint transition-colors duration-200 hover:text-signal"
+      >
+        <span
+          aria-hidden="true"
+          className="inline-block transition-transform duration-300 ease-cine"
+          style={{ transform: open ? 'rotate(90deg)' : 'none' }}
+        >
+          ›
+        </span>
+        {label}
+      </button>
+      {open ? (
+        <div className="mt-2.5 max-w-[68ch] text-[13px] leading-relaxed text-ink-muted">
+          {children}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function SectionHead({ index, label, note }: { index: string; label: string; note?: string }) {
   return (
     <div className="mb-4 flex items-baseline gap-3">
@@ -167,7 +206,12 @@ export default function Intake({
   const ready = blocker === null;
 
   return (
-    <section id="intake" className="relative mx-auto max-w-[1800px] px-4 pb-28 sm:px-6 lg:px-10">
+    <section
+      id="intake"
+      /* scroll-mt matches the fixed header height, or every jump to this
+         section lands with its own heading hidden underneath it. */
+      className="relative mx-auto max-w-[1800px] scroll-mt-14 px-4 pb-28 sm:scroll-mt-16 sm:px-6 lg:px-10"
+    >
       <div className="mx-auto max-w-5xl">
         <div className="hairline mb-14" />
 
@@ -222,11 +266,11 @@ export default function Intake({
           <div className="mt-10">
             <SectionHead index="02" label="What is this?" note="Changes the most" />
 
-            <p className="mb-5 max-w-2xl text-xs leading-relaxed text-ink-muted">
+            <WhyThis label="Why this changes the most">
               Genre sets the reference this gets measured against. This sets which questions are
               worth asking of it at all. A beat with the hook tucked under the drums is doing its
               job — say so here and nothing in the report will pretend otherwise.
-            </p>
+            </WhyThis>
 
             <div
               role="radiogroup"
@@ -311,12 +355,12 @@ export default function Intake({
             <div>
               <SectionHead index="03" label="Genre" note="Required" />
 
-              <p className="mb-5 max-w-md text-xs leading-relaxed text-ink-muted">
+              <WhyThis label="Why genre is required">
                 A trap master is measured against a different loudness window, low-end curve and
                 dynamic-range floor than a folk record — holding both to one average is how generic
                 tools get it wrong. Genre is a reference, though, not a rulebook: departing from it
                 comes back as a difference with its cost and its upside, never as a fault.
-              </p>
+              </WhyThis>
 
               <div
                 role="radiogroup"
@@ -348,7 +392,8 @@ export default function Intake({
                             />
                             <span
                               className={[
-                                'flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs',
+                                'flex min-h-[44px] items-center gap-1.5 rounded-full border px-4 py-2 text-[13px]',
+                                'sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs',
                                 'transition-all duration-200 ease-cine',
                                 'peer-focus-visible:outline peer-focus-visible:outline-2',
                                 'peer-focus-visible:outline-offset-2 peer-focus-visible:outline-signal',

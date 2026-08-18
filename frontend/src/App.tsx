@@ -76,11 +76,11 @@ function AppContent() {
 
   const actions =
     phase === 'results' ? (
-      <button type="button" onClick={handleReset} className="btn-ghost px-4 py-2 text-xs">
+      <button type="button" onClick={handleReset} className="btn-ghost whitespace-nowrap px-4 py-2 text-xs">
         New analysis
       </button>
     ) : phase === 'intake' ? (
-      <button type="button" onClick={scrollToIntake} className="btn-ghost px-4 py-2 text-xs">
+      <button type="button" onClick={scrollToIntake} className="btn-ghost whitespace-nowrap px-4 py-2 text-xs">
         Analyse a mix
       </button>
     ) : null;
