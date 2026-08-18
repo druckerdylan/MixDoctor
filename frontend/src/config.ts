@@ -32,10 +32,19 @@ export const API_BASE = resolveApiBase();
  * processing), so it is the default framing. Any of the other platforms work
  * by setting VITE_DONATE_URL to a full link instead.
  *
- * With neither variable set, every donate surface renders nothing — nothing
- * ships half-configured, and there is no dead button pointing at a 404.
+ * Defaults to the Ko-fi account above. Set VITE_KOFI_USERNAME to point it
+ * somewhere else, or VITE_DONATE_URL for a non-Ko-fi platform; both override
+ * the default without a code change. Setting KOFI_DEFAULT to an empty string
+ * restores the old behaviour of hiding every donate surface.
  */
-const KOFI_USERNAME = (import.meta.env.VITE_KOFI_USERNAME ?? '').trim();
+// The tip jar's default home. Hardcoded on purpose: this is a public URL, not
+// a secret, and making it an env var bought nothing but a deploy loop — a
+// Vite build bakes VITE_* values in, so a redeploy that reuses the build cache
+// silently ships without them and the whole donate surface vanishes with no
+// error anywhere. A committed default cannot fail that way.
+const KOFI_DEFAULT = 'lilbeats';
+
+const KOFI_USERNAME = (import.meta.env.VITE_KOFI_USERNAME ?? '').trim() || KOFI_DEFAULT;
 const DONATE_URL_OVERRIDE = (import.meta.env.VITE_DONATE_URL ?? '').trim();
 
 export const DONATE_URL: string | null =
