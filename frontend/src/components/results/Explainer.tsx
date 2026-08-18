@@ -14,14 +14,22 @@
  *
  * Order is deliberate and matches the order someone actually needs: the
  * consequence, the concept, the symptom, the stakes, the fix, the stop
- * condition. The underlying theory is last and folded away — present for
- * someone who wants to learn it, out of the way for someone mid-session.
+ * condition, then somewhere to go and learn it properly. The underlying theory
+ * is last and folded away — present for someone who wants to learn it, out of
+ * the way for someone mid-session.
+ *
+ * The learn-more links are other people's work. They are plain hyperlinks and
+ * nothing more — nothing here embeds a video, quotes an article or hotlinks an
+ * image — and every one shows its publisher in the open rather than on hover,
+ * because a credit the reader never sees is not a credit.
  */
 
 import { useMemo, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 
 import useKnowledge, { type ResolvedExplainer } from '../../hooks/useKnowledge';
+import { track } from '../../lib/analytics';
+import type { Resource } from '../../types/analysis';
 
 const EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
@@ -259,6 +267,191 @@ function Verify({ text }: { text: string }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Learn more                                                          */
+/* ------------------------------------------------------------------ */
+
+/** Hostname without `www.`, or '' when the string will not parse. */
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * What the link opens, in a word. A YouTube search gets called a video search
+ * because that is what comes back; any other search is just a search, since
+ * this cannot know what a different site returns.
+ */
+function kindWord(resource: Resource): string {
+  if (resource.kind === 'reference') return 'Guide';
+  return hostOf(resource.url) === 'youtube.com' ? 'Video search' : 'Search';
+}
+
+/**
+ * The credit line: what kind of thing this is, and whose it is. Always
+ * rendered, never behind a hover — naming the publisher wherever their work
+ * appears is the entire deal we are making by linking to them.
+ */
+function credit(resource: Resource): string {
+  const word = kindWord(resource);
+  // `youtube_search()` names its source "YouTube search", and the word in
+  // front already said search. Don't say it twice.
+  const source = resource.source.replace(/\s+search$/i, '').trim();
+  return source ? `${word} · ${source}` : word;
+}
+
+/**
+ * A marker for what is about to open, so the decision to click happens before
+ * the tab does. Decorative only — the same distinction is written out in the
+ * credit line underneath, because an icon on its own is not a label.
+ */
+function ResourceMark({ resource }: { resource: Resource }) {
+  const common = {
+    viewBox: '0 0 16 16',
+    width: 13,
+    height: 13,
+    'aria-hidden': true as const,
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.3,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+  };
+
+  if (resource.kind === 'search') {
+    if (hostOf(resource.url) === 'youtube.com') {
+      return (
+        <svg {...common}>
+          <rect x="1.4" y="3.2" width="13.2" height="9.6" rx="2.6" />
+          <path d="M6.7 6.2L10.1 8l-3.4 1.8z" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    }
+    return (
+      <svg {...common}>
+        <circle cx="7" cy="7" r="4.4" />
+        <path d="M10.3 10.3l3 3" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg {...common}>
+      <path d="M3.7 2.6h4.8l3.8 3.7v7.1H3.7z" />
+      <path d="M8.4 2.7v3.6h3.6" />
+      <path d="M6 9.2h4M6 11.2h2.8" />
+    </svg>
+  );
+}
+
+function ResourceLink({ resource, findingId }: { resource: Resource; findingId: string }) {
+  const host = hostOf(resource.url);
+
+  /**
+   * The only measurement of whether this section is worth its space. Fired on
+   * aux-click too, because opening three of these into background tabs is how
+   * anyone actually reads them and a middle click raises no click event.
+   */
+  const report = () => {
+    track('resource_clicked', {
+      finding_id: findingId,
+      kind: resource.kind,
+      host,
+      label: resource.label,
+    });
+  };
+
+  /**
+   * Only the label is inside the anchor. Wrapping the note and the credit in
+   * it too would make the link's accessible name three sentences long and
+   * imply the credit is clickable, which it is not — it is a statement about
+   * whose work this is.
+   */
+  return (
+    <li className="grid grid-cols-[18px_minmax(0,1fr)] gap-x-3">
+      <span aria-hidden="true" className="pt-[4px] text-ink-faint">
+        <ResourceMark resource={resource} />
+      </span>
+
+      <div className="min-w-0">
+        <a
+          href={resource.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={report}
+          onAuxClick={(e) => {
+            if (e.button === 1) report();
+          }}
+          className="group max-w-[66ch] text-[14.5px] font-medium leading-[1.55] text-ink underline decoration-void-line underline-offset-[3px] transition-colors duration-300 ease-cine hover:text-signal hover:decoration-signal-dim"
+        >
+          {resource.label}
+          <svg
+            viewBox="0 0 10 10"
+            width="9"
+            height="9"
+            aria-hidden="true"
+            className="ml-1.5 inline-block text-ink-faint transition-colors duration-300 ease-cine group-hover:text-signal-dim"
+          >
+            <path
+              d="M2.6 7.4L7.4 2.6M3.7 2.6h3.7v3.7"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <span className="sr-only">
+            {` (${kindWord(resource).toLowerCase()}${host ? ` on ${host}` : ''}, opens in a new tab)`}
+          </span>
+        </a>
+
+        {resource.note ? (
+          <p className="mt-1 max-w-[64ch] text-[13.5px] leading-[1.65] text-ink-muted">
+            {resource.note}
+          </p>
+        ) : null}
+
+        {/*
+          Mono and small like every other micro label, but not uppercased:
+          `eyebrow` would print "iZotope" as "IZOTOPE", and a citation that
+          restyles the publisher's own name is a slightly worse citation.
+        */}
+        <p className="mt-1.5 font-mono text-[10.5px] leading-[1.5] tracking-[0.08em] text-ink-faint">
+          {credit(resource)}
+        </p>
+      </div>
+    </li>
+  );
+}
+
+/**
+ * Nothing renders when a finding has no resources — not a heading over an
+ * empty list, not an apology that there is nothing to read. A panel that ends
+ * on the verify box is a complete panel.
+ */
+function Resources({ ex }: { ex: ResolvedExplainer }) {
+  if (!ex.resources.length) return null;
+
+  return (
+    <section>
+      <Head>Learn more</Head>
+      <ul className="mt-3 space-y-4">
+        {ex.resources.map((resource, i) => (
+          <ResourceLink key={`${resource.url}-${i}`} resource={resource} findingId={ex.findingId} />
+        ))}
+      </ul>
+      <p className="mt-4 max-w-[66ch] text-[12px] leading-[1.6] text-ink-faint">
+        These are other people’s videos and articles, credited to whoever made them — Mix
+        Diagnostic links to them, it doesn’t host them.
+      </p>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* The panel                                                           */
 /* ------------------------------------------------------------------ */
 
@@ -284,7 +477,12 @@ export default function Explainer({ findingId, showTime = false, className = '' 
   if (!ex) return null;
 
   const hasBody =
-    ex.whatItIs || ex.whatYouHear || ex.whyItMatters || ex.steps.length || ex.howToVerify;
+    ex.whatItIs ||
+    ex.whatYouHear ||
+    ex.whyItMatters ||
+    ex.steps.length ||
+    ex.howToVerify ||
+    ex.resources.length;
   if (!ex.headline && !hasBody) return null;
 
   return (
@@ -330,6 +528,8 @@ export default function Explainer({ findingId, showTime = false, className = '' 
         <Steps ex={ex} />
 
         {ex.howToVerify ? <Verify text={ex.howToVerify} /> : null}
+
+        <Resources ex={ex} />
 
         {ex.learnMore ? (
           <Disclosure label="Why this happens" openLabel="The concept">

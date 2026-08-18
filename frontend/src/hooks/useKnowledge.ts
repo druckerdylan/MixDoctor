@@ -29,6 +29,7 @@ import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 
 import { API_BASE } from '../config';
 import { CAPABILITY_LABELS } from '../data/plugins';
+import type { Resource, ResourceKind } from '../types/analysis';
 import { usePluginVault } from './usePluginVault';
 
 /* ------------------------------------------------------------------ */
@@ -65,6 +66,8 @@ export interface ResolvedExplainer {
   howToVerify: string;
   learnMore: string;
   minutes: number;
+  /** Where to go and learn this properly. Empty until someone writes links for it. */
+  resources: Resource[];
 }
 
 /** Straight off the wire, before any vault resolution. */
@@ -85,6 +88,7 @@ interface RawExplainer {
   how_to_verify: string;
   learn_more: string;
   minutes: number;
+  resources: Resource[];
 }
 
 type Phase = 'idle' | 'loading' | 'ready' | 'unavailable';
@@ -140,6 +144,41 @@ function parseStep(raw: unknown): RawFixStep | null {
   };
 }
 
+const RESOURCE_KINDS: readonly ResourceKind[] = ['search', 'reference'];
+
+/**
+ * The one field parsed strictly rather than leniently, because it is the one
+ * field that becomes something the user clicks under our name.
+ *
+ * `https` only: an `href` is where a string off the wire turns executable —
+ * `javascript:` in an anchor runs on click — and no real resource is anything
+ * else anyway. And never an uncredited link: `source` is required on the
+ * server, but if one ever arrives without it the host stands in, which is
+ * still a true statement about whose page this is.
+ */
+function parseResource(raw: unknown): Resource | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const r = raw as Record<string, unknown>;
+
+  const kind = str(r.kind) as ResourceKind;
+  if (!RESOURCE_KINDS.includes(kind)) return null;
+
+  const label = str(r.label);
+  const url = str(r.url);
+  if (label === '' || url === '') return null;
+
+  let host = '';
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:') return null;
+    host = parsed.hostname.replace(/^www\./, '');
+  } catch {
+    return null;
+  }
+
+  return { kind, label, url, note: str(r.note), source: str(r.source) || host };
+}
+
 function parseExplainer(raw: unknown): RawExplainer | null {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
   const r = raw as Record<string, unknown>;
@@ -157,6 +196,14 @@ function parseExplainer(raw: unknown): RawExplainer | null {
     if (step) steps.push(step);
   }
 
+  const resources: Resource[] = [];
+  if (Array.isArray(r.resources)) {
+    for (const item of r.resources) {
+      const resource = parseResource(item);
+      if (resource) resources.push(resource);
+    }
+  }
+
   return {
     headline,
     what_it_is: whatItIs,
@@ -167,6 +214,7 @@ function parseExplainer(raw: unknown): RawExplainer | null {
     how_to_verify: str(r.how_to_verify),
     learn_more: str(r.learn_more),
     minutes: Math.max(0, Math.round(num(r.minutes, 0))),
+    resources,
   };
 }
 
@@ -392,6 +440,7 @@ export function useKnowledge(): Knowledge {
         howToVerify: raw.how_to_verify,
         learnMore: raw.learn_more,
         minutes: raw.minutes,
+        resources: raw.resources,
       };
     },
     [index, owned],

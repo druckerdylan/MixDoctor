@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from typing import Dict
 
-from .knowledge import Explainer, FixStep
+from .knowledge import Explainer, FixStep, Resource, youtube_search
 
 EXPLAINERS: Dict[str, Explainer] = {}
 
@@ -183,6 +183,37 @@ _add(
             "amounts, in several places."
         ),
         minutes=30,
+        resources=(
+            youtube_search(
+                query="how to fix a muddy mix subtractive EQ low mids",
+                label="Fixing mud by cutting, not boosting",
+                note=(
+                    "Practical demos of the subtractive move this finding calls for: narrow "
+                    "cuts around 200-400 Hz spread across the sources that share the band, "
+                    "instead of boosting the top end to compensate for it."
+                ),
+            ),
+            youtube_search(
+                query="where to set high pass filter on every track mixing",
+                label="Where to put the high-pass on each source",
+                note=(
+                    "The judgement this fix turns on: how far up you can filter a guitar, a "
+                    "pad or a reverb return before you take out its body along with its "
+                    "rumble."
+                ),
+            ),
+            Resource(
+                kind="reference",
+                label="Auditory masking",
+                url="https://en.wikipedia.org/wiki/Auditory_masking",
+                note=(
+                    "The mechanism behind 'covered'. Loud energy around 200 Hz raises the "
+                    "level at which you can hear anything near it, which is why the consonants "
+                    "of the vocal go before the vocal itself does."
+                ),
+                source="Wikipedia",
+            ),
+        ),
     ),
 )
 
@@ -337,6 +368,38 @@ _add(
             "but only one thing at a time."
         ),
         minutes=25,
+        resources=(
+            youtube_search(
+                query="how to find and remove resonant frequencies EQ sweep",
+                label="Sweeping to find the resonance",
+                note=(
+                    "This finding is a peak standing above its neighbours rather than general "
+                    "brightness, so the first job is locating it. These walk through the "
+                    "boost-and-sweep method for pinning the exact frequency."
+                ),
+            ),
+            youtube_search(
+                query="how to fix harshness in your mix upper midrange EQ",
+                label="Treating the whole region when it is a shelf, not a spike",
+                note=(
+                    "The other half of the fix above. When the sweep finds no single culprit "
+                    "the 2-5 kHz region has been shelved up across the mix, and these cover the "
+                    "wide, shallow moves that work on that — including pulling the band down "
+                    "only while it is loud, so the quiet sections do not go dull with it."
+                ),
+            ),
+            Resource(
+                kind="reference",
+                label="Equal-loudness contour",
+                url="https://en.wikipedia.org/wiki/Equal-loudness_contour",
+                note=(
+                    "Why this band and not another. The contours show hearing is at its most "
+                    "sensitive from 2-5 kHz, which is why a few dB of excess here is felt as "
+                    "glare rather than heard as brightness."
+                ),
+                source="Wikipedia",
+            ),
+        ),
     ),
 )
 
@@ -496,6 +559,36 @@ _add(
             "and a static filter charges you for it across the other ninety-eight."
         ),
         minutes=20,
+        resources=(
+            youtube_search(
+                query="how to de-ess vocals de-esser settings threshold frequency",
+                label="Setting a de-esser properly",
+                note=(
+                    "How to pick the band and threshold so the de-esser catches the 's' and "
+                    "leaves the rest of the take alone. That setting is the whole difference "
+                    "between a de-essed vocal and a lisping one."
+                ),
+            ),
+            youtube_search(
+                query="manual de-essing clip gain automation sibilance",
+                label="De-essing by hand with clip gain",
+                note=(
+                    "For the handful of consonants a de-esser cannot catch without dulling the "
+                    "whole vocal: turn each offending 's' down individually and the processor "
+                    "never has to work hard enough to be audible."
+                ),
+            ),
+            Resource(
+                kind="reference",
+                label="De-essing",
+                url="https://en.wikipedia.org/wiki/De-essing",
+                note=(
+                    "A short neutral account of what a de-esser actually does to the signal, "
+                    "worth reading before you let one reshape every consonant in a take."
+                ),
+                source="Wikipedia",
+            ),
+        ),
     ),
 )
 
@@ -693,6 +786,36 @@ _add(
             "of processing on anything percussive."
         ),
         minutes=15,
+        resources=(
+            youtube_search(
+                query="transient shaper hi hats cymbals attack sustain tutorial",
+                label="Transient shaping on hats and cymbals",
+                note=(
+                    "The tool this finding actually calls for. A transient designer pulls the "
+                    "attack off a hat while leaving its tone intact, which is precisely what a "
+                    "de-esser cannot do."
+                ),
+            ),
+            youtube_search(
+                query="how to tame harsh hi hats and shakers in a mix",
+                label="Getting hats and shakers to sit in the beat",
+                note=(
+                    "Level, layering and sample-choice fixes for percussion that pecks at you. "
+                    "Usually faster than processing a spiky hat sample into submission."
+                ),
+            ),
+            Resource(
+                kind="reference",
+                label="Transient (acoustics)",
+                url="https://en.wikipedia.org/wiki/Transient_(acoustics)",
+                note=(
+                    "What a transient is in signal terms, and therefore why a peaky hat and a "
+                    "sibilant vocal look identical to a 5-9 kHz meter while needing opposite "
+                    "treatments."
+                ),
+                source="Wikipedia",
+            ),
+        ),
     ),
 )
 
@@ -830,6 +953,25 @@ _add(
             "moves with the volume knob."
         ),
         minutes=20,
+        resources=(
+            youtube_search(
+                query="how much sub bass is too much 808 sub level mixing",
+                label="How much sub is actually enough",
+                note=(
+                    "Producers setting 808 and sub levels against reference tracks rather than "
+                    "by feel, which is the calibration this finding says yours has drifted "
+                    "past."
+                ),
+            ),
+            youtube_search(
+                query="how to control sub bass frequencies below 40 Hz in a mix",
+                label="Cleaning out the bottom two octaves",
+                note=(
+                    "Where to filter and how to audition what lives under 40 Hz, which is the "
+                    "part of the sub band spending your headroom without being heard for it."
+                ),
+            ),
+        ),
     ),
 )
 
@@ -946,6 +1088,37 @@ _add(
             "the actual sub as well."
         ),
         minutes=25,
+        resources=(
+            youtube_search(
+                query="how to add sub bass weight to a mix 808 sine layer",
+                label="Adding weight under the low end",
+                note=(
+                    "Layering a sine or sub synth beneath an existing bass. This is the fix "
+                    "when the notes are already there and only the bottom octave is missing, "
+                    "because boosting cannot amplify content that was never recorded."
+                ),
+            ),
+            youtube_search(
+                query="how to judge sub bass on headphones and small speakers",
+                label="Judging sub you cannot hear",
+                note=(
+                    "Why this one survives to the master: on a laptop the sub band is "
+                    "inaudible. These cover checking it with meters, spectrum and reference "
+                    "tracks instead of with speakers you do not have."
+                ),
+            ),
+            Resource(
+                kind="reference",
+                label="Missing fundamental",
+                url="https://en.wikipedia.org/wiki/Missing_fundamental",
+                note=(
+                    "Explains why a bassline still reads as the right pitch on a phone with no "
+                    "sub output at all, and therefore why your ears will not tell you this "
+                    "band is missing."
+                ),
+                source="Wikipedia",
+            ),
+        ),
     ),
 )
 
@@ -1067,6 +1240,36 @@ _add(
             "treating it."
         ),
         minutes=25,
+        resources=(
+            youtube_search(
+                query="kick and bass clashing low end sidechain EQ fix",
+                label="Kick and bass sharing the same octave",
+                note=(
+                    "The specific fight a hot 60-120 Hz usually is: two sources with "
+                    "fundamentals in one octave. Covers the carve-one-duck-the-other options "
+                    "for separating them without losing either."
+                ),
+            ),
+            youtube_search(
+                query="one note bass room modes mixing low end",
+                label="Why one bass note is always the loud one",
+                note=(
+                    "The room side of this band. When a single note booms it is often the room "
+                    "rather than the mix, and these show how to tell which before you EQ the "
+                    "wrong thing."
+                ),
+            ),
+            Resource(
+                kind="reference",
+                label="Room modes",
+                url="https://en.wikipedia.org/wiki/Room_modes",
+                note=(
+                    "The physics of why a small untreated room exaggerates particular notes "
+                    "right through 60-120 Hz, which is the band this finding measured as hot."
+                ),
+                source="Wikipedia",
+            ),
+        ),
     ),
 )
 
@@ -1180,6 +1383,24 @@ _add(
             "often a compressor problem than an EQ problem."
         ),
         minutes=20,
+        resources=(
+            youtube_search(
+                query="how to give a kick drum more body low end EQ",
+                label="Putting body back behind the click",
+                note=(
+                    "This band is the kick's fundamental, so these cover getting weight under "
+                    "the attack with EQ and sample choice rather than just pushing the fader."
+                ),
+            ),
+            youtube_search(
+                query="layering kick drum punch low end mixing tutorial",
+                label="Layering when the sample has nothing to boost",
+                note=(
+                    "If the kick sample has no 60-120 Hz in it, a layer is the fix and an EQ "
+                    "boost is not: you cannot amplify content that is not in the file."
+                ),
+            ),
+        ),
     ),
 )
 
@@ -1292,6 +1513,36 @@ _add(
             "shelving lift that starts low and rises toward the bottom."
         ),
         minutes=25,
+        resources=(
+            youtube_search(
+                query="mix sounds woolly thick 200 Hz warmth buildup fix",
+                label="Thinning the 120-250 Hz blanket",
+                note=(
+                    "Cutting the warmth region across several sources at once, which is what "
+                    "this band needs — it is the most over-subscribed band in a mix, so one "
+                    "big cut on one track rarely fixes it."
+                ),
+            ),
+            youtube_search(
+                query="proximity effect vocal low end boost fix EQ",
+                label="Proximity effect on close-miked sources",
+                note=(
+                    "The single most common cause of a hot 120-250 Hz: a singer or a cab miked "
+                    "close, with the low end the microphone added still sitting in the track."
+                ),
+            ),
+            Resource(
+                kind="reference",
+                label="Proximity effect (audio)",
+                url="https://en.wikipedia.org/wiki/Proximity_effect_(audio)",
+                note=(
+                    "The directional-microphone behaviour that puts several dB into exactly "
+                    "this band before you have touched an EQ, and why it changes shot to shot "
+                    "as a singer moves."
+                ),
+                source="Wikipedia",
+            ),
+        ),
     ),
 )
 
@@ -1401,6 +1652,25 @@ _add(
             "body of the arrangement almost alone."
         ),
         minutes=20,
+        resources=(
+            youtube_search(
+                query="mix sounds hollow missing warmth 200 Hz how to fix",
+                label="Rejoining the bass to the music",
+                note=(
+                    "Aimed at the specific hollow this finding describes — sub underneath, top "
+                    "on the end, and nothing connecting them across 120-250 Hz."
+                ),
+            ),
+            youtube_search(
+                query="how to add warmth to vocals and guitars 200 Hz EQ",
+                label="Warmth on voices and guitars",
+                note=(
+                    "Source-by-source demos of putting body back into the instruments that own "
+                    "this band, which is usually more convincing than a broad boost on the mix "
+                    "bus."
+                ),
+            ),
+        ),
     ),
 )
 
@@ -1514,6 +1784,35 @@ _add(
             "a second problem while solving the first."
         ),
         minutes=20,
+        resources=(
+            youtube_search(
+                query="how to remove boxy sound 300 500 Hz drums guitars EQ",
+                label="Removing boxiness with EQ",
+                note=(
+                    "Straight at the symptom this band produces. Watch for how narrow the cuts "
+                    "are — boxiness is usually two or three resonances, not the whole region."
+                ),
+            ),
+            youtube_search(
+                query="boxy snare room resonance EQ fix tutorial",
+                label="The boxy snare and the room behind it",
+                note=(
+                    "Drums are the usual offender at 250-500 Hz, and the ring is often the "
+                    "room the kit was recorded in rather than the kit. These separate the two."
+                ),
+            ),
+            Resource(
+                kind="reference",
+                label="Using EQ: Understanding Instrument & Voice Frequency Ranges",
+                url="https://www.soundonsound.com/techniques/using-eq",
+                note=(
+                    "A frequency map of common instruments and voices. Use it to work out "
+                    "which sources are genuinely putting energy into 250-500 Hz before you "
+                    "start cutting all of them."
+                ),
+                source="Sound On Sound",
+            ),
+        ),
     ),
 )
 
@@ -1630,6 +1929,25 @@ _add(
             "same question about the same band."
         ),
         minutes=20,
+        resources=(
+            youtube_search(
+                query="mix too thin cut too much low mids add body back",
+                label="When the cutting went too far",
+                note=(
+                    "This finding is usually self-inflicted — a high-pass on everything, or a "
+                    "400 Hz dip repeated on every channel. These cover getting the substance "
+                    "back without returning to mud."
+                ),
+            ),
+            youtube_search(
+                query="how to make a snare sound bigger body EQ",
+                label="Body back into the snare",
+                note=(
+                    "The snare is where a thin 250-500 Hz is most obvious, so it is the "
+                    "fastest source to fix and the easiest to hear yourself fixing."
+                ),
+            ),
+        ),
     ),
 )
 
@@ -1739,6 +2057,37 @@ _add(
             "corrections: you are editing the region your hearing scrutinises hardest."
         ),
         minutes=20,
+        resources=(
+            youtube_search(
+                query="how to fix a honky nasal sounding mix midrange EQ",
+                label="Fixing honk in the midrange",
+                note=(
+                    "Uses the same words this finding does — honky, nasal, boxy — and shows "
+                    "what each one sounds like before and after, which is the fastest way to "
+                    "learn to hear 500 Hz-1 kHz."
+                ),
+            ),
+            youtube_search(
+                query="guitar honk notch EQ 1 kHz tutorial",
+                label="Notching honk out of guitars",
+                note=(
+                    "Guitars are the usual source of a hot middle band, and a narrow notch "
+                    "keeps their core tone while removing the pinch. Broad cuts here just make "
+                    "a mix sound scooped."
+                ),
+            ),
+            Resource(
+                kind="reference",
+                label="Formant",
+                url="https://en.wikipedia.org/wiki/Formant",
+                note=(
+                    "Honk is a formant. The resonances that make a vowel sound like a vowel "
+                    "live right in this band, which is why too much of it makes every "
+                    "instrument sound like it is speaking through a tube."
+                ),
+                source="Wikipedia",
+            ),
+        ),
     ),
 )
 
@@ -1845,6 +2194,26 @@ _add(
             "to look, well before you reach for another dB of limiting."
         ),
         minutes=20,
+        resources=(
+            youtube_search(
+                query="scooped mids mix does not translate phone car speaker",
+                label="Why a scooped mix stops translating",
+                note=(
+                    "Exactly this failure: impressive on monitors, hollow everywhere else. "
+                    "Watch for the A/B on a phone speaker, which is the check this finding "
+                    "predicts you will fail."
+                ),
+            ),
+            youtube_search(
+                query="how to check your mix on phone speakers midrange translation",
+                label="Checking on the speakers that only have mids",
+                note=(
+                    "Practical routines for auditioning a mix on a phone, a laptop and in "
+                    "mono, so the 500 Hz-1 kHz hole shows up in your session rather than in a "
+                    "listener's."
+                ),
+            ),
+        ),
     ),
 )
 
@@ -1951,6 +2320,26 @@ _add(
             "the same shortcut to intelligibility at once."
         ),
         minutes=20,
+        resources=(
+            youtube_search(
+                query="how to fix a shouty vocal mix EQ upper mids",
+                label="Taking the shout out",
+                note=(
+                    "Aimed at the 1-2 kHz strain this finding describes, where a relaxed take "
+                    "still sounds like it is being pushed. Mostly narrow cuts and level, not "
+                    "brightness changes."
+                ),
+            ),
+            youtube_search(
+                query="carve space vocal and guitar fighting 1 kHz EQ",
+                label="Carving 1-2 kHz between sources",
+                note=(
+                    "A hot shout band is usually several sources all claiming it at once. "
+                    "Complementary EQ gives the band to one of them and takes it from the "
+                    "rest, which fixes the total without dulling anything."
+                ),
+            ),
+        ),
     ),
 )
 
@@ -2057,6 +2446,26 @@ _add(
             "small amount where the information is, and leave the level alone."
         ),
         minutes=20,
+        resources=(
+            youtube_search(
+                query="vocal lacks definition and clarity upper mids EQ boost",
+                label="Definition without reaching for brightness",
+                note=(
+                    "The distinction this finding rests on: 1-2 kHz buys articulation, while "
+                    "the brightness people reach for instead lives an octave or two higher and "
+                    "buys harshness."
+                ),
+            ),
+            youtube_search(
+                query="how to bring out pick attack and snare stick with EQ",
+                label="Attack on picks and sticks",
+                note=(
+                    "This band holds the moment an instrument is struck or plucked. These are "
+                    "source-level demos of restoring that, which reads as clarity far more "
+                    "cheaply than a fader move."
+                ),
+            ),
+        ),
     ),
 )
 
@@ -2174,6 +2583,35 @@ _add(
             "backwards is the most common way this region gets mishandled."
         ),
         minutes=20,
+        resources=(
+            youtube_search(
+                query="how to push a vocal back in the mix without turning it down",
+                label="Pushing things back without losing them",
+                note=(
+                    "The move this finding wants: depth rather than level. Everything is at "
+                    "the front of the speakers, and turning the vocal down only makes it a "
+                    "quiet thing at the front."
+                ),
+            ),
+            youtube_search(
+                query="dynamic EQ vocal presence tame only when loud",
+                label="Presence control that acts only on peaks",
+                note=(
+                    "Keeps the 2-5 kHz that carries the words and removes the part that only "
+                    "arrives on the loudest syllables, which is where in-your-face actually "
+                    "comes from."
+                ),
+            ),
+            youtube_search(
+                query="listening fatigue mix too bright how to check",
+                label="Why you stopped noticing",
+                note=(
+                    "Your ears adapt to an aggressive presence band within about a minute, "
+                    "which is why this finding is measured rather than heard. These cover "
+                    "working around your own adaptation."
+                ),
+            ),
+        ),
     ),
 )
 
@@ -2299,6 +2737,36 @@ _add(
             "Once you have heard it work you stop reaching for the fader first."
         ),
         minutes=20,
+        resources=(
+            youtube_search(
+                query="vocal sounds behind the speakers presence EQ boost",
+                label="Bringing a lead forward with EQ",
+                note=(
+                    "Addresses the exact symptom here — a vocal that stays behind the band no "
+                    "matter where the fader goes, because the missing thing is presence and "
+                    "not level."
+                ),
+            ),
+            youtube_search(
+                query="vocal clarity without harshness EQ 4 kHz tutorial",
+                label="Clarity without buying glare",
+                note=(
+                    "This band is the most sensitive one there is, so the difference between "
+                    "articulate and painful is a couple of dB. These show how far to go."
+                ),
+            ),
+            Resource(
+                kind="reference",
+                label="Intelligibility (communication)",
+                url="https://en.wikipedia.org/wiki/Intelligibility_(communication)",
+                note=(
+                    "Intelligibility is carried by consonants, which live in this band. It is "
+                    "why a quiet vocal with presence is easier to follow than a loud one "
+                    "without it."
+                ),
+                source="Wikipedia",
+            ),
+        ),
     ),
 )
 
@@ -2418,6 +2886,26 @@ _add(
             "time."
         ),
         minutes=20,
+        resources=(
+            youtube_search(
+                query="how to tame harsh splashy cymbals overheads EQ",
+                label="Taming splashy cymbals",
+                note=(
+                    "Cymbals and hats are what usually make 5-10 kHz hot, and they are best "
+                    "fixed at the overhead rather than on the mix bus where the cut takes the "
+                    "vocal's consonants with it."
+                ),
+            ),
+            youtube_search(
+                query="how to control sibilance and harsh top end 6 kHz to 10 kHz",
+                label="Dynamic control of the top band",
+                note=(
+                    "This band is loud in bursts rather than continuously, so a dynamic tool "
+                    "that only clamps down on the splashy moments beats a static shelf that "
+                    "dulls the whole record."
+                ),
+            ),
+        ),
     ),
 )
 
@@ -2531,6 +3019,26 @@ _add(
             "sounds like part of the recording. Static brightness sounds like a setting."
         ),
         minutes=20,
+        resources=(
+            youtube_search(
+                query="mix sounds dull and closed add detail high shelf EQ",
+                label="Opening up a dull mix",
+                note=(
+                    "Shelf technique for the 5-10 kHz detail band, including why the shelf's "
+                    "corner frequency matters more than its gain when the mix already sounds "
+                    "closed."
+                ),
+            ),
+            youtube_search(
+                query="how to make hi hats and cymbals sound crisp in a mix EQ",
+                label="Detail on cymbals and hats",
+                note=(
+                    "This band is mostly cymbals, string noise and breath, so restoring it "
+                    "source by source keeps the texture without lifting the hiss on everything "
+                    "at once."
+                ),
+            ),
+        ),
     ),
 )
 
@@ -2657,6 +3165,37 @@ _add(
             "distortion that sounds like an instrument and distortion that sounds like a bug."
         ),
         minutes=20,
+        resources=(
+            youtube_search(
+                query="how to fix a mix that is too bright top end EQ",
+                label="Pulling back an over-bright top",
+                note=(
+                    "Covers the top octave specifically, including why a gentle shelf beats a "
+                    "steep cut when the excess is spread across the whole band rather than "
+                    "sitting on one resonance."
+                ),
+            ),
+            youtube_search(
+                query="noise floor hiss high frequency clean up mixing",
+                label="Finding the hiss rather than EQing it",
+                note=(
+                    "Above 10 kHz an excess is often noise rather than music — a preamp, a "
+                    "guitar pedal, a noisy sample. Removing the source beats shelving the "
+                    "whole mix down."
+                ),
+            ),
+            Resource(
+                kind="reference",
+                label="Presbycusis",
+                url="https://en.wikipedia.org/wiki/Presbycusis",
+                note=(
+                    "Hearing above 12 kHz falls off with age. If you cannot hear what you are "
+                    "adding in the air band, a younger listener on bright earbuds still can, "
+                    "which is why this one gets measured."
+                ),
+                source="Wikipedia",
+            ),
+        ),
     ),
 )
 
@@ -2798,6 +3337,36 @@ _add(
             "turns out to be deliberate."
         ),
         minutes=15,
+        resources=(
+            youtube_search(
+                query="how to add air to a vocal high shelf 12 kHz",
+                label="Adding air with a shelf",
+                note=(
+                    "The standard move for this band: a wide, gentle shelf well above 10 kHz. "
+                    "These show how little gain it takes, and what it sounds like when it "
+                    "becomes hiss instead of openness."
+                ),
+            ),
+            youtube_search(
+                query="air band EQ vs exciter open top end mixing",
+                label="Shelf, exciter, or neither",
+                note=(
+                    "Relevant because a thin air band often has nothing up there to boost. "
+                    "These compare lifting existing content against generating new harmonics "
+                    "with an exciter."
+                ),
+            ),
+            Resource(
+                kind="reference",
+                label="Hearing range",
+                url="https://en.wikipedia.org/wiki/Hearing_range",
+                note=(
+                    "What is actually left above 10 kHz and who can still hear it, which is "
+                    "worth knowing before deciding how much of the top octave this mix needs."
+                ),
+                source="Wikipedia",
+            ),
+        ),
     ),
 )
 

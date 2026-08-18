@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import Dict
 
-from .knowledge import Explainer, FixStep
+from .knowledge import Explainer, FixStep, Resource, youtube_search
 
 
 EXPLAINERS: Dict[str, Explainer] = {}
@@ -147,6 +147,34 @@ _add(
             "Polarity is a switch. Phase is a slider. This finding is the switch."
         ),
         minutes=15,
+        resources=(
+            youtube_search(
+                "polarity flip vs phase what is the difference mixing",
+                "Polarity and phase are not the same thing",
+                "Worth watching before you touch anything, because the two words get used "
+                "interchangeably and only one of them is your problem here. These show the "
+                "sign flip on a waveform, which is what makes it obvious why an inverted "
+                "channel deletes the centre of a mix rather than moving it.",
+            ),
+            youtube_search(
+                "how to check your mix in mono phase problems",
+                "Engineers finding an inversion by folding the mix to mono",
+                "The two-second confirmation from the fix list, demonstrated on real mixes: "
+                "what a healthy master does when you sum it versus what a polarity-flipped "
+                "one does.",
+            ),
+            Resource(
+                kind="reference",
+                label="Phase Demystified",
+                url="https://www.soundonsound.com/techniques/phase-demystified",
+                note=(
+                    "Long-form on why a polarity switch cures some problems outright and "
+                    "does nothing for others — the distinction that decides whether flipping "
+                    "the master is your fix or your next fault."
+                ),
+                source="Sound On Sound",
+            ),
+        ),
     ),
 )
 
@@ -278,6 +306,33 @@ _add(
             "and still lose its bass in a club."
         ),
         minutes=25,
+        resources=(
+            youtube_search(
+                "how to make your mix wider without losing mono compatibility",
+                "Width that is still there after the fold-down",
+                "The rebuild half of this fix rather than the diagnosis: producers A/B-ing "
+                "width from panning and real stereo sources against width from a processor, "
+                "in stereo and then in mono, so you can hear which survives.",
+            ),
+            youtube_search(
+                "stereo widener plugin phase cancellation mono problems",
+                "What a widener is actually doing to your side channel",
+                "Most mono-compatibility findings trace back to one plugin on one bus. These "
+                "show the cancellation a widener creates, which is the fastest way to learn "
+                "to recognise it on your own master.",
+            ),
+            Resource(
+                kind="reference",
+                label="Precedence effect (the Haas trick)",
+                url="https://en.wikipedia.org/wiki/Precedence_effect",
+                note=(
+                    "The psychoacoustics under delay-based widening: why a copy offset by a "
+                    "few milliseconds is heard as width instead of as an echo, and therefore "
+                    "why it is still a copy and still cancels when the channels are summed."
+                ),
+                source="Wikipedia",
+            ),
+        ),
     ),
 )
 
@@ -418,6 +473,33 @@ _add(
             "time, and why the cure is alignment or a genuinely different signal, never EQ."
         ),
         minutes=30,
+        resources=(
+            youtube_search(
+                "comb filtering explained phase cancellation audio",
+                "Comb filtering with audio examples",
+                "Hearing the notches move as the delay changes is what makes this finding "
+                "make sense: it is why one band disappears in mono while the bands either "
+                "side of it are untouched.",
+            ),
+            youtube_search(
+                "time align two mics on one source phase mixing tutorial",
+                "Time-aligning two mics on one source",
+                "The alignment fix carried out rather than described — nudging the far mic "
+                "earlier on drums and on a DI-plus-amp bass until the low end comes back in "
+                "mono, which is the cure when the cause is two mics rather than a plugin.",
+            ),
+            Resource(
+                kind="reference",
+                label="Comb filter",
+                url="https://en.wikipedia.org/wiki/Comb_filter",
+                note=(
+                    "The arithmetic of the notch spacing, for working backwards from the "
+                    "band that is cancelling to the delay in milliseconds that must be "
+                    "causing it."
+                ),
+                source="Wikipedia",
+            ),
+        ),
     ),
 )
 
@@ -575,6 +657,34 @@ _add(
             "space while costing you everything on fold-down."
         ),
         minutes=25,
+        resources=(
+            youtube_search(
+                "how wide should your mix be stereo width mastering check",
+                "How much width a mix can carry before it starts costing",
+                "Aimed at the judgement this finding forces on you: engineers demonstrating "
+                "the point where widening stops adding size and starts hollowing the centre, "
+                "judged against released records rather than against a meter.",
+            ),
+            youtube_search(
+                "mid side EQ tutorial stereo width mixing",
+                "Mid/side EQ, so you can widen per band instead of everywhere",
+                "The per-band move from the fix list: leaving the bottom alone and taking "
+                "the width from the top end, which keeps most of the size for a fraction of "
+                "the fold-down cost.",
+            ),
+            Resource(
+                kind="reference",
+                label="Stereo imaging",
+                url="https://en.wikipedia.org/wiki/Stereo_imaging",
+                note=(
+                    "Useful here for its definition of a good image — one where you can "
+                    "point at each source. That is precisely what a broadband widener trades "
+                    "away for size, and it explains why this mix feels large and vague at "
+                    "the same time."
+                ),
+                source="Wikipedia",
+            ),
+        ),
     ),
 )
 
@@ -706,6 +816,29 @@ _add(
             "'wider' on a meter. Only one of them still exists on a phone."
         ),
         minutes=30,
+        resources=(
+            youtube_search(
+                "mix sounds narrow how to add width panning arrangement",
+                "Width from the arrangement, before any plugin",
+                "Starts where this fix should start — with what is panned where — which is "
+                "the only kind of width that costs nothing when the mix is summed.",
+            ),
+            youtube_search(
+                "panning tutorial mixing separation stereo image",
+                "Committing to real pan positions",
+                "The specific weakness behind most narrow readings is timid pans: everything "
+                "at ten or twenty percent, crowding the middle without separating anything. "
+                "These cover how far out to place doubled parts and why.",
+            ),
+            youtube_search(
+                "how to make your mix wider without losing mono compatibility",
+                "Adding width without buying a mono problem",
+                "Worth watching before you reach for an imager, because the fastest routes "
+                "to a wider reading are also the ones that cancel. These compare the "
+                "techniques that keep their level in mono against the ones that only look "
+                "wider on a meter.",
+            ),
+        ),
     ),
 )
 
@@ -821,6 +954,34 @@ _add(
             "file, verify by swapping the speakers, and only then reach for a trim."
         ),
         minutes=10,
+        resources=(
+            youtube_search(
+                "phantom center stereo image mixing explained",
+                "What the phantom centre is and how easily it moves",
+                "Explains the illusion this finding breaks: why a sound coming equally from "
+                "two speakers appears between them, and how little level difference it takes "
+                "to drag that image off centre without anything sounding wrong.",
+            ),
+            youtube_search(
+                "speaker setup listening position symmetry stereo image home studio",
+                "Ruling out your room before you trust the lean",
+                "Half of all apparent imbalance is an asymmetric room or an off-centre chair, "
+                "and correcting the file for that makes it worse. These cover the symmetry "
+                "checks worth doing before you touch a balance trim.",
+            ),
+            Resource(
+                kind="reference",
+                label="Panning (audio)",
+                url="https://en.wikipedia.org/wiki/Panning_(audio)",
+                note=(
+                    "Covers pan pots and pan law, which is the cause worth ruling out first: "
+                    "a project moved between DAWs, or a mono source on a stereo channel where "
+                    "the pan knob is acting as a balance control, produces exactly this "
+                    "constant offset."
+                ),
+                source="Wikipedia",
+            ),
+        ),
     ),
 )
 
@@ -1015,6 +1176,36 @@ _add(
             "frequency, or make one duck the other — all attack that, and nothing else does."
         ),
         minutes=45,
+        resources=(
+            youtube_search(
+                "kick and bass clashing how to separate low end mixing",
+                "Kick and bass separation, worked through on a real mix",
+                "The most-taught problem in production, so the demonstrations are good, and "
+                "the move is the same whether the low end is an 808 or an upright. Watch "
+                "someone decide which source owns the sub and which owns the punch, then "
+                "hear the moment the two stop being one blur.",
+            ),
+            youtube_search(
+                "sidechain compression kick and bass release time tutorial",
+                "Setting the duck up properly in your own DAW",
+                "Sidechaining is easy to switch on and easy to set wrong. These cover the "
+                "routing in each DAW and then the release time, which is the parameter that "
+                "decides whether the bass simply gets out of the way or the whole track "
+                "starts pumping.",
+            ),
+            Resource(
+                kind="reference",
+                label="Auditory masking",
+                url="https://en.wikipedia.org/wiki/Auditory_masking",
+                note=(
+                    "Why two sources in the same octave do not merely add up: the louder one "
+                    "raises the level at which the other becomes audible at all. That is the "
+                    "reason turning one of them down never separates them, and why the fixes "
+                    "here all move them apart instead."
+                ),
+                source="Wikipedia",
+            ),
+        ),
     ),
 )
 
@@ -1142,6 +1333,34 @@ _add(
             "near-field speakers in your own room."
         ),
         minutes=15,
+        resources=(
+            youtube_search(
+                "how to mono the low end in your mix",
+                "Mono-ing the low end, and where to set the crossover",
+                "The fix is one knob and the whole skill is where you put it. These show the "
+                "sweep: high enough to catch the bass fundamental, low enough that the "
+                "guitars and keys keep their space.",
+            ),
+            youtube_search(
+                "mid side EQ high pass the sides bass mono tutorial",
+                "The same result with a stock mid/side EQ",
+                "For anyone without a mono maker. Also the quickest way to hear what your "
+                "widener has been putting down there, since these solo the side channel "
+                "before filtering it.",
+            ),
+            Resource(
+                kind="reference",
+                label="Sound localization",
+                url="https://en.wikipedia.org/wiki/Sound_localization",
+                note=(
+                    "The evidence for the claim this whole fix rests on: below roughly 150 Hz "
+                    "your two ears have almost no level or timing difference to compare, so a "
+                    "stereo fundamental is width you cannot hear and a club system still "
+                    "subtracts."
+                ),
+                source="Wikipedia",
+            ),
+        ),
     ),
 )
 
@@ -1281,6 +1500,33 @@ _add(
             "reference rather than against your own ears in the moment."
         ),
         minutes=25,
+        resources=(
+            youtube_search(
+                "too much sub bass killing my headroom limiter",
+                "What the bottom octave is costing you in loudness",
+                "Joins up the two halves of this finding — the sub you cannot hear on your "
+                "monitors and the gain reduction making your snare quieter. Look for the "
+                "demos that show the limiter's meter with the sub filtered in and out.",
+            ),
+            youtube_search(
+                "dynamic EQ control loud sub bass notes uneven low end",
+                "Taming the few notes that are actually hot",
+                "The move that keeps the weight instead of shelving it away: a dynamic band "
+                "catching only the lowest, loudest notes in the pattern, which are usually "
+                "the two or three that set this measurement.",
+            ),
+            Resource(
+                kind="reference",
+                label="Equal-loudness contour",
+                url="https://en.wikipedia.org/wiki/Equal-loudness_contour",
+                note=(
+                    "The curves showing how much more energy a 40 Hz tone needs to sound as "
+                    "loud as a 1 kHz one. That gap is the whole economics of this finding: "
+                    "your limiter pays for the energy and your listener does not hear it."
+                ),
+                source="Wikipedia",
+            ),
+        ),
     ),
 )
 
@@ -1407,6 +1653,33 @@ _add(
             "the skill in low-end work."
         ),
         minutes=30,
+        resources=(
+            youtube_search(
+                "how to make bass translate on small speakers saturation",
+                "Making the note audible on speakers that cannot play it",
+                "The harmonics half of the job: saturating the bass so a phone conveys the "
+                "note, which is what lets you keep a real fundamental at a sensible level "
+                "rather than over-boosting it to be heard on small speakers.",
+            ),
+            youtube_search(
+                "how to layer a sub bass under an 808 tutorial",
+                "Adding a fundamental when there is not one",
+                "For the case the analyser confirms — nothing below 60 Hz, so no EQ move can "
+                "lift anything. These cover choosing the layer, tracking the notes and "
+                "enveloping it so it only sounds when the bass does.",
+            ),
+            Resource(
+                kind="reference",
+                label="Missing fundamental",
+                url="https://en.wikipedia.org/wiki/Missing_fundamental",
+                note=(
+                    "The effect that lets a laptop speaker deliver a 40 Hz bassline it cannot "
+                    "reproduce, and the reason 'can I hear the bass' and 'is the bottom octave "
+                    "actually there' are two different questions with two different fixes."
+                ),
+                source="Wikipedia",
+            ),
+        ),
     ),
 )
 
@@ -1533,6 +1806,26 @@ _add(
             "where it was supposed to pay off."
         ),
         minutes=10,
+        resources=(
+            youtube_search(
+                "high pass filter master bus rumble headroom mastering",
+                "Where to put the filter, and why the slope matters more",
+                "Most high-pass arguments are about 100 Hz and up; this is the end of the "
+                "debate nobody disputes. Useful for the before-and-after on a limiter's gain "
+                "reduction, which is the entire payoff here.",
+            ),
+            Resource(
+                kind="reference",
+                label="Infrasound",
+                url="https://en.wikipedia.org/wiki/Infrasound",
+                note=(
+                    "What is going on below 20 Hz and why hearing gives out there. Background "
+                    "for the one claim that makes this fix free — that nothing audible leaves "
+                    "with the filter."
+                ),
+                source="Wikipedia",
+            ),
+        ),
     ),
 )
 
@@ -1680,6 +1973,22 @@ _add(
             "biggest section of the record. That gap is what this finding exists to close."
         ),
         minutes=20,
+        resources=(
+            youtube_search(
+                "how to make the chorus sound bigger than the verse arrangement mixing",
+                "Putting a floor back under a big section",
+                "For when the collapse turns out to be the arrangement rather than an "
+                "accident: how engineers make a section feel full-size without simply making "
+                "it louder, which is the trade this finding is warning you about.",
+            ),
+            youtube_search(
+                "bus compressor pumping low end sidechain detector high pass",
+                "When your own bus dynamics are removing the bass",
+                "Covers the cause you will never spot by looking at the arrangement — a "
+                "denser section driving the bus compressor harder — and the detector "
+                "high-pass that stops the low end steering it.",
+            ),
+        ),
     ),
 )
 

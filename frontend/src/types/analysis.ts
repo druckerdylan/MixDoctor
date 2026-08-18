@@ -605,6 +605,40 @@ export interface MixAnalysis {
   warnings: string[];
 }
 
+/* ------------------------------------------------------------------ */
+/* Teaching layer                                                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * `search` is a pre-filled query on a site that always exists; `reference` is
+ * one specific page on a publisher's own site. The reader is told which is
+ * which before they click, because "opens a YouTube search" and "opens an
+ * article on Sound on Sound" are two different promises.
+ */
+export type ResourceKind = 'search' | 'reference';
+
+/**
+ * Somewhere to go and learn more about a finding. Mirrors `Resource` in
+ * backend/analysis/knowledge.py.
+ *
+ * Every one of these is a plain hyperlink to a page its publisher put on the
+ * open web. Nothing is copied, embedded, mirrored or hotlinked — the reader is
+ * sent to the source rather than shown a copy of it, which is what makes this
+ * a citation rather than a reproduction. `source` names the publisher and the
+ * UI must render it in the open next to the link: attribution that only
+ * appears on hover is attribution the reader never sees.
+ */
+export interface Resource {
+  kind: ResourceKind;
+  /** The link text. */
+  label: string;
+  url: string;
+  /** Why this is worth the click, in one line. */
+  note: string;
+  /** Publisher, shown beside the link. */
+  source: string;
+}
+
 export type AnalysisStatus =
   | 'idle'
   | 'uploading'

@@ -404,6 +404,14 @@ def _knowledge_payload() -> Dict[str, Any]:
     `capabilities` is here so the UI can say "needs a dynamic EQ" rather than
     "needs eq_dynamic", and `stock_capabilities` so a client with an empty vault
     still resolves the same way the server would: those are assumed, not owned.
+
+    **`resources` ships `source` alongside every link, and the client is
+    expected to render it.** These are outbound links to other people's work,
+    which is exactly why they need no licence — a hyperlink is not a copy — and
+    exactly why the publisher has to be named wherever the link appears. Serving
+    the attribution as a field rather than leaving the UI to invent one is what
+    makes that guarantee hold at every call site instead of at the ones somebody
+    remembered.
     """
     explainers = knowledge.ensure_registered()
 
@@ -429,6 +437,23 @@ def _knowledge_payload() -> Dict[str, Any]:
             "how_to_verify": explainer.how_to_verify,
             "learn_more": explainer.learn_more,
             "minutes": explainer.minutes,
+            # Read through `getattr` and always emitted, even when empty. An
+            # explainer nobody has written links for yet is normal, and a client
+            # that can rely on the array existing renders "no resources" as an
+            # empty loop instead of a special case.
+            "resources": [
+                {
+                    "kind": r.kind,
+                    "label": r.label,
+                    "url": r.url,
+                    "note": r.note,
+                    # Never dropped when blank. `source` is the citation shown
+                    # beside the link, and the client must not have to decide
+                    # whether a missing key means unattributed or unknown.
+                    "source": r.source,
+                }
+                for r in (getattr(explainer, "resources", ()) or ())
+            ],
         }
 
     return {

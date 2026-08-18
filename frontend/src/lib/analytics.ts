@@ -67,6 +67,10 @@ export type AnalyticsEvent =
   | 'engineer_requested'
   | 'clarification_answered'
   | 'plugin_vault_opened'
+  // A learn-more link opened. The only signal on whether anyone wants the
+  // teaching resources at all — a section nobody clicks should be cut, and
+  // without this the answer is a guess.
+  | 'resource_clicked'
   | 'donate_clicked';
 
 export function track(event: AnalyticsEvent, params: Record<string, string | number | boolean> = {}): void {

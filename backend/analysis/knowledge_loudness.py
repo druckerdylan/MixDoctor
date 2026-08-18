@@ -29,7 +29,7 @@ from __future__ import annotations
 
 from typing import Dict
 
-from .knowledge import Explainer, FixStep
+from .knowledge import Explainer, FixStep, Resource, youtube_search
 
 EXPLAINERS: Dict[str, Explainer] = {}
 
@@ -188,6 +188,26 @@ _add(
             "in a way that a gently-set one never does."
         ),
         minutes=25,
+        resources=(
+            youtube_search(
+                "how much limiter gain reduction is too much mastering",
+                "What a limiter sounds like once it stops catching and starts holding",
+                "Engineers A/B-ing occasional gain reduction against continuous, which is the "
+                "distinction this finding is built on and the one a meter alone will not teach you.",
+            ),
+            youtube_search(
+                "clipper before limiter mastering loud without distortion",
+                "Clipping the peaks so the limiter can go back to its job",
+                "The clipper-then-limiter chain from the fix steps, demonstrated end to end — "
+                "including how far you can shave a drum transient before anyone hears it.",
+            ),
+            youtube_search(
+                "limiter attack release settings mastering explained",
+                "Release time, and why a short one makes grit",
+                "The setting behind the fizz on your loud sections: release short enough that the "
+                "gain recovers between hits is the thing generating harmonics, not the ceiling.",
+            ),
+        ),
     ),
 )
 
@@ -339,6 +359,29 @@ _add(
             "source is what gain staging actually means."
         ),
         minutes=30,
+        resources=(
+            Resource(
+                kind="reference",
+                label="ITU-R BS.1770 — the specification LUFS comes from",
+                url="https://www.itu.int/rec/R-REC-BS.1770/en",
+                note="The actual algorithm behind the loudness number in this report: the "
+                     "ear-weighting filter, the gating that ignores quiet passages, and the "
+                     "true-peak measurement, from the body that defines all three.",
+                source="International Telecommunication Union",
+            ),
+            youtube_search(
+                "why is my mix not loud enough peaks headroom gain staging",
+                "Finding what is eating your headroom",
+                "Producers hunting the one element that sets the peak for an entire mix — the "
+                "first fix step here, and the one people skip on their way to the limiter.",
+            ),
+            youtube_search(
+                "taming loud transients snare clap peaks in a mix",
+                "Getting a single stray transient under control",
+                "Treating the clap, rimshot or consonant that peaks far above the music on its own "
+                "channel, instead of pulling the whole record down every time it happens.",
+            ),
+        ),
     ),
 )
 
@@ -470,6 +513,29 @@ _add(
             "against a single number for all music."
         ),
         minutes=15,
+        resources=(
+            Resource(
+                kind="reference",
+                label="How playback loudness normalisation works",
+                url="https://en.wikipedia.org/wiki/Audio_normalization",
+                note="Peak normalisation and loudness normalisation side by side, with the worked "
+                     "example that makes this finding concrete — a platform simply subtracting "
+                     "the difference between your master and its target.",
+                source="Wikipedia",
+            ),
+            youtube_search(
+                "spotify loudness normalization why louder masters get turned down",
+                "What streaming actually does to a hot master",
+                "The same master heard before and after a platform's normalisation, which is the "
+                "only comparison that shows you what the extra limiter drive bought you.",
+            ),
+            youtube_search(
+                "level matched a b comparison loudness bias mixing",
+                "Level-matched A/B, and why it changes your mind",
+                "The technique the verify step depends on. Louder wins any unmatched comparison "
+                "for about five seconds, which is long enough to make the decision for you.",
+            ),
+        ),
     ),
 )
 
@@ -627,6 +693,29 @@ _add(
             "people end up fixing the wrong thing."
         ),
         minutes=40,
+        resources=(
+            Resource(
+                kind="reference",
+                label="The loudness war, and what ended it",
+                url="https://en.wikipedia.org/wiki/Loudness_war",
+                note="Two decades of masters compressed toward a rectangle, why engineers "
+                     "objected, and how playback normalisation removed the reward — the history "
+                     "sitting behind the waveform shape this finding is describing.",
+                source="Wikipedia",
+            ),
+            youtube_search(
+                "mix bus compression slow attack punch settings",
+                "Bus compression that adds punch rather than removing it",
+                "Attack and release demonstrated on a full mix, so you can hear the slow-attack "
+                "setting that compresses the body and lets the front of each hit through.",
+            ),
+            youtube_search(
+                "parallel compression mix bus glue without squashing",
+                "Density from a parallel path instead of the main one",
+                "The one route to a denser mix that does not cost transients: the dry signal stays "
+                "untouched while the crushed copy underneath supplies the weight.",
+            ),
+        ),
     ),
 )
 
@@ -754,6 +843,29 @@ _add(
             "distinguish any of the four cases above."
         ),
         minutes=20,
+        resources=(
+            Resource(
+                kind="reference",
+                label="How loud to aim, by genre and by platform",
+                url="https://www.masteringthemix.com/pages/how-loud-should-you-master",
+                note="Concrete loudness targets for the level stage this track has not had yet, "
+                     "including why integrated and short-term readings answer different questions "
+                     "and where to leave true peak.",
+                source="Mastering The Mix",
+            ),
+            youtube_search(
+                "how to master your own track step by step limiter loudness",
+                "A first master, in order",
+                "Full walkthroughs that follow the sequence above — tonal decisions, then glue, "
+                "then level — rather than opening with a limiter and fixing tone through it.",
+            ),
+            youtube_search(
+                "prepare your mix for mastering how much headroom to leave",
+                "If someone else is mastering this",
+                "What to send and what to strip off, for the case where this finding is correct "
+                "and the right response is to change nothing and leave the headroom alone.",
+            ),
+        ),
     ),
 )
 
@@ -886,6 +998,26 @@ _add(
             "easier. Contrast is free in one direction and expensive in the other."
         ),
         minutes=60,
+        resources=(
+            youtube_search(
+                "make the chorus hit harder arrangement contrast mixing",
+                "Making a chorus feel bigger without making it louder",
+                "Arrangement moves rather than plugin moves: what to take out of the verse so the "
+                "chorus has somewhere to arrive, which is the fix this finding actually needs.",
+            ),
+            youtube_search(
+                "volume automation mix bus chorus lift mixing",
+                "Riding the section change",
+                "Drawing the lift across a verse-into-chorus boundary, and checking that the bus "
+                "compressor is not quietly undoing the fader move you just made.",
+            ),
+            youtube_search(
+                "why doesn't my drop hit build tension arrangement",
+                "When the biggest moment does not land",
+                "The same problem from the electronic side, where the arrival is a drop: tension "
+                "built before it is what makes it feel large, not level applied to it.",
+            ),
+        ),
     ),
 )
 
@@ -1041,6 +1173,29 @@ _add(
             "not different views of the same thing; they are different things."
         ),
         minutes=35,
+        resources=(
+            Resource(
+                kind="reference",
+                label="Attack and release, explained on a snare",
+                url="https://www.soundonsound.com/techniques/compression-made-easy",
+                note="A careful treatment of the exact mechanism this finding rests on: a slow "
+                     "attack keeps the spike and squashes the body, a fast one does the reverse, "
+                     "and 'punch' presets routinely pick the wrong one.",
+                source="Sound On Sound",
+            ),
+            youtube_search(
+                "compressor attack time transients punch explained",
+                "Attack time, demonstrated on drums",
+                "Hear the click on the front of a kick disappear and come back as the attack time "
+                "moves — this finding in a single audible demonstration.",
+            ),
+            youtube_search(
+                "parallel compression drums keep transients tutorial",
+                "Weight without losing the front of the hit",
+                "Moving density into a parallel path, which is the only way to add it without "
+                "taking it out of the transients you are trying to keep.",
+            ),
+        ),
     ),
 )
 
@@ -1198,6 +1353,20 @@ _add(
             "and listen to a pad before you believe any of it."
         ),
         minutes=30,
+        resources=(
+            youtube_search(
+                "compressor release time tempo pumping breathing fix",
+                "Hearing pumping, then re-timing the release",
+                "Isolated examples of a compressor breathing at the beat rate, plus setting "
+                "release against the tempo rather than by feel — which is how it lands there.",
+            ),
+            youtube_search(
+                "compressor sidechain high pass filter stop low end pumping",
+                "Stopping the low end from driving the detector",
+                "The detector high-pass fix demonstrated: filter the bottom octave out of what "
+                "the compressor is listening to and the kick stops ducking the whole mix.",
+            ),
+        ),
     ),
 )
 
@@ -1367,6 +1536,29 @@ _add(
             "and does not hit."
         ),
         minutes=35,
+        resources=(
+            Resource(
+                kind="reference",
+                label="Parallel compression, and where the technique came from",
+                url="https://en.wikipedia.org/wiki/Parallel_compression",
+                note="Why blending a crushed copy under an untouched one keeps the attack that a "
+                     "serial compressor would have to remove — the New York drum trick your fix "
+                     "steps are describing, set out plainly.",
+                source="Wikipedia",
+            ),
+            youtube_search(
+                "drum bus compression attack release punch tutorial",
+                "Drum bus attack and release, on real kits",
+                "Setting the attack slow enough to let the stick out before the gain clamps, "
+                "which is the single move this finding turns on.",
+            ),
+            youtube_search(
+                "transient designer kick snare attack punch",
+                "Rebuilding attack per drum rather than across the bus",
+                "Transient shaping applied to the kick and snare individually, so the room and "
+                "cymbals do not rise with every hit and turn punch into click.",
+            ),
+        ),
     ),
 )
 
@@ -1528,6 +1720,29 @@ _add(
             "compression you need for the second turns out to be small."
         ),
         minutes=30,
+        resources=(
+            Resource(
+                kind="reference",
+                label="Paul White on keeping a vocal alive under compression",
+                url="https://www.soundonsound.com/techniques/vocal-production",
+                note="Level automation before the compressor, moderate ratios, and parallel "
+                     "compression for weight — an engineer arriving at the same order of "
+                     "operations as the fix steps here, and saying why.",
+                source="Sound On Sound",
+            ),
+            youtube_search(
+                "clip gain vocal editing before compression tutorial",
+                "Clip gain, phrase by phrase",
+                "The editing pass that halves how much compression the vocal needs: lifting the "
+                "quiet lines by hand before any plugin gets to see them.",
+            ),
+            youtube_search(
+                "vocal compression two compressors in series 1176 la2a",
+                "Two gentle stages instead of one heavy one",
+                "The opto-then-fast chain from the fix steps, demonstrated with each stage doing "
+                "only a couple of dB — the shape to rebuild your vocal chain toward.",
+            ),
+        ),
     ),
 )
 

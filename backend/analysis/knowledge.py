@@ -23,7 +23,7 @@ Three rules, because they are what make this worth reading:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Literal, Optional, Sequence
 
 from .capabilities import CAPABILITIES, STOCK_CAPABILITIES
 
@@ -38,6 +38,82 @@ class FixStep:
     needs: str = ""
     #: Shown instead when the producer lacks `needs`. Empty means hide the step.
     without: str = ""
+
+
+
+@dataclass(frozen=True)
+class Resource:
+    """Somewhere to go and learn more about this specific problem.
+
+    **The rule that shapes this whole feature: never invent a URL.** A
+    plausible-looking link to a video that does not exist is worse than no link
+    at all — it is the one thing on the page a user can check in a second, and
+    a 404 tells them the analysis is guessing too. So there are exactly two
+    permitted kinds, and neither can be fabricated:
+
+    `search` — a pre-filled search on a site that always exists. Structurally
+    incapable of 404ing, and it improves over time: the query keeps landing on
+    whatever the best tutorial is this year rather than freezing a link to a
+    2019 video that has since been deleted. This is the workhorse for "show me
+    a video about this".
+
+    `reference` — a specific URL, and only from `ALLOWED_RESOURCE_HOSTS`, every
+    one of which is checked by `tools/check_links.py` against the live web. If
+    it is not in the allowlist and passing the checker, it does not ship.
+
+    **On copyright.** Everything here is a plain hyperlink to a page its
+    publisher put on the open web, which is not reproduction and does not need
+    a licence. What *would* need one — and what this app therefore never does —
+    is copying their text, embedding their video in our player, or hotlinking
+    their images. We send the reader to the source; we do not host, mirror or
+    excerpt it. Every teaching sentence in these explainers is original writing,
+    not a paraphrase of a linked page.
+
+    `source` is required on a `reference` for that reason: the publisher is
+    named wherever the link appears, so a reader always knows whose work they
+    are about to read and can judge it accordingly. Attribution is a field
+    rather than a convention because a convention is something you forget.
+    """
+
+    kind: Literal["search", "reference"]
+    label: str
+    url: str
+    #: Why this is worth the click, in one line. Never "click here to learn more".
+    note: str = ""
+    #: Publisher, shown next to the link. Required for `reference`; a search
+    #: names its own site, so it is optional there.
+    source: str = ""
+
+
+#: Hosts a `reference` resource may point at. Everything here was fetched and
+#: returned 200 on 18 August 2026. Adding a host means verifying it first and
+#: accepting that `tools/check_links.py` will police it from then on.
+ALLOWED_RESOURCE_HOSTS: frozenset = frozenset({
+    "en.wikipedia.org",       # the concepts, and stable URLs
+    "www.itu.int",            # BS.1770, the loudness spec itself
+    "www.izotope.com",        # vendor-neutral enough, genuinely good explainers
+    "www.soundonsound.com",   # decades of technique writing
+    "www.masteringthemix.com",
+    "www.youtube.com",        # search only, enforced below
+})
+
+
+def youtube_search(query: str, label: str, note: str = "") -> Resource:
+    """A YouTube search that cannot break.
+
+    Deliberately a search rather than a video id. A curated query is a link
+    that gets *better* with time; a specific video is one that gets deleted,
+    goes private, or turns out to be from someone who was wrong.
+    """
+    from urllib.parse import quote_plus
+
+    return Resource(
+        kind="search",
+        label=label,
+        url=f"https://www.youtube.com/results?search_query={quote_plus(query)}",
+        note=note,
+        source="YouTube search",
+    )
 
 
 @dataclass(frozen=True)
@@ -60,6 +136,8 @@ class Explainer:
     learn_more: str = ""
     #: Roughly how long the fix takes, in minutes.
     minutes: int = 10
+    #: Where to go to learn this properly. See `Resource` for the no-fabrication rule.
+    resources: Sequence[Resource] = ()
 
 
 EXPLAINERS: Dict[str, Explainer] = {}
@@ -164,6 +242,37 @@ _add(
             "and why a true-peak reading is always equal to or higher than sample peak."
         ),
         minutes=10,
+        resources=(
+            youtube_search(
+                query="inter-sample peaks explained true peak limiter",
+                label="Why the peak meter in your DAW is not the peak",
+                note=(
+                    "Start here if the idea that a file can be louder than its own samples "
+                    "still sounds like a trick. These demonstrate the overshoot on a real "
+                    "waveform, which is faster to believe once you have watched it happen."
+                ),
+            ),
+            youtube_search(
+                query="how to set limiter ceiling for streaming mastering",
+                label="Setting the ceiling, in a limiter you actually have",
+                note=(
+                    "The fix is two switches — output ceiling and true-peak detection — and "
+                    "where they live differs per limiter. These walk through the common ones "
+                    "and why the extra dB costs you no audible loudness after normalisation."
+                ),
+            ),
+            Resource(
+                kind="reference",
+                label="ITU-R BS.1770 — where the true-peak measurement is defined",
+                url="https://www.itu.int/rec/R-REC-BS.1770/en",
+                note=(
+                    "The spec rather than a tutorial, and worth knowing exists: the "
+                    "oversample-then-measure procedure described here is what every platform's "
+                    "dBTP number and every 'true peak' switch is implementing."
+                ),
+                source="International Telecommunication Union",
+            ),
+        ),
     ),
 )
 
@@ -240,6 +349,37 @@ _add(
             "caused them."
         ),
         minutes=20,
+        resources=(
+            youtube_search(
+                query="what is clipping in audio distortion explained",
+                label="What a squared-off waveform actually sounds like",
+                note=(
+                    "Hearing clipping next to the clean signal is the quickest way to learn to "
+                    "recognise it in your own mix, which is the skill this finding is standing "
+                    "in for until you have it."
+                ),
+            ),
+            youtube_search(
+                query="clipper vs limiter for loudness mixing tutorial",
+                label="Clipping on purpose instead of by accident",
+                note=(
+                    "The fix list says to reach for a clipper deliberately rather than let the "
+                    "limiter do it unintentionally. These cover where a clipper beats a limiter "
+                    "and how much you can take before it stops being transparent."
+                ),
+            ),
+            Resource(
+                kind="reference",
+                label="Clipping (audio)",
+                url="https://en.wikipedia.org/wiki/Clipping_(audio)",
+                note=(
+                    "The mechanism in one page: why flattening a peak is the same thing as "
+                    "adding harmonics that were never played, and why hard clipping generates "
+                    "far more of them than soft."
+                ),
+                source="Wikipedia",
+            ),
+        ),
     ),
 )
 

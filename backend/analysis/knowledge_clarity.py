@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Dict
 
-from .knowledge import Explainer, FixStep
+from .knowledge import Explainer, FixStep, Resource, youtube_search
 
 __all__ = ["EXPLAINERS", "register"]
 
@@ -228,6 +228,34 @@ _add(
             "the answer is upstream in the balance rather than in the limiter."
         ),
         minutes=45,
+        resources=(
+            Resource(
+                kind="reference",
+                label="Auditory masking",
+                url="https://en.wikipedia.org/wiki/Auditory_masking",
+                source="Wikipedia",
+                note=(
+                    "The mechanism itself, from somewhere that is not us: the threshold "
+                    "shift, the upward spread, and why a masker's shadow gets wider as it "
+                    "gets louder. Read it once and the fix steps above stop being rules to "
+                    "remember."
+                ),
+            ),
+            youtube_search(
+                "how to fix a cluttered mix subtractive EQ low mids",
+                "Subtractive EQ on a whole mix, in real time",
+                "Engineers pulling 2-3 dB out of 200-500 Hz and letting the midrange come "
+                "back — the 'cut the masker' step demonstrated on real material, which is "
+                "the part that is hard to believe until you hear it.",
+            ),
+            youtube_search(
+                "too many parts in the same frequency range arrangement fix crowded mix",
+                "When the answer is the arrangement, not the EQ",
+                "For the case this explainer admits no EQ solves: two parts that genuinely "
+                "need the same octave at the same time, and what to re-voice, shorten or "
+                "mute instead of filtering.",
+            ),
+        ),
     ),
 )
 
@@ -381,6 +409,34 @@ _add(
             "wherever the crowding is — that is where the unattributed masking lives."
         ),
         minutes=30,
+        resources=(
+            Resource(
+                kind="reference",
+                label="Q. Can static EQ tackle masking effectively?",
+                url="https://www.soundonsound.com/sound-advice/q-can-static-eq-tackle-masking-effectively",
+                source="Sound On Sound",
+                note=(
+                    "Hugh Robjohns on the exact trade-off the fix steps above are making: a "
+                    "static cut thins the masker for the whole record to solve a collision "
+                    "that only happens in some bars, which is the argument for keying the "
+                    "cut off the buried part instead."
+                ),
+            ),
+            youtube_search(
+                "dynamic EQ sidechain to unmask two instruments",
+                "Setting up the sidechained band, in your DAW",
+                "The routing is the fiddly part and it differs per plugin — these walk "
+                "through getting the buried part into the trigger input, so you can aim one "
+                "band at the specific pair named above.",
+            ),
+            youtube_search(
+                "sidechain kick and bass so they stop clashing",
+                "The low-end pair, which needs ducking rather than carving",
+                "If the pair here is kick and bass, EQ is the wrong tool — there is no room "
+                "to separate them by frequency. These cover the attack and release timing "
+                "that makes one step aside for the other without it reading as pumping.",
+            ),
+        ),
     ),
 )
 
@@ -567,6 +623,34 @@ _add(
             "is weakest is naming the cause."
         ),
         minutes=30,
+        resources=(
+            youtube_search(
+                "compressor attack and release settings for punchy drums",
+                "Hearing what attack time actually does to a hit",
+                "The number one cause on the list above, demonstrated: the same drum bus at "
+                "1 ms and at 30 ms, until you can recognise a clamped transient by ear "
+                "rather than by meter.",
+            ),
+            youtube_search(
+                "why does my mix lose punch when I make it louder",
+                "Punch against loudness, which is the trade this finding is about",
+                "Why the flattened version loses to the dynamic one once a platform "
+                "normalises them to the same loudness, and where to take the level back "
+                "from instead of the limiter.",
+            ),
+            Resource(
+                kind="reference",
+                label="What is a transient in audio production?",
+                url="https://www.izotope.com/en/learn/what-is-a-transient-audio-production.html",
+                source="iZotope",
+                note=(
+                    "A tool-by-tool tour of what acts on the first few milliseconds of a hit "
+                    "— compression, transient shaping, parallel paths, saturation — worth "
+                    "reading before you pick which of the steps above is yours, since they "
+                    "sound similar and do opposite things to the envelope."
+                ),
+            ),
+        ),
     ),
 )
 
@@ -750,6 +834,34 @@ _add(
             "consonant band from everything else, not to add anything to the vocal."
         ),
         minutes=25,
+        resources=(
+            youtube_search(
+                "how to make vocals cut through the mix without turning them up",
+                "Getting the words out without touching the vocal fader",
+                "Every technique in these works on the parts around the lead, which is where "
+                "the fix lives once you have confirmed that pushing the fader makes the mix "
+                "louder and the lyric no clearer.",
+            ),
+            youtube_search(
+                "carve space for vocals sidechain dynamic EQ instrumental bus",
+                "Ducking the backing under the lead",
+                "How to build the highest-value move on the fix list: a wide band on the "
+                "instrumental bus keyed from the vocal, so the space only opens while the "
+                "vocal is actually singing and the track keeps its weight in between.",
+            ),
+            Resource(
+                kind="reference",
+                label="Intelligibility",
+                url="https://en.wikipedia.org/wiki/Intelligibility_(communication)",
+                source="Wikipedia",
+                note=(
+                    "The speech-science behind why this is not a volume problem: "
+                    "intelligibility rides on brief, quiet consonants and on the "
+                    "signal-to-noise ratio around them, which is why a louder vocal is not "
+                    "automatically a clearer one."
+                ),
+            ),
+        ),
     ),
 )
 
@@ -893,6 +1005,22 @@ _add(
             "the fader would have taken with it."
         ),
         minutes=20,
+        resources=(
+            youtube_search(
+                "how loud should the vocal be compare to reference track",
+                "Settling this against a record instead of from memory",
+                "Vocal placement is a genre convention, and this finding is a genre "
+                "judgement — these cover level-matching a reference properly, which is the "
+                "only way to tell 'too loud' from 'correct for pop'.",
+            ),
+            youtube_search(
+                "vocal sounds like it is on top of the track add depth reverb delay",
+                "Pushing a vocal back with space rather than level",
+                "The fix that keeps the presence the fader would have taken with it: "
+                "distance cues from short reverb and slap delay, for when the real complaint "
+                "is depth rather than volume.",
+            ),
+        ),
     ),
 )
 
@@ -1059,6 +1187,34 @@ _add(
             "other order means each stage is fighting the last one's mistakes."
         ),
         minutes=40,
+        resources=(
+            youtube_search(
+                "clip gain vocal editing level phrases before compression",
+                "The edit pass, which is the actual fix here",
+                "This is a performance and automation problem, not a tone one — these show "
+                "the phrase-by-phrase clip gain workflow that no plugin replaces, and why "
+                "every compressor after it behaves better.",
+            ),
+            youtube_search(
+                "vocal volume automation riding the fader mixing tutorial",
+                "Riding the vocal against the arrangement",
+                "Automation is the half of this a compressor cannot do, because it has no "
+                "idea a chorus just arrived. These cover writing and refining the rides, "
+                "which is what fixes phrase-to-phrase drift.",
+            ),
+            Resource(
+                kind="reference",
+                label="Vocal Production",
+                url="https://www.soundonsound.com/techniques/vocal-production",
+                source="Sound On Sound",
+                note=(
+                    "Paul White arriving at the same order of work from the other end: fix "
+                    "the level disparities with automation first and leave the compressor to "
+                    "shape tone rather than to level a performance it cannot see the shape "
+                    "of."
+                ),
+            ),
+        ),
     ),
 )
 

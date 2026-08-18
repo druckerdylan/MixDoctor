@@ -51,6 +51,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from urllib.parse import urlparse
 
 from analysis import capabilities, knowledge, targets
 from analysis.detectors import finding_kind
@@ -179,6 +180,38 @@ def _slug(text: str) -> str:
     return out or "section"
 
 
+def _http_url(url: str) -> str:
+    """The url if it is a web address, otherwise nothing.
+
+    Resources come from our own knowledge modules rather than from the request
+    body, so this is not defending against an attacker. It is defending against
+    a typo: a link with a missing scheme resolves relative to wherever the HTML
+    was opened from, which produces a broken link that looks fine in the source.
+    Anything that is not http(s) renders as plain text and is obviously wrong.
+    """
+    text = str(url or "").strip()
+    try:
+        scheme = urlparse(text).scheme.lower()
+    except ValueError:
+        return ""
+    return text if scheme in ("http", "https") else ""
+
+
+def _link_host(url: str) -> str:
+    """The part of a url a reader can weigh at a glance.
+
+    Printing the address inline does not survive contact with a real one — a
+    YouTube search is ninety characters of percent-encoding — and the question
+    a reader actually has is *whose site is this*. The host answers it in six
+    words; the href carries the rest, and the print stylesheet spells the full
+    address out for anyone holding paper.
+    """
+    try:
+        return (urlparse(str(url or "")).hostname or "").lower()
+    except ValueError:
+        return ""
+
+
 # ---------------------------------------------------------------------------
 # Document model
 #
@@ -212,6 +245,25 @@ class Para(Block):
 @dataclass
 class Bullets(Block):
     items: List[str]
+
+
+@dataclass
+class Links(Block):
+    """Outbound links to other people's teaching material.
+
+    Its own block rather than a `Bullets` of pre-formatted strings, because a
+    link has parts and the two renderers spell them differently: Markdown wants
+    `[label](url)`, HTML wants an anchor carrying `rel` and `target`, and print
+    wants the href written out because paper cannot be clicked. Holding the url
+    in a field instead of baked into a string is what lets each of them decide.
+
+    Each item is (label, url, source, note). `source` is the publisher's name
+    and it is rendered next to every link — that is the citation, and it is a
+    positional part of the tuple rather than an optional extra so that a call
+    site cannot omit it by forgetting.
+    """
+
+    items: List[Tuple[str, str, str, str]]
 
 
 @dataclass
@@ -297,6 +349,17 @@ class Doc:
             self.add(Bullets(kept))
         return self
 
+    def links(self, items: Sequence[Tuple[str, str, str, str]]) -> "Doc":
+        kept = [
+            (" ".join(str(lab).split()), str(url).strip(),
+             " ".join(str(src).split()), " ".join(str(note).split()))
+            for lab, url, src, note in items
+            if str(lab).strip() and str(url).strip()
+        ]
+        if kept:
+            self.add(Links(kept))
+        return self
+
     def steps(self, items: Sequence[Tuple[str, str]]) -> "Doc":
         kept = [(a, d) for a, d in items if str(a).strip()]
         if kept:
@@ -337,6 +400,11 @@ def _md_cell(text: str) -> str:
     return str(text).replace("|", "\\|").replace("\n", " ")
 
 
+def _md_link_text(text: str) -> str:
+    """Square brackets in a link label close the link early. Escape them."""
+    return str(text).replace("[", "\\[").replace("]", "\\]")
+
+
 def _to_markdown(doc: Doc) -> str:
     out: List[str] = []
 
@@ -354,6 +422,18 @@ def _to_markdown(doc: Doc) -> str:
 
         elif isinstance(block, Bullets):
             out.extend(f"- {item}" for item in block.items)
+            out.append("")
+
+        elif isinstance(block, Links):
+            for label, url, source, note in block.items:
+                # `[label](url)` keeps the address in the file even though the
+                # rendered line shows only the host: someone reading the raw
+                # Markdown, or grepping it, gets the real url.
+                host = _link_host(url)
+                credit = f" ({source})" if source else ""
+                where = f" — {host}{credit}" if host else credit
+                tail = f" {note}" if note else ""
+                out.append(f"- [{_md_link_text(label)}]({url}){where}.{tail}")
             out.append("")
 
         elif isinstance(block, Steps):
@@ -550,6 +630,14 @@ ul.check .when{
   font:600 11px/1.7 ui-monospace,Menlo,monospace;letter-spacing:.06em;white-space:nowrap
 }
 
+/* resource links */
+ul.rlist{list-style:none;padding-left:0;margin:0 0 1.2rem}
+ul.rlist>li{margin:0 0 .6rem;padding-left:1rem;border-left:2px solid var(--line)}
+ul.rlist a{font-weight:600;text-decoration:none;border-bottom:1px solid var(--good-line)}
+ul.rlist a:hover{border-bottom-color:var(--accent)}
+ul.rlist .src{color:var(--ink-3);font-size:.86rem;overflow-wrap:anywhere}
+ul.rlist .why{display:block;color:var(--ink-2);font-size:.9rem;margin-top:.1rem}
+
 /* tables */
 .tw{overflow-x:auto;margin:0 0 1.3rem;-webkit-overflow-scrolling:touch}
 table{border-collapse:collapse;width:100%;font-size:.9rem}
@@ -592,7 +680,15 @@ dl.strip dd{margin:0;font-weight:600}
   h1{font-size:22pt}h2{font-size:15pt}h3{font-size:12pt}
   h2,h3,h4{break-after:avoid;page-break-after:avoid}
   .pb{break-before:page;page-break-before:always}
-  .callout,tr,ol.steps>li,ul.check>li,dl.strip{break-inside:avoid;page-break-inside:avoid}
+  .callout,tr,ol.steps>li,ul.check>li,ul.rlist>li,dl.strip{break-inside:avoid;page-break-inside:avoid}
+  /* Paper cannot be clicked, so the address has to be on the page. The host
+     is dropped from the credit line at the same time, since the full url
+     already contains it and printing both reads as a stutter. */
+  ul.rlist a{text-decoration:none;border:0}
+  ul.rlist a::after{content:" " attr(href);font-weight:400;font-size:8.5pt;
+    color:#3d434d;word-break:break-all}
+  ul.rlist .host{display:none}
+  ul.rlist .src{font-size:9pt}
   .tw{overflow:visible}
   tbody tr:nth-child(even){background:#f4f5f7 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .callout{-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -618,6 +714,33 @@ def _to_html(doc: Doc, title: str) -> str:
         elif isinstance(block, Bullets):
             items = "".join(f"<li>{_inline(i)}</li>" for i in block.items)
             body.append(f"<ul>{items}</ul>")
+
+        elif isinstance(block, Links):
+            items = []
+            for label, url, source, note in block.items:
+                href = _http_url(url)
+                host = _link_host(url)
+                # `noopener noreferrer` on every one of these. `target="_blank"`
+                # without `noopener` hands the opened page a live handle on this
+                # document via `window.opener`, and these are third-party sites
+                # we do not control — the whole point of the feature.
+                anchor = (
+                    f'<a href="{_html.escape(href, quote=True)}" target="_blank" '
+                    f'rel="noopener noreferrer">{_inline(label)}</a>'
+                    if href else f"<strong>{_inline(label)}</strong>"
+                )
+                credit = f" ({source})" if source else ""
+                # The separator lives inside `.host` so that print, which
+                # hides the host and writes the full url instead, does not
+                # leave a dangling em dash in front of the credit.
+                where = (
+                    f'<span class="src"><span class="host"> — {_inline(host)}</span>'
+                    f"{_inline(credit)}</span>"
+                    if host else (f'<span class="src">{_inline(credit)}</span>' if credit else "")
+                )
+                why = f'<span class="why">{_inline(note)}</span>' if note else ""
+                items.append(f"<li>{anchor}{where}{why}</li>")
+            body.append('<ul class="rlist">' + "".join(items) + "</ul>")
 
         elif isinstance(block, Steps):
             items = []
@@ -1385,6 +1508,60 @@ def _resolved_steps(finding_id: str, owned: Sequence[str]) -> List[Tuple[str, st
     return out
 
 
+#: Per finding. Four is enough to give a reader a choice of format — a video, a
+#: written explanation, the spec — and few enough that the list stays a footnote
+#: to the fix rather than competing with it.
+_MAX_RESOURCES = 4
+
+
+def _resource_items(finding_id: str) -> List[Tuple[str, str, str, str]]:
+    """(label, url, source, note) for one finding's further reading.
+
+    Reads `resources` through `getattr` and tolerates its absence: an explainer
+    with no links is the normal case for anything nobody has curated yet, and
+    the document simply omits the list rather than printing an empty heading.
+
+    Nothing here is generated. Every url comes from the knowledge layer, where
+    a `reference` is restricted to an allowlist of hosts that `check_links.py`
+    fetches, and a video link is a search rather than a video id precisely so
+    that it cannot rot into a 404. This function's only job is to carry the
+    publisher's name along with the address so the credit cannot be separated
+    from the link on the way to the page.
+    """
+    explainer = knowledge.explain(finding_id)
+    if explainer is None:
+        return []
+
+    out: List[Tuple[str, str, str, str]] = []
+    for resource in (getattr(explainer, "resources", ()) or ())[:_MAX_RESOURCES]:
+        url = str(getattr(resource, "url", "") or "").strip()
+        label = _clip(getattr(resource, "label", ""), 120)
+        if not url or not label:
+            continue
+        out.append((
+            label,
+            url,
+            _clip(getattr(resource, "source", ""), 60),
+            _clip(getattr(resource, "note", ""), 200),
+        ))
+    return out
+
+
+def _learn_more(doc: Doc, finding_id: str) -> bool:
+    """The further-reading list under one finding. True if anything was added.
+
+    Last in the finding on purpose. Everything above it is what to do about
+    this track; this is where to go if you want to understand the thing itself,
+    and putting it earlier would interrupt a fix with homework.
+    """
+    items = _resource_items(finding_id)
+    if not items:
+        return False
+    doc.h(4, "Learn more")
+    doc.links(items)
+    return True
+
+
 def _prescriptions(analysis: MixAnalysis) -> Dict[str, Prescription]:
     report = analysis.engineer
     if report is None:
@@ -1938,6 +2115,8 @@ def _finding_body(doc: Doc, finding: Finding, owned: Sequence[str],
     if stop:
         doc.note("good", "You are done when", stop)
 
+    _learn_more(doc, finding.id)
+
 
 def _paragraphs(text: str) -> List[str]:
     return [p.strip() for p in str(text or "").split("\n\n") if p.strip()]
@@ -2090,6 +2269,7 @@ def _concepts_section(doc: Doc, ordered: List[Finding], genre_label: str,
             f"{genre_label} are in the appendix if you want to see what this track was measured "
             "against."
         )
+        _about_the_links(doc, ordered)
         return
 
     doc.p(
@@ -2113,6 +2293,32 @@ def _concepts_section(doc: Doc, ordered: List[Finding], genre_label: str,
         doc.h(3, f"{area} — {symptom}")
         for para in _paragraphs(learn):
             doc.p(para)
+
+    _about_the_links(doc, ordered)
+
+
+def _about_the_links(doc: Doc, ordered: Sequence[Finding]) -> None:
+    """Say whose material the *Learn more* lists point at, once, in plain words.
+
+    Only printed when the document actually contains links, and written as a
+    sentence rather than as a notice: it is here so a reader knows they are
+    about to leave for somebody else's site and who that somebody is, which is
+    information, not a disclaimer. A boxed legal-looking block would get
+    skipped, and it would also misdescribe what is happening — linking to a
+    page its publisher put on the open web is not use of their work, which is
+    why the report can do it and why the credit is the whole obligation.
+    """
+    if not any(_resource_items(f.id) for f in ordered):
+        return
+
+    doc.p(
+        "Every *Learn more* link in this report goes to somebody else's work on their own "
+        "site, and each one is credited to whoever published it so you know whose explanation "
+        "you are about to read. Mix Diagnostic does not host, copy, mirror or embed any of it "
+        "— the links are links, and every word of teaching in this document is ours. The video "
+        "links are searches rather than single videos on purpose, so they keep landing on the "
+        "best current tutorial instead of rotting into a dead page."
+    )
 
 
 # --- 8. appendix -----------------------------------------------------------
