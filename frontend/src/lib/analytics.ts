@@ -27,7 +27,7 @@
  * Use a SEPARATE property from lilbeats. Two products in one property gives
  * one blended funnel that describes neither.
  */
-const GA_DEFAULT = '';
+const GA_DEFAULT = 'G-QTF85YZR95';
 
 const GA_ID = (import.meta.env.VITE_GA_ID ?? '').trim() || GA_DEFAULT;
 

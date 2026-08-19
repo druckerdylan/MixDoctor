@@ -47,7 +47,7 @@ footer a:hover{color:var(--ink)}
   <a class="brand" href="/">&larr; Back to the analyzer</a>
 </div>
 <h1>Privacy Policy</h1>
-<p class="updated">Last updated 18 August 2026</p>
+<p class="updated">Last updated 19 August 2026</p>
 
 <p class="lead">Your music is deleted as soon as it has been measured. It is never stored, never
 sent to a third party, and never used to train anything. That is the whole policy; the rest of this
@@ -96,11 +96,27 @@ IP address, user agent — for a short period, for security and debugging. These
 function of the host and do not contain your audio.</p>
 
 <h2>5. Analytics</h2>
-<p>The site is built to support Google Analytics 4, but only when a measurement ID has been
-configured. <strong>At the time of writing, no analytics is configured on mixdiagnostic.com: no
-analytics script is loaded, no analytics cookie is set, and no analytics request leaves your
-browser.</strong> If that changes, this page will be updated and the configuration will use IP
-anonymization.</p>
+<p>This site uses <strong>Google Analytics 4</strong> to count visits and see which parts of the
+site are actually used. It is configured with IP anonymization, so your full IP address is not
+retained by the analytics property.</p>
+<p>Alongside the ordinary page-view data — pages seen, approximate country-level location, device
+and browser, referring site — a short list of product events is recorded. It is worth being exact
+about what those contain, because it is a small list:</p>
+<ul>
+  <li><strong>An analysis started</strong> — with the genre and the track type you selected.</li>
+  <li><strong>An analysis completed</strong> — with the letter grade only, such as "B+".</li>
+  <li><strong>An analysis failed.</strong></li>
+  <li><strong>A learn-more link opened</strong> — which finding it belonged to, and which source
+      it pointed at.</li>
+  <li><strong>The tip-jar link clicked.</strong></li>
+</ul>
+<p><strong>Your audio is never part of this, and neither is your file name or any measured value
+from your track.</strong> Nothing recorded here could be used to identify your music or to
+reconstruct any part of it.</p>
+<p>You can opt out completely with Google's browser add-on at
+<a href="https://tools.google.com/dlpage/gaoptout">tools.google.com/dlpage/gaoptout</a>, or by
+blocking analytics with your browser or an extension. The site behaves identically either way, and
+nothing about the analysis depends on it.</p>
 
 <h2>6. The optional written summary</h2>
 <p>A written engineer's summary can be generated on top of the measurements by a third-party language
@@ -109,8 +125,10 @@ enabled, what is sent is the numeric findings and their text descriptions — ne
 never anything that could be used to reconstruct it.</p>
 
 <h2>7. Cookies</h2>
-<p>No advertising or tracking cookies are set. If you sign in, a token is stored so the session
-persists. With analytics disabled there is no analytics cookie.</p>
+<p>Google Analytics sets its own cookies so that a returning visit is not counted twice. These are
+analytics cookies; they are not used for advertising, and no advertising or ad-personalization
+cookies are set by this site. If you sign in, a token is stored so the session persists. Blocking
+cookies, or using the opt-out above, does not affect the analyzer.</p>
 
 <h2>8. Donations</h2>
 <p>The tip jar links out to a third-party payment provider. Payments happen entirely on that
