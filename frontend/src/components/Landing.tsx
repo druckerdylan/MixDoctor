@@ -274,9 +274,147 @@ const UNITS: ReadonlyArray<readonly [string, string]> = [
 export interface LandingProps {
   /** Scrolls to / focuses the intake form. */
   onStart: () => void;
+  onSample: () => void;
+  sampleBusy: boolean;
 }
 
-export default function Landing({ onStart }: LandingProps) {
+
+/* ------------------------------------------------------------------ */
+/* Sample report                                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A real analysis of a real track, not a mockup. Every figure here is copied
+ * from public/sample-analysis.json, which the engine produced from DREAMZ.wav
+ * — one of our own beats, so there is no third-party recording on the page.
+ * The full report is fetched on click; this preview is the part worth carrying
+ * for everybody.
+ */
+const SAMPLE_FINDINGS = [
+  {
+    kind: 'Defect',
+    dim: 'Clipping',
+    title: 'True peak above the delivery ceiling',
+    detail:
+      'True peak reaches 0.05 dBTP, 0.95 dB above the −1.0 dBTP ceiling every major platform asks for. Nothing is clipped in the file itself — sample peak is −0.23 dBFS.',
+  },
+  {
+    kind: 'Deviation',
+    dim: 'Loudness',
+    title: 'Sits under the Trap reference with no clean gain left',
+    detail:
+      'Integrated loudness is −11.30 LUFS against a −9.5 to −6.0 LUFS window for Trap, and there is only −1.1 dB of clean gain left.',
+  },
+  {
+    kind: 'Deviation',
+    dim: 'Low end',
+    title: 'Sub energy runs hot against the Trap reference',
+    detail:
+      'Energy under 60 Hz measures −1.6 dB relative to the whole band, against a −16.0 to −4.0 dB window.',
+  },
+] as const;
+
+function SampleReport({ onSample, busy }: { onSample: () => void; busy: boolean }) {
+  return (
+    <section id="sample" className="relative border-t border-void-line bg-void-deep">
+      <div className="mx-auto w-full max-w-[1800px] px-4 py-20 sm:px-6 lg:px-10">
+        <p className="eyebrow text-signal-dim">What you get back</p>
+        <h2 className="display mt-4 max-w-[22ch] text-display-md text-ink">
+          A real report, on a real track.
+        </h2>
+        <p className="mt-4 max-w-[62ch] text-base leading-relaxed text-ink-dim">
+          Nothing below is a mockup. This is the analyzer&rsquo;s own output for{' '}
+          <span className="text-ink">DREAMZ</span>, one of our beats, measured as a trap
+          instrumental. Your report has the same shape.
+        </p>
+
+        <div className="mt-10 grid gap-4 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
+          {/* Verdict */}
+          <div className="rounded-2xl border border-void-line bg-void-panel p-6">
+            <p className="font-mono text-micro uppercase tracking-[0.14em] text-ink-faint">
+              DREAMZ.wav · Trap · beat
+            </p>
+            <p className="mt-4 text-lg leading-snug text-ink">1 defect to fix before mastering</p>
+            <div className="mt-6 flex items-end gap-6">
+              <div>
+                <p className="font-mono text-micro uppercase tracking-[0.14em] text-ink-faint">
+                  Technical
+                </p>
+                <p className="display mt-1 text-4xl text-ink">
+                  85.8 <span className="text-gradient text-2xl">B+</span>
+                </p>
+              </div>
+              <div>
+                <p className="font-mono text-micro uppercase tracking-[0.14em] text-ink-faint">
+                  Reference match
+                </p>
+                <p className="display mt-1 text-4xl text-ink-dim">81.4</p>
+              </div>
+            </div>
+            <p className="mt-4 text-sm leading-relaxed text-ink-muted">
+              Recognizably Trap, with its own character.
+            </p>
+            <div className="hairline my-6" />
+            <p className="text-sm leading-relaxed text-ink-muted">
+              1 defect · 7 deviations across 14 dimensions. A deviation is a difference from the
+              genre reference, not a mistake — the report says which is which.
+            </p>
+          </div>
+
+          {/* Findings */}
+          <div className="space-y-3">
+            {SAMPLE_FINDINGS.map((f) => (
+              <div
+                key={f.title}
+                className="rounded-2xl border border-void-line bg-void-panel/60 p-5"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={`rounded-full border px-2.5 py-1 font-mono text-micro uppercase tracking-[0.12em] ${
+                      f.kind === 'Defect'
+                        ? 'border-sev-critical/40 text-sev-critical'
+                        : 'border-void-line text-ink-faint'
+                    }`}
+                  >
+                    {f.kind}
+                  </span>
+                  <span className="font-mono text-micro uppercase tracking-[0.14em] text-ink-faint">
+                    {f.dim}
+                  </span>
+                </div>
+                <p className="mt-3 text-base leading-snug text-ink">{f.title}</p>
+                <p className="mt-2 text-sm leading-relaxed text-ink-muted">{f.detail}</p>
+              </div>
+            ))}
+            <p className="pt-1 text-sm text-ink-faint">
+              …plus five more, each with the measurement behind it, the move that fixes it, and the
+              second of the track where it is worst.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-10 flex flex-wrap items-center gap-4">
+          <button type="button" onClick={onSample} disabled={busy} className="btn-primary">
+            {busy ? 'Loading the report…' : 'Open the full sample report'}
+          </button>
+          <button
+            type="button"
+            onClick={onStartFromSample}
+            className="text-sm text-ink-dim underline underline-offset-4 transition-colors hover:text-ink"
+          >
+            Skip it, analyze mine
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function onStartFromSample() {
+  document.getElementById('intake')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+export default function Landing({ onStart, onSample, sampleBusy }: LandingProps) {
   const reduce = useReducedMotion();
 
   const container = {
@@ -369,10 +507,16 @@ export default function Landing({ onStart }: LandingProps) {
               </svg>
             </button>
             <a
-              href="#measured"
+              href="#sample"
               className="text-sm text-ink-dim underline underline-offset-4 transition-colors hover:text-ink"
             >
-              See the 14 checks
+              See a sample report
+            </a>
+            <a
+              href="#measured"
+              className="text-sm text-ink-faint underline underline-offset-4 transition-colors hover:text-ink"
+            >
+              The 14 checks
             </a>
           </motion.div>
 
@@ -383,6 +527,7 @@ export default function Landing({ onStart }: LandingProps) {
         </motion.div>
       </section>
 
+      <SampleReport onSample={onSample} busy={sampleBusy} />
       <MeasuredStrip />
     </>
   );

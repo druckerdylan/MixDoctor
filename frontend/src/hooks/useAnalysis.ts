@@ -47,6 +47,8 @@ export interface UseAnalysisReturn {
   analyze: (request: AnalyzeRequest) => Promise<void>;
   /** Swap in a re-scored copy of the report already on screen. */
   applyAnalysis: (next: MixAnalysis) => void;
+  /** Render a pre-computed report — used by the homepage sample. */
+  showReport: (next: MixAnalysis) => void;
   reset: () => void;
 }
 
@@ -272,6 +274,27 @@ export function useAnalysis(): UseAnalysisReturn {
     });
   }, []);
 
+  /**
+   * Seed the results view from a report that was computed elsewhere — the
+   * homepage sample. `applyAnalysis` deliberately refuses to create one from
+   * nothing (it only updates a report already on screen), so the sample needs
+   * its own entry point. The run counter is bumped and anything in flight is
+   * abandoned, so a slow real analysis cannot land on top of the sample.
+   */
+  const showReport = useCallback(
+    (next: MixAnalysis) => {
+      runRef.current += 1;
+      abortInflight();
+      clearTimers();
+      setError(null);
+      setEngineerError(null);
+      setEngineerStatus('idle');
+      setAnalysis(next);
+      setStatus('complete');
+    },
+    [abortInflight, clearTimers],
+  );
+
   const retryEngineer = useCallback(() => {
     if (!analysis) return;
     void consult(analysis, runRef.current);
@@ -300,6 +323,7 @@ export function useAnalysis(): UseAnalysisReturn {
     audioUrl,
     analyze,
     applyAnalysis,
+    showReport,
     reset,
   };
 }

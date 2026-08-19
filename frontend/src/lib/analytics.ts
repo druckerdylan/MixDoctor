@@ -10,7 +10,26 @@
  * gives you one blended funnel that describes neither.
  */
 
-const GA_ID = (import.meta.env.VITE_GA_ID ?? '').trim();
+/**
+ * The measurement ID lives in the repo, not in a dashboard.
+ *
+ * It used to be VITE_GA_ID-only, and that is how this site ended up with no
+ * analytics at all: a Vite build bakes VITE_* in at compile time, so a
+ * redeploy that reuses the build cache silently ships without the value and
+ * nothing anywhere reports an error. The tip jar was moved off env vars for
+ * exactly this reason — see the note in config.ts.
+ *
+ * A GA4 measurement ID is not a secret. It is visible in the page source of
+ * every site that uses one, so committing it costs nothing and makes the
+ * deploy reproducible. The env var still wins if it is set, which keeps
+ * previews and forks able to point somewhere else.
+ *
+ * Use a SEPARATE property from lilbeats. Two products in one property gives
+ * one blended funnel that describes neither.
+ */
+const GA_DEFAULT = '';
+
+const GA_ID = (import.meta.env.VITE_GA_ID ?? '').trim() || GA_DEFAULT;
 
 /** Whether analytics is configured for this build. */
 export const analyticsEnabled = /^G-[A-Z0-9]+$/i.test(GA_ID);

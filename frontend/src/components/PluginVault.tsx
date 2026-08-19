@@ -336,26 +336,31 @@ function Group({
   count,
   open,
   onToggle,
+  action,
   children,
 }: {
   label: string;
   count: string;
   open: boolean;
   onToggle: () => void;
+  action?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <div className="border-b border-void-lineSoft last:border-b-0">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={open}
-        className="flex w-full items-center gap-2 px-1 py-3 text-left text-ink-dim transition-colors duration-200 hover:text-ink"
-      >
-        <Chevron open={open} />
-        <span className="flex-1 text-sm">{label}</span>
-        <span className="stat text-micro text-ink-faint">{count}</span>
-      </button>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          className="flex min-w-0 flex-1 items-center gap-2 px-1 py-3 text-left text-ink-dim transition-colors duration-200 hover:text-ink"
+        >
+          <Chevron open={open} />
+          <span className="flex-1 truncate text-sm">{label}</span>
+          <span className="stat text-micro text-ink-faint">{count}</span>
+        </button>
+        {action}
+      </div>
       {open && <div className="space-y-0.5 pb-3">{children}</div>}
     </div>
   );
@@ -930,6 +935,7 @@ export default function PluginVault({ open, onClose }: PluginVaultProps) {
 
                     {grouped.map(({ manufacturer, plugins: makerPlugins }) => {
                       const ownedHere = makerPlugins.filter((plugin) => has(plugin)).length;
+                      const allOwned = ownedHere === makerPlugins.length && makerPlugins.length > 0;
                       return (
                         <Group
                           key={manufacturer}
@@ -937,6 +943,42 @@ export default function PluginVault({ open, onClose }: PluginVaultProps) {
                           count={`${ownedHere > 0 ? `${ownedHere} / ` : ''}${makerPlugins.length}`}
                           open={expanded.has(manufacturer)}
                           onToggle={() => toggleGroup(manufacturer)}
+                          action={
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (allOwned) {
+                                  // By object, not by name: matches() falls back to a
+                                  // bare-name compare for strings, which would also
+                                  // delete a user's custom entry that happens to share
+                                  // the name. pluginKey is maker-scoped.
+                                  makerPlugins.forEach((plugin) =>
+                                    remove({
+                                      name: plugin.name,
+                                      manufacturer: plugin.manufacturer,
+                                      category: plugin.category,
+                                      capabilities: plugin.capabilities,
+                                    }),
+                                  );
+                                } else {
+                                  add(
+                                    makerPlugins
+                                      .filter((plugin) => !has(plugin))
+                                      .map((plugin) => ({
+                                        name: plugin.name,
+                                        manufacturer: plugin.manufacturer,
+                                        category: plugin.category,
+                                        capabilities: plugin.capabilities,
+                                      })),
+                                  );
+                                }
+                              }}
+                              aria-label={`${allOwned ? 'Remove all' : 'Add all'} ${manufacturer} plugins`}
+                              className="shrink-0 rounded-lg border border-void-line px-2.5 py-1 font-mono text-micro uppercase tracking-[0.1em] text-ink-faint transition-colors hover:border-ink-faint hover:text-ink"
+                            >
+                              {allOwned ? 'Remove all' : 'Add all'}
+                            </button>
+                          }
                         >
                           {makerPlugins.map((plugin) => (
                             <PluginRow

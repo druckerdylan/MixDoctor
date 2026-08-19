@@ -28,6 +28,7 @@ function AppContent() {
     audioUrl,
     analyze,
     applyAnalysis,
+    showReport,
     reset,
     engineerStatus,
     engineerError,
@@ -40,6 +41,27 @@ function AppContent() {
    * form back exactly as it was rather than making them re-pick the file.
    */
   const [submission, setSubmission] = useState<IntakeSubmission | null>(null);
+
+  /**
+   * The homepage sample. 150 kB of real measurement, so it is fetched on the
+   * click rather than bundled — the landing page must not carry it for the
+   * majority who never ask for it.
+   */
+  const [sampleBusy, setSampleBusy] = useState(false);
+  const showSample = useCallback(async () => {
+    setSampleBusy(true);
+    try {
+      const res = await fetch('/sample-analysis.json', { cache: 'force-cache' });
+      if (!res.ok) throw new Error(String(res.status));
+      showReport(await res.json());
+    } catch {
+      // Nothing to recover: the sample is a nicety, and the real analyzer is
+      // one scroll away. Send them there rather than showing an error.
+      scrollToIntake();
+    } finally {
+      setSampleBusy(false);
+    }
+  }, [showReport]);
 
   const working = status === 'uploading' || status === 'measuring' || status === 'consulting';
   const phase: Phase = analysis && status === 'complete' ? 'results' : working ? 'analyzing' : 'intake';
@@ -97,7 +119,7 @@ function AppContent() {
       <AnimatePresence mode="wait" initial={false}>
         {phase === 'intake' && (
           <motion.div key="intake" {...fade}>
-            <Landing onStart={scrollToIntake} />
+            <Landing onStart={scrollToIntake} onSample={showSample} sampleBusy={sampleBusy} />
             <Intake
               onSubmit={handleSubmit}
               error={status === 'error' ? error : null}
