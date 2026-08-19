@@ -462,7 +462,7 @@ export default function Landing({ onStart, onSample, sampleBusy }: LandingProps)
             <p className="eyebrow text-ink-dim">Mix diagnostics · 14 dimensions</p>
           </motion.div>
 
-          <motion.h1 variants={item} className="display mt-7 max-w-[20ch] text-display-xl text-ink">
+          <motion.h1 variants={item} className="display mt-7 max-w-[24ch] text-display-xl text-ink">
             Every flaw in your mix,
             <br />
             <span className="text-gradient">timestamped.</span>

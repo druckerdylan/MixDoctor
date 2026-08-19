@@ -53,7 +53,7 @@ export default {
       },
       fontSize: {
         // Editorial display scale — tight tracking, set at the top of the page.
-        'display-xl': ['clamp(3.5rem, 11vw, 8.5rem)', { lineHeight: '0.88', letterSpacing: '-0.045em' }],
+        'display-xl': ['clamp(3.5rem, 11vw, 8.5rem)', { lineHeight: '0.97', letterSpacing: '-0.03em' }],
         'display-lg': ['clamp(2.5rem, 7vw, 5rem)', { lineHeight: '0.92', letterSpacing: '-0.035em' }],
         'display-md': ['clamp(1.75rem, 4vw, 2.75rem)', { lineHeight: '1.0', letterSpacing: '-0.025em' }],
         // All-caps micro labels above data.
